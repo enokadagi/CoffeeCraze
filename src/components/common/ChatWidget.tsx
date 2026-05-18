@@ -50,9 +50,9 @@ export default function ChatWidget() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-coffee-950 text-white rounded-2xl shadow-2xl flex items-center justify-center z-50 hover:bg-coffee-500 transition-colors"
+        className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-16 sm:h-16 bg-coffee-950 text-white rounded-2xl shadow-2xl flex items-center justify-center z-50 hover:bg-coffee-500 transition-colors"
       >
-        {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
+        {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </motion.button>
 
       {/* Chat Window */}
@@ -62,13 +62,13 @@ export default function ChatWidget() {
             initial={{ opacity: 0, scale: 0.9, y: 50, x: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 50, x: 20 }}
-            className="fixed bottom-28 right-8 w-[90vw] md:w-96 h-[500px] max-h-[70vh] bg-white border border-coffee-100 rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] z-50 flex flex-col overflow-hidden"
+            className="fixed bottom-24 right-4 sm:bottom-28 sm:right-8 w-[95vw] sm:w-[90vw] md:w-96 h-[400px] sm:h-[500px] max-h-[80vh] sm:max-h-[70vh] bg-white border border-coffee-100 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] z-50 flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="p-6 bg-coffee-950 text-white flex items-center justify-between">
+            <div className="p-4 sm:p-6 bg-coffee-950 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-coffee-500 rounded-xl flex items-center justify-center">
-                  <Bot size={20} />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-coffee-500 rounded-xl flex items-center justify-center">
+                  <Bot size={18} />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold">Ritual Concierge</h3>
@@ -80,7 +80,7 @@ export default function ChatWidget() {
             {/* Messages */}
             <div 
               ref={scrollRef}
-              className="flex-grow overflow-y-auto p-6 space-y-4 no-scrollbar"
+              className="flex-grow overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar"
             >
               {messages.map((msg, i) => (
                 <div 
@@ -91,7 +91,7 @@ export default function ChatWidget() {
                   )}
                 >
                   <div className={cn(
-                    "p-4 rounded-2xl text-xs leading-relaxed",
+                    "p-3 sm:p-4 rounded-2xl text-xs leading-relaxed",
                     msg.role === 'user' ? "bg-coffee-950 text-white rounded-tr-none" : "bg-coffee-50 text-coffee-950 rounded-tl-none border border-coffee-100"
                   )}>
                   <div className="markdown-body prose prose-coffee prose-xs">
@@ -109,7 +109,7 @@ export default function ChatWidget() {
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSend} className="p-4 border-t border-coffee-50 bg-white">
+            <form onSubmit={handleSend} className="p-3 sm:p-4 border-t border-coffee-50 bg-white">
               <div className="relative">
                 <input
                   type="text"

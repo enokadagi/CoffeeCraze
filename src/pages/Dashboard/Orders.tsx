@@ -90,22 +90,22 @@ export default function MyOrders() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-16 relative">
-        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-white pb-16">
+      <div className="space-y-8 md:space-y-16 relative">
+        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 md:gap-10 border-b border-white pb-8 md:pb-16">
           <div className="space-y-4">
             <span className="stat-label text-caramel italic">Extraction Archive</span>
-            <h1 className="text-7xl font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-coffee-400">Vault.</span></h1>
-            <p className="text-xl text-coffee-400 font-serif italic">Total of <span className="text-espresso font-black not-italic uppercase">{orders.length}</span> recorded protocols in your sensory ledger.</p>
+            <h1 className="text-fluid-hero font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-coffee-400">Vault.</span></h1>
+            <p className="text-fluid-body text-coffee-400 font-serif italic">Total of <span className="text-espresso font-black not-italic uppercase">{orders.length}</span> recorded protocols in your sensory ledger.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-8">
-            <div className="px-10 py-6 bg-white/40 backdrop-blur-xl rounded-[2.5rem] flex items-center gap-6 border border-white/60 shadow-premium group hover:bg-white/60 transition-all duration-1000">
+            <div className="px-6 md:px-10 py-4 md:py-6 bg-white/40 backdrop-blur-xl rounded-[2.5rem] flex items-center gap-4 md:gap-6 border border-white/60 shadow-premium group hover:bg-white/60 transition-all duration-1000">
               <div className="w-12 h-12 bg-espresso text-caramel-gold rounded-2xl flex items-center justify-center shadow-premium group-hover:rotate-12 transition-transform duration-700">
-                <ShoppingBag size={20} className="fill-current" />
+                <ShoppingBag size={18} className="fill-current" />
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-300 italic mb-1">Total Extraction Cycle</p>
-                <p className="text-2xl font-display font-black text-espresso italic tracking-tighter">LBP {formatPrice(orders.reduce((acc, o) => acc + o.total, 0)).split('LBP')[1]}</p>
+                <p className="text-fluid-title font-display font-black text-espresso italic tracking-tighter">LBP {formatPrice(orders.reduce((acc, o) => acc + o.total, 0)).split('LBP')[1]}</p>
               </div>
             </div>
           </div>
@@ -116,14 +116,14 @@ export default function MyOrders() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col xl:flex-row gap-10 p-12 bg-white shadow-premium-lg rounded-[4rem] border border-white relative overflow-hidden group"
+            className="flex flex-col xl:flex-row gap-6 md:gap-10 p-6 md:p-10 lg:p-12 bg-white shadow-premium-lg rounded-[4rem] border border-white relative overflow-hidden group"
           >
             <div className="mesh-gradient absolute inset-0 opacity-5 pointer-events-none" />
             
-            <div className="flex flex-col md:flex-row gap-10 flex-grow relative z-10">
+            <div className="flex flex-col md:flex-row gap-6 md:gap-10 flex-grow relative z-10">
               <div className="flex-grow space-y-4">
                 <label className="text-[11px] font-black uppercase tracking-[0.5em] text-coffee-300 italic block ml-6">DATE_PARAMETER_RANGE</label>
-                <div className="flex items-center gap-6 bg-cream/60 backdrop-blur-md border border-white rounded-[2rem] px-8 py-5 shadow-inner ring-1 ring-white">
+                <div className="flex items-center gap-4 md:gap-6 bg-cream/60 backdrop-blur-md border border-white rounded-[2rem] px-6 md:px-8 py-4 md:py-5 shadow-inner ring-1 ring-white">
                   <Calendar size={18} className="text-caramel" />
                   <div className="flex items-center gap-4 w-full">
                     <input 
@@ -148,11 +148,11 @@ export default function MyOrders() {
                 </div>
               </div>
 
-              <div className="flex items-end gap-6 relative z-10">
+              <div className="flex items-end gap-4 md:gap-6 relative z-10">
                 <button 
                   onClick={() => toggleSort('createdAt')}
                   className={cn(
-                    "px-10 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 transition-all duration-700 italic border",
+                    "px-6 md:px-10 py-4 md:py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 transition-all duration-700 italic border",
                     sortField === 'createdAt' ? "bg-espresso text-caramel-gold border-espresso shadow-premium-lg scale-105" : "bg-white border-coffee-100 text-coffee-400 hover:border-caramel hover:text-caramel"
                   )}
                 >
@@ -162,7 +162,7 @@ export default function MyOrders() {
                 <button 
                   onClick={() => toggleSort('total')}
                   className={cn(
-                    "px-10 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 transition-all duration-700 italic border",
+                    "px-6 md:px-10 py-4 md:py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 transition-all duration-700 italic border",
                     sortField === 'total' ? "bg-espresso text-caramel-gold border-espresso shadow-premium-lg scale-105" : "bg-white border-coffee-100 text-coffee-400 hover:border-caramel hover:text-caramel"
                   )}
                 >
@@ -188,24 +188,24 @@ export default function MyOrders() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => setExpandedOrderId(expandedOrderId === order.id ? null : order.id)}
-                className="bg-white border border-white rounded-[4rem] p-10 md:p-14 hover:shadow-premium-xl transition-all duration-1000 group relative overflow-hidden cursor-pointer"
+                className="bg-white border border-white rounded-[4rem] p-6 md:p-10 lg:p-14 hover:shadow-premium-xl transition-all duration-1000 group relative overflow-hidden cursor-pointer"
               >
                 <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-cream/20 blur-[100px] opacity-[0.5] -translate-y-1/2 translate-x-1/2 rounded-full pointer-events-none group-hover:bg-caramel/10 transition-colors duration-1000"></div>
                 
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-16 relative z-10">
-                  <div className="flex items-center gap-10">
-                    <div className="w-24 h-24 bg-cream rounded-[2.5rem] flex items-center justify-center shrink-0 text-caramel group-hover:bg-espresso group-hover:text-caramel-gold transition-all duration-1000 shadow-premium group-hover:rotate-6">
-                      <ShoppingBag size={32} strokeWidth={1} />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-16 relative z-10">
+                  <div className="flex items-center gap-4 md:gap-10">
+                    <div className="w-16 h-16 md:w-24 md:h-24 bg-cream rounded-[2.5rem] flex items-center justify-center shrink-0 text-caramel group-hover:bg-espresso group-hover:text-caramel-gold transition-all duration-1000 shadow-premium group-hover:rotate-6">
+                      <ShoppingBag size={24} strokeWidth={1} />
                     </div>
                     <div className="space-y-4">
                        <div className="flex items-center gap-4">
                           <span className="text-[10px] font-black text-coffee-300 uppercase tracking-[0.4em] italic leading-none">ID://</span>
-                          <span className="text-xl font-display font-black text-espresso uppercase tracking-tighter italic">#{order.id.slice(-12).toUpperCase()}</span>
+                          <span className="text-fluid-body font-display font-black text-espresso uppercase tracking-tighter italic">#{order.id.slice(-12).toUpperCase()}</span>
                        </div>
-                       <h3 className="text-3xl font-display font-black text-espresso tracking-tightest italic">
+                       <h3 className="text-fluid-title font-display font-black text-espresso tracking-tightest italic">
                          {order.items.length} {order.items.length === 1 ? 'Ritual Core' : 'Sensory Primitives'}
                        </h3>
-                       <p className="text-sm text-coffee-400 font-serif italic">
+                       <p className="text-fluid-body font-serif italic">
                          Extracted on {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                        </p>
                     </div>
@@ -241,15 +241,15 @@ export default function MyOrders() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between lg:justify-end gap-16">
+                  <div className="flex items-center justify-between lg:justify-end gap-4 md:gap-16">
                     <div className="text-left xl:text-right">
                       <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] mb-2 italic">Ledger Value</p>
-                      <p className="text-4xl font-display font-black text-espresso italic tracking-tightest">{formatPrice(order.total)}</p>
+                      <p className="text-fluid-title font-display font-black text-espresso italic tracking-tightest">{formatPrice(order.total)}</p>
                     </div>
 
                     <div className="flex items-center gap-6">
                       <div className={cn(
-                        "px-10 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 border shadow-premium italic transition-all duration-700",
+                        "px-6 md:px-10 py-3 md:py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 border shadow-premium italic transition-all duration-700",
                         order.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
                         order.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
                         order.status === 'confirmed' ? "bg-blue-50 text-blue-600 border-blue-100" :
@@ -266,7 +266,7 @@ export default function MyOrders() {
                           setExpandedOrderId(expandedOrderId === order.id ? null : order.id);
                         }}
                         className={cn(
-                          "w-16 h-16 bg-white border border-coffee-100 text-espresso rounded-[1.5rem] flex items-center justify-center hover:bg-cream transition-all duration-500 hover:shadow-premium active:scale-90",
+                          "w-12 h-12 md:w-16 md:h-16 bg-white border border-coffee-100 text-espresso rounded-[1.5rem] flex items-center justify-center hover:bg-cream transition-all duration-500 hover:shadow-premium active:scale-90",
                           expandedOrderId === order.id && "bg-espresso text-caramel-gold border-espresso shadow-premium-lg"
                         )}
                       >
@@ -274,7 +274,7 @@ export default function MyOrders() {
                           animate={{ rotate: expandedOrderId === order.id ? 90 : 0 }}
                           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                         >
-                          <ChevronRight size={24} />
+                          <ChevronRight size={20} />
                         </motion.div>
                       </button>
 
@@ -283,10 +283,10 @@ export default function MyOrders() {
                           e.stopPropagation();
                           setSelectedOrder(order);
                         }}
-                        className="w-16 h-16 bg-espresso text-caramel-gold rounded-[1.5rem] flex items-center justify-center hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium-lg active:scale-95 group/btn overflow-hidden"
+                        className="w-12 h-12 md:w-16 md:h-16 bg-espresso text-caramel-gold rounded-[1.5rem] flex items-center justify-center hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium-lg active:scale-95 group/btn overflow-hidden"
                       >
                         <motion.div whileHover={{ y: -5 }}>
-                          <Package size={24} strokeWidth={1} />
+                          <Package size={20} strokeWidth={1} />
                         </motion.div>
                       </button>
                     </div>
@@ -302,17 +302,17 @@ export default function MyOrders() {
                       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                       className="overflow-hidden"
                     >
-                    <div className="pt-16 mt-16 border-t border-cream space-y-16">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="pt-8 md:pt-16 mt-8 md:mt-16 border-t border-cream space-y-8 md:space-y-16">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
                           <div className="space-y-6">
                             <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-espresso italic">Logistical Hub</h4>
-                            <div className="p-10 bg-cream shadow-premium rounded-[3.5rem] border border-white flex items-start gap-8 group/loc">
-                              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-caramel shrink-0 group-hover/loc:bg-espresso group-hover:text-caramel-gold transition-colors duration-700 shadow-premium">
-                                <MapPin size={24} />
+                            <div className="p-6 md:p-10 bg-cream shadow-premium rounded-[3.5rem] border border-white flex items-start gap-8 group/loc">
+                              <div className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center text-caramel shrink-0 group-hover/loc:bg-espresso group-hover:text-caramel-gold transition-colors duration-700 shadow-premium">
+                                <MapPin size={20} />
                               </div>
                               <div className="space-y-2">
-                                <p className="text-xl font-display font-black text-espresso italic uppercase tracking-tighter">{order.shippingAddress?.fullName}</p>
-                                <p className="text-lg text-coffee-400 font-serif italic leading-relaxed">
+                                <p className="text-fluid-body font-display font-black text-espresso italic uppercase tracking-tighter">{order.shippingAddress?.fullName}</p>
+                                <p className="text-fluid-body text-coffee-400 font-serif italic leading-relaxed">
                                   {order.shippingAddress?.address}, {order.shippingAddress?.city}<br/>
                                   {order.shippingAddress?.region}_SECTOR
                                 </p>
@@ -321,19 +321,19 @@ export default function MyOrders() {
                           </div>
                           <div className="space-y-6">
                             <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-espresso italic">Financial Settlement</h4>
-                            <div className="p-10 bg-cream shadow-premium rounded-[3.5rem] border border-white flex items-center gap-8 group/pay">
-                              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-caramel shrink-0 group-hover/pay:bg-espresso group-hover:text-caramel-gold transition-colors duration-700 shadow-premium">
-                                <CreditCard size={24} />
+                            <div className="p-6 md:p-10 bg-cream shadow-premium rounded-[3.5rem] border border-white flex items-center gap-8 group/pay">
+                              <div className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center text-caramel shrink-0 group-hover/pay:bg-espresso group-hover:text-caramel-gold transition-colors duration-700 shadow-premium">
+                                <CreditCard size={20} />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xl font-display font-black text-espresso uppercase tracking-tighter italic">{order.paymentMethod === 'cod' ? 'Deferred Settlement' : 'Encrypted Card'}</p>
+                                <p className="text-fluid-body font-display font-black text-espresso uppercase tracking-tighter italic">{order.paymentMethod === 'cod' ? 'Deferred Settlement' : 'Encrypted Card'}</p>
                                 <p className="text-[11px] text-coffee-300 font-black uppercase tracking-[0.4em] italic leading-none">{order.paymentMethod === 'cod' ? 'CASH_ON_DELIVERY' : 'STRIPE_GATEWAY_AUTH'}</p>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="space-y-10">
+                        <div className="space-y-6 md:space-y-10">
                           <div className="flex items-center justify-between border-b border-cream pb-6">
                             <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-espresso italic">Primitive Components</h4>
                             {order.trackingId && (order.status === 'shipped' || order.status === 'delivered') && (
@@ -347,26 +347,26 @@ export default function MyOrders() {
                             </a>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                           {order.items.map((item, idx) => (
                             <motion.div 
                               key={idx} 
                               whileHover={{ scale: 1.02 }}
-                              className="flex items-center justify-between p-8 bg-white shadow-premium rounded-[3rem] border border-cream group/item"
+                              className="flex items-center justify-between p-4 md:p-8 bg-white shadow-premium rounded-[3rem] border border-cream group/item"
                             >
-                              <div className="flex items-center gap-10">
-                                <div className="relative overflow-hidden w-24 h-24 rounded-[1.5rem] shrink-0 border border-cream shadow-inner">
+                              <div className="flex items-center gap-4 md:gap-10">
+                                <div className="relative overflow-hidden w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] shrink-0 border border-cream shadow-inner">
                                   <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
                                   <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[1.5rem]" />
                                 </div>
                                 <div className="space-y-2">
-                                  <p className="text-xl font-display font-black text-espresso italic uppercase leading-none tracking-tight">{item.name}</p>
+                                  <p className="text-fluid-body font-display font-black text-espresso italic uppercase leading-none tracking-tight">{item.name}</p>
                                   <p className="text-[11px] text-coffee-400 font-black uppercase tracking-[0.4em] italic mb-2">QUANTITY_X{item.quantity}</p>
                                   <p className="text-[10px] text-caramel font-black uppercase tracking-[0.3em] font-serif">Valuation: {formatPrice(item.price)}</p>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="text-2xl font-display font-black text-espresso italic tracking-tighter">{formatPrice(item.price * item.quantity)}</p>
+                                <p className="text-fluid-title font-display font-black text-espresso italic tracking-tighter">{formatPrice(item.price * item.quantity)}</p>
                               </div>
                             </motion.div>
                           ))}
@@ -380,7 +380,7 @@ export default function MyOrders() {
             ))}
 
             {/* Pagination Logistics */}
-            <div className="pt-20 flex flex-col md:flex-row items-center justify-between gap-10 border-t border-cream px-8">
+            <div className="pt-10 md:pt-20 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-10 border-t border-cream px-4 md:px-8">
               <p className="text-[12px] font-black text-coffee-300 uppercase tracking-[0.5em] italic">
                 Logs {Math.min(filteredAndSortedOrders.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredAndSortedOrders.length, currentPage * itemsPerPage)} // Total {filteredAndSortedOrders.length} Rituals
               </p>
@@ -388,9 +388,9 @@ export default function MyOrders() {
                 <button 
                   disabled={currentPage === 1}
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(prev => Math.max(1, prev - 1)); }}
-                  className="w-16 h-16 bg-white border border-coffee-100 rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
+                  className="w-12 h-12 md:w-16 md:h-16 bg-white border border-coffee-100 rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
                 >
-                  <ChevronLeft size={24} />
+                  <ChevronLeft size={20} />
                 </button>
                 <div className="flex items-center gap-4">
                   {[...Array(totalPages)].map((_, i) => (
@@ -398,7 +398,7 @@ export default function MyOrders() {
                       key={i}
                       onClick={(e) => { e.stopPropagation(); setCurrentPage(i + 1); }}
                       className={cn(
-                        "w-12 h-12 rounded-[1rem] text-[12px] font-black transition-all duration-500 italic",
+                        "w-10 h-10 md:w-12 md:h-12 rounded-[1rem] text-[12px] font-black transition-all duration-500 italic",
                         currentPage === i + 1 ? "bg-espresso text-caramel-gold shadow-premium-lg scale-110" : "bg-white border-coffee-50 text-coffee-400 hover:text-caramel hover:border-caramel"
                       )}
                     >
@@ -409,30 +409,30 @@ export default function MyOrders() {
                 <button 
                   disabled={currentPage === totalPages}
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(prev => Math.min(totalPages, prev + 1)); }}
-                  className="w-16 h-16 bg-white border border-coffee-100 rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
+                  className="w-12 h-12 md:w-16 md:h-16 bg-white border border-coffee-100 rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
                 >
-                  <ChevronRight size={24} />
+                  <ChevronRight size={20} />
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          <div className="py-48 text-center bg-white border-2 border-coffee-50 border-dashed rounded-[6rem] space-y-12 relative overflow-hidden group">
+          <div className="py-20 md:py-48 text-center bg-white border-2 border-coffee-50 border-dashed rounded-[6rem] space-y-12 relative overflow-hidden group">
             <div className="mesh-gradient absolute inset-0 opacity-5 pointer-events-none" />
-            <div className="w-32 h-32 bg-coffee-50 rounded-[3.5rem] flex items-center justify-center mx-auto text-gold-500 shadow-premium group-hover:rotate-12 transition-transform duration-1000 relative z-10">
-              <ShoppingBag size={48} strokeWidth={0.5} />
+            <div className="w-20 h-20 md:w-32 md:h-32 bg-coffee-50 rounded-[3.5rem] flex items-center justify-center mx-auto text-gold-500 shadow-premium group-hover:rotate-12 transition-transform duration-1000 relative z-10">
+              <ShoppingBag size={32} strokeWidth={0.5} />
             </div>
             <div className="space-y-6 relative z-10">
-              <h3 className="text-5xl font-display font-black text-coffee-950 italic leading-none uppercase tracking-tightest">Null Logs <br/><span className="not-italic text-coffee-400">Detected.</span></h3>
-              <p className="text-xl text-coffee-400 font-serif italic max-w-md mx-auto">Your sensory journey is awaiting its primary extraction initialization.</p>
+              <h3 className="text-fluid-heading font-display font-black text-coffee-950 italic leading-none uppercase tracking-tightest">Null Logs <br/><span className="not-italic text-coffee-400">Detected.</span></h3>
+              <p className="text-fluid-body text-coffee-400 font-serif italic max-w-md mx-auto">Your sensory journey is awaiting its primary extraction initialization.</p>
             </div>
-            <Link to="/shop" className="btn-premium px-16 py-8 italic uppercase text-[11px] relative z-10 inline-flex">
+            <Link to="/shop" className="btn-premium px-10 md:px-16 py-6 md:py-8 italic uppercase text-[11px] relative z-10 inline-flex">
               Initiate Primary Protocol <ArrowRight size={18} className="ml-4" />
             </Link>
           </div>
         )}
 
-        <div className="pt-24">
+        <div className="pt-12 md:pt-24">
           <ReferralSystem />
         </div>
       </div>
@@ -454,7 +454,7 @@ export default function MyOrders() {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="relative w-full max-w-3xl bg-white rounded-[4rem] shadow-premium-lg overflow-hidden flex flex-col"
             >
-              <div className="p-12 md:p-16 space-y-12">
+              <div className="p-6 md:p-12 lg:p-16 space-y-6 md:space-y-12">
                 <div className="flex items-start justify-between">
                   <div className="space-y-4 w-full">
                     <div className="flex items-center justify-between">
@@ -486,31 +486,31 @@ export default function MyOrders() {
                         );
                       })}
                     </div>
-                    <h2 className="text-5xl font-display font-black text-coffee-950 italic leading-none overflow-hidden">
+                    <h2 className="text-fluid-heading font-display font-black text-coffee-950 italic leading-none overflow-hidden">
                       Ritual <span className="not-italic text-coffee-500">Tracking.</span>
                     </h2>
                     <p className="text-[10px] font-black text-coffee-300 uppercase tracking-widest mt-2 leading-none">Order UUID: {selectedOrder.id}</p>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="w-14 h-14 bg-coffee-50 rounded-2xl flex items-center justify-center text-coffee-400 hover:text-coffee-950 transition-all active:scale-95 ml-8 shrink-0">
-                    <X size={24} />
+                  <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 md:w-14 md:h-14 bg-coffee-50 rounded-2xl flex items-center justify-center text-coffee-400 hover:text-coffee-950 transition-all active:scale-95 ml-8 shrink-0">
+                    <X size={20} />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="p-10 bg-[#faf8f5] rounded-[3rem] border border-coffee-50 group hover:bg-coffee-950 hover:text-white transition-all duration-700">
+                  <div className="p-6 md:p-10 bg-[#faf8f5] rounded-[3rem] border border-coffee-50 group hover:bg-coffee-950 hover:text-white transition-all duration-700">
                     <div className="flex items-center gap-4 mb-6">
                        <MapPin className="text-coffee-300 group-hover:text-white" size={20} />
                        <span className="text-[10px] font-black uppercase tracking-widest">Protocol Destination</span>
                     </div>
                     <div>
-                      <p className="text-xl font-display font-black tracking-tight">{selectedOrder.shippingAddress?.fullName || 'Elias Mansour'}</p>
+                      <p className="text-fluid-body font-display font-black tracking-tight">{selectedOrder.shippingAddress?.fullName || 'Elias Mansour'}</p>
                       <p className="text-sm opacity-60 font-medium italic mt-1">{selectedOrder.shippingAddress?.address || 'Beirut Waterfront, District 4'}</p>
                       <p className="text-[10px] font-black text-coffee-400 group-hover:text-coffee-500 uppercase tracking-widest mt-4">Standard Zone 1</p>
                     </div>
                   </div>
 
                   <div className={cn(
-                    "p-10 rounded-[3rem] border transition-all duration-700 group",
+                    "p-6 md:p-10 rounded-[3rem] border transition-all duration-700 group",
                     selectedOrder.status === 'delivered' ? "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-600 hover:text-white" :
                     selectedOrder.status === 'shipped' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
                     selectedOrder.status === 'confirmed' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
@@ -522,7 +522,7 @@ export default function MyOrders() {
                        <span className="text-[10px] font-black uppercase tracking-widest">Logistics Provider</span>
                     </div>
                     <div>
-                      <p className="text-xl font-display font-black tracking-tight">Ritual Fleet Express</p>
+                      <p className="text-fluid-body font-display font-black tracking-tight">Ritual Fleet Express</p>
                       <p className="text-sm opacity-60 font-medium italic mt-1 uppercase tracking-tight">Status: {selectedOrder.status}</p>
                       {selectedOrder.trackingId && (
                         <a 
@@ -538,7 +538,7 @@ export default function MyOrders() {
                   </div>
                 </div>
 
-                <div className="space-y-10 px-4">
+                <div className="space-y-6 md:space-y-10 px-4">
                   {getTrackingSteps(selectedOrder.status).map((step, i) => (
                     <div key={i} className="flex gap-8 relative">
                       {i !== getTrackingSteps(selectedOrder.status).length - 1 && (
@@ -557,7 +557,7 @@ export default function MyOrders() {
                       </div>
                       <div className="py-1">
                         <h4 className={cn(
-                          "text-lg font-display font-black tracking-tight",
+                          "text-fluid-body font-display font-black tracking-tight",
                           step.status === 'pending' ? 'text-coffee-200' : 'text-coffee-950'
                         )}>{step.label}</h4>
                         <p className={cn(
@@ -571,7 +571,7 @@ export default function MyOrders() {
 
                 <button 
                   onClick={() => setSelectedOrder(null)}
-                  className="w-full py-6 bg-coffee-950 text-white rounded-full text-[10px] font-black uppercase tracking-[0.3em] hover:bg-coffee-500 transition-all shadow-2xl shadow-coffee-950/20 active:scale-95"
+                  className="w-full py-4 md:py-6 bg-coffee-950 text-white rounded-full text-[10px] font-black uppercase tracking-[0.3em] hover:bg-coffee-500 transition-all shadow-2xl shadow-coffee-950/20 active:scale-95"
                 >
                   Close Log Audit
                 </button>

@@ -50,9 +50,9 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-espresso/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-white rounded-[3rem] w-full max-w-2xl relative z-10 max-h-[90vh] overflow-y-auto">
-        <div className="p-10 border-b border-espresso/10 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-xl">
-          <h2 className="text-3xl font-display font-black uppercase italic tracking-tightest text-espresso">
+      <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] w-full max-w-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+        <div className="p-6 sm:p-8 md:p-10 border-b border-espresso/10 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-xl">
+          <h2 className="text-2xl sm:text-3xl font-display font-black uppercase italic tracking-tightest text-espresso">
             {product ? 'Modify Ritual' : 'Commit New Ritual'}
           </h2>
           <button onClick={onClose} className="p-3 bg-cream rounded-full hover:bg-caramel hover:text-white transition-colors">
@@ -60,26 +60,26 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-10 space-y-8">
-          <div className="grid grid-cols-2 gap-8">
-            <div className="col-span-2">
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 md:p-10 space-y-6 sm:space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs font-black uppercase tracking-[0.3em] text-coffee-400 mb-3 ml-4">Ritual Name</label>
               <input 
                 required
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-6 py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
               />
             </div>
             
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs font-black uppercase tracking-[0.3em] text-coffee-400 mb-3 ml-4">Description</label>
               <textarea 
                 required
                 rows={3}
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-6 py-4 italic focus:border-caramel outline-none transition-colors"
+                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic focus:border-caramel outline-none transition-colors"
               />
             </div>
 
@@ -90,7 +90,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                 type="number" step="0.01"
                 value={formData.priceUsd}
                 onChange={e => setFormData({...formData, priceUsd: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-6 py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
               />
             </div>
 
@@ -101,7 +101,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                 type="number"
                 value={formData.priceLbp || formData.price}
                 onChange={e => setFormData({...formData, priceLbp: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-6 py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
               />
             </div>
 
@@ -112,7 +112,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                 type="number"
                 value={formData.stock}
                 onChange={e => setFormData({...formData, stock: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-6 py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
               />
             </div>
 
@@ -121,7 +121,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                <select 
                  value={formData.category}
                  onChange={e => setFormData({...formData, category: e.target.value as any})}
-                 className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-6 py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                 className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
                >
                  <option value="beans">Beans</option>
                  <option value="equipment">Equipment</option>
@@ -130,22 +130,22 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
                </select>
             </div>
             
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="flex items-center gap-4 cursor-pointer p-4 bg-cream rounded-[2rem] border border-espresso/10 hover:border-caramel transition-colors">
                 <input 
                   type="checkbox"
                   checked={formData.isSubscriptionEligible}
                   onChange={e => setFormData({...formData, isSubscriptionEligible: e.target.checked})}
-                  className="w-6 h-6 accent-caramel"
+                  className="w-5 h-5 sm:w-6 sm:h-6 accent-caramel"
                 />
                 <span className="text-sm font-black uppercase tracking-widest italic text-espresso">Eligible for Ritual Subscription Protocol</span>
               </label>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-espresso/10 flex justify-end gap-6">
-             <button type="button" onClick={onClose} className="px-8 py-4 font-black uppercase tracking-widest italic text-coffee-400 hover:text-espresso transition-colors">Cancel</button>
-             <button disabled={loading} type="submit" className="btn-premium px-12 py-4 italic">
+          <div className="pt-6 sm:pt-8 border-t border-espresso/10 flex justify-end gap-4 sm:gap-6">
+             <button type="button" onClick={onClose} className="px-6 sm:px-8 py-3 sm:py-4 font-black uppercase tracking-widest italic text-coffee-400 hover:text-espresso transition-colors">Cancel</button>
+             <button disabled={loading} type="submit" className="btn-premium px-8 sm:px-10 md:px-12 py-3 sm:py-4 italic">
                {loading ? 'Committing...' : 'Commit Protocol'}
              </button>
           </div>

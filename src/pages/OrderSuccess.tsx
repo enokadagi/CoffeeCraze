@@ -17,54 +17,59 @@ export default function OrderSuccess() {
   }, []);
 
   return (
-    <div className="pt-32 pb-24 px-6 max-w-7xl mx-auto flex flex-col items-center text-center">
-      <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-8"
-      >
-        <CheckCircle size={48} />
-      </motion.div>
+    <div className="pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 min-h-screen bg-cream relative overflow-hidden">
+      <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
+      
+      <div className="page-container flex flex-col items-center text-center relative z-10">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-8 shadow-premium-lg"
+        >
+          <CheckCircle size={32} />
+        </motion.div>
 
-      <div className="space-y-4 mb-12">
-        <h1 className="text-4xl md:text-5xl font-display font-bold text-coffee-950">Your Ritual is Confirmed!</h1>
-        <p className="text-coffee-500 max-w-sm mx-auto">Order #{id} has been placed. We're getting your beans ready for roasting.</p>
-      </div>
+        <div className="space-y-4 mb-10 sm:mb-12">
+          <span className="stat-label text-green-500">Transmission Complete</span>
+          <h1 className="text-fluid-heading font-display font-black text-coffee-950 tracking-tightest italic">Your Ritual is <br/><span className="not-italic text-coffee-400">Confirmed!</span></h1>
+          <p className="text-fluid-body text-coffee-400 font-medium italic max-w-md mx-auto leading-relaxed">"Order #{id} has been placed. We're getting your beans ready for roasting."</p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-2xl mb-12">
-        <div className="p-8 bg-white border border-coffee-100 rounded-[2rem] space-y-4">
-          <div className="w-12 h-12 bg-coffee-50 text-coffee-500 rounded-xl flex items-center justify-center">
-            <Package size={24} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8 w-full max-w-2xl mb-10 sm:mb-12">
+          <div className="p-6 sm:p-8 bg-white border border-coffee-100 rounded-[1.5rem] sm:rounded-[2rem] space-y-4 shadow-premium hover:shadow-premium-lg transition-all duration-700">
+            <div className="w-10 sm:w-12 h-10 sm:h-12 bg-coffee-50 text-coffee-500 rounded-xl flex items-center justify-center">
+              <Package size={20} />
+            </div>
+            <div className="text-left">
+              <h3 className="text-fluid-subtitle font-display font-black text-coffee-950 tracking-tight">Preparation</h3>
+              <p className="text-fluid-small text-coffee-500 leading-relaxed">Our master roasters are selecting the best batches for your order.</p>
+            </div>
           </div>
-          <div className="text-left">
-            <h3 className="font-bold text-coffee-950">Preparation</h3>
-            <p className="text-xs text-coffee-500 leading-relaxed">Our master roasters are selecting the best batches for your order.</p>
+          <div className="p-6 sm:p-8 bg-white border border-coffee-100 rounded-[1.5rem] sm:rounded-[2rem] space-y-4 shadow-premium hover:shadow-premium-lg transition-all duration-700">
+            <div className="w-10 sm:w-12 h-10 sm:h-12 bg-coffee-50 text-coffee-500 rounded-xl flex items-center justify-center">
+              <ShoppingBag size={20} />
+            </div>
+            <div className="text-left">
+              <h3 className="text-fluid-subtitle font-display font-black text-coffee-950 tracking-tight">Delivery</h3>
+              <p className="text-fluid-small text-coffee-500 leading-relaxed">Expect your delivery within 24-48 hours. Stay ritualized.</p>
+            </div>
           </div>
         </div>
-        <div className="p-8 bg-white border border-coffee-100 rounded-[2rem] space-y-4">
-          <div className="w-12 h-12 bg-coffee-50 text-coffee-500 rounded-xl flex items-center justify-center">
-            <ShoppingBag size={24} />
-          </div>
-          <div className="text-left">
-            <h3 className="font-bold text-coffee-950">Delivery</h3>
-            <p className="text-xs text-coffee-500 leading-relaxed">Expect your delivery within 24-48 hours. Stay ritualized.</p>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Link 
-          to="/dashboard/orders" 
-          className="px-10 py-4 bg-coffee-950 text-white rounded-full font-bold flex items-center justify-center gap-2 hover:bg-coffee-800 transition-all shadow-xl shadow-coffee-950/20"
-        >
-          Track My Order <ArrowRight size={20} />
-        </Link>
-        <Link 
-          to="/shop" 
-          className="px-10 py-4 bg-white text-coffee-950 border border-coffee-100 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-coffee-50 transition-all"
-        >
-          Continue Shopping
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <Link 
+            to="/dashboard/orders" 
+            className="btn-premium px-8 sm:px-10 py-4 sm:py-5"
+          >
+            Track My Order <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
+          </Link>
+          <Link 
+            to="/shop" 
+            className="btn-outline px-8 sm:px-10 py-4 sm:py-5"
+          >
+            Continue Shopping
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -43,18 +43,18 @@ export default function AiBarista() {
   };
 
   return (
-    <div className="pt-20 h-[100dvh] flex flex-col bg-white overflow-hidden relative">
+    <div className="pt-16 sm:pt-20 h-[100dvh] flex flex-col bg-white overflow-hidden relative">
       <div className="absolute inset-0 bg-coffee-50 opacity-10 pointer-events-none"></div>
       
-      <div className="px-10 py-10 border-b border-coffee-50 bg-white/90 backdrop-blur-xl sticky top-0 z-20">
+      <div className="px-4 sm:px-6 md:px-10 py-4 sm:py-6 md:py-10 border-b border-coffee-50 bg-white/90 backdrop-blur-xl sticky top-0 z-20">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-coffee-950 rounded-[1.5rem] flex items-center justify-center text-white shadow-premium relative overflow-hidden group">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-coffee-950 rounded-[1.5rem] flex items-center justify-center text-white shadow-premium relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-tr from-coffee-500/30 to-transparent group-hover:scale-110 transition-transform duration-700"></div>
-              <Sparkles size={28} className="relative z-10" />
+              <Sparkles size={24} className="relative z-10" />
             </div>
-            <div className="space-y-1">
-              <h1 className="text-4xl font-display font-black text-coffee-950 tracking-tighter italic">Overseer <span className="not-italic text-coffee-500">v1.0</span></h1>
+            <div className="space-y-0.5 sm:space-y-1">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-coffee-950 tracking-tighter italic">Overseer <span className="not-italic text-coffee-500">v1.0</span></h1>
               <p className="text-[10px] font-black text-coffee-400 uppercase tracking-[0.4em] leading-none">Neural Extraction Concierge • Beirut Unit</p>
             </div>
           </div>
@@ -67,9 +67,9 @@ export default function AiBarista() {
 
       <div 
         ref={scrollRef}
-        className="flex-grow overflow-y-auto overflow-x-hidden pt-12 pb-48 px-6 no-scrollbar scroll-smooth"
+        className="flex-grow overflow-y-auto overflow-x-hidden pt-8 sm:pt-12 pb-40 sm:pb-48 px-4 sm:px-6 no-scrollbar scroll-smooth"
       >
-        <div className="max-w-5xl mx-auto space-y-12">
+        <div className="max-w-5xl mx-auto space-y-8 sm:space-y-12">
           <AnimatePresence mode="popLayout" initial={false}>
             {messages.map((msg, i) => (
               <motion.div
@@ -80,20 +80,20 @@ export default function AiBarista() {
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 key={i}
                 className={cn(
-                  "flex items-start gap-6 max-w-[95%] md:max-w-[85%]",
+                  "flex items-start gap-4 sm:gap-6 max-w-[95%] md:max-w-[85%]",
                   msg.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
                 )}
               >
                 <div 
                   className={cn(
-                    "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-premium",
+                    "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-premium",
                     msg.role === 'user' ? "bg-coffee-950 text-white" : "bg-white border border-coffee-50 text-coffee-950"
                   )}
                 >
-                  {msg.role === 'user' ? <User size={24} /> : <div className="text-xl font-display font-black leading-none italic">dg</div>}
+                  {msg.role === 'user' ? <User size={20} /> : <div className="text-base sm:text-xl font-display font-black leading-none italic">dg</div>}
                 </div>
                 <div className={cn(
-                  "p-8 rounded-[3rem] text-sm leading-relaxed shadow-premium relative",
+                  "p-4 sm:p-6 md:p-8 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] text-sm leading-relaxed shadow-premium relative",
                   msg.role === 'user' 
                     ? "bg-coffee-950 text-white rounded-tr-none" 
                     : "bg-white border border-coffee-50 text-coffee-900 rounded-tl-none"
@@ -111,10 +111,10 @@ export default function AiBarista() {
             <motion.div 
               initial={{ opacity: 0, y: 10 }} 
               animate={{ opacity: 1, y: 0 }} 
-              className="flex items-center gap-6 text-coffee-300"
+              className="flex items-center gap-4 sm:gap-6 text-coffee-300"
             >
-              <div className="w-14 h-14 rounded-2xl bg-white border border-coffee-50 flex items-center justify-center animate-pulse shadow-sm">
-                 <Loader2 className="animate-spin w-5 h-5 text-coffee-300" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl bg-white border border-coffee-50 flex items-center justify-center animate-pulse shadow-sm">
+                 <Loader2 size={20} className="animate-spin text-coffee-300" />
               </div>
               <span className="text-[10px] uppercase font-black tracking-[0.4em] italic leading-none">Overseer processing sensory dataset...</span>
             </motion.div>
@@ -122,7 +122,7 @@ export default function AiBarista() {
         </div>
       </div>
 
-      <div className="p-8 bg-gradient-to-t from-white via-white to-transparent absolute bottom-0 left-0 right-0 z-30 pt-20">
+      <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-t from-white via-white to-transparent absolute bottom-0 left-0 right-0 z-30 pt-12 sm:pt-16 md:pt-20">
         <div className="max-w-5xl mx-auto relative">
           <form onSubmit={handleSend} className="relative group">
             <div className="absolute inset-x-0 bottom-0 top-0 bg-coffee-950/5 blur-3xl opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
@@ -131,17 +131,17 @@ export default function AiBarista() {
               placeholder="Inquire about your sensory allocation protocol..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full pl-10 pr-24 py-8 bg-white border border-coffee-100 rounded-[2.5rem] focus:ring-4 focus:ring-coffee-500/10 focus:border-coffee-500 outline-none shadow-premium-lg transition-all duration-500 text-[11px] font-black uppercase tracking-widest relative z-10 focus:bg-[#faf8f5]"
+              className="w-full pl-6 sm:pl-10 pr-20 sm:pr-24 py-4 sm:py-6 md:py-8 bg-white border border-coffee-100 rounded-[2.5rem] focus:ring-4 focus:ring-coffee-500/10 focus:border-coffee-500 outline-none shadow-premium-lg transition-all duration-500 text-[11px] font-black uppercase tracking-widest relative z-10 focus:bg-[#faf8f5]"
             />
             <button 
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-coffee-950 text-white rounded-full hover:bg-coffee-500 disabled:opacity-50 transition-all duration-500 flex items-center justify-center shadow-2xl shadow-coffee-950/30 z-20 active:scale-90"
+              className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-coffee-950 text-white rounded-full hover:bg-coffee-500 disabled:opacity-50 transition-all duration-500 flex items-center justify-center shadow-2xl shadow-coffee-950/30 z-20 active:scale-90"
             >
               <Send size={18} />
             </button>
           </form>
-          <div className="mt-4 text-center">
+          <div className="mt-3 sm:mt-4 text-center">
             <span className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.6em] italic">Secure Neutral Connection • Beirut v1.0</span>
           </div>
         </div>

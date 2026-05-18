@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -67,7 +67,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="pt-32 pb-32 md:pt-56 md:pb-40 grainy-overlay min-h-screen relative overflow-hidden bg-cream px-4 md:px-0">
+    <div className="pt-20 pb-20 md:pt-40 md:pb-32 grainy-overlay min-h-screen relative overflow-hidden bg-cream">
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
@@ -80,7 +80,7 @@ export default function Checkout() {
           </button>
           
           <div className="flex flex-col md:flex-row items-end justify-between gap-8 md:gap-12 border-b border-espresso/5 pb-12 md:pb-20">
-            <h1 className="text-5xl sm:text-7xl md:text-8xl font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Final <br/><span className="not-italic text-caramel">Induction.</span></h1>
+            <h1 className="text-fluid-hero font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Final <br/><span className="not-italic text-caramel">Induction.</span></h1>
             <div className="text-right hidden sm:block">
                <span className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.6em] italic block mb-2">PROTOCOL_VERIFICATION</span>
                <div className="h-1 w-32 bg-caramel/20 rounded-full ml-auto overflow-hidden">
@@ -105,7 +105,7 @@ export default function Checkout() {
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-espresso text-caramel-gold rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-premium ring-1 ring-white/20">
                     <MapPin className="w-5 h-5 md:w-6 md:h-6" strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-3xl md:text-4xl font-display font-black text-espresso italic tracking-tightest">Logistics <span className="not-italic text-coffee-300">Target.</span></h3>
+                  <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest">Logistics <span className="not-italic text-coffee-300">Target.</span></h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
@@ -200,10 +200,10 @@ export default function Checkout() {
               {/* Payment Method */}
               <div className="space-y-12">
                 <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-espresso text-caramel-gold rounded-[1.5rem] flex items-center justify-center shadow-premium ring-1 ring-white/20">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-espresso text-caramel-gold rounded-[1.5rem] flex items-center justify-center shadow-premium ring-1 ring-white/20">
                     <CreditCard size={24} strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest">Settlement <span className="not-italic text-coffee-300">Mode.</span></h3>
+                  <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest">Settlement <span className="not-italic text-coffee-300">Mode.</span></h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -224,7 +224,7 @@ export default function Checkout() {
                       <Truck className="w-[18px] h-[18px] md:w-6 md:h-6" strokeWidth={1} />
                     </div>
                     <div className="text-left relative z-10">
-                      <p className={cn("text-lg md:text-xl font-display font-black italic uppercase tracking-tight", formData.paymentMethod === 'cod' ? "text-white" : "text-espresso")}>Tactile Settlement</p>
+                      <p className={cn("text-fluid-body md:text-xl font-display font-black italic uppercase tracking-tight", formData.paymentMethod === 'cod' ? "text-white" : "text-espresso")}>Tactile Settlement</p>
                       <p className="text-[10px] uppercase font-black tracking-[0.3em] opacity-60 mt-1 italic">CASH_ON_DELIVERY</p>
                     </div>
                     {formData.paymentMethod === 'cod' && (
@@ -241,7 +241,7 @@ export default function Checkout() {
                       <CreditCard className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1} />
                     </div>
                     <div className="text-left">
-                      <p className="text-xl font-display font-black italic uppercase tracking-tight text-espresso">Encrypted Flux</p>
+                      <p className="text-fluid-body md:text-xl font-display font-black italic uppercase tracking-tight text-espresso">Encrypted Flux</p>
                       <p className="text-[10px] uppercase font-black tracking-[0.3em] opacity-60 mt-1 italic">CREDIT_CARD_OFFLINE</p>
                     </div>
                   </button>
@@ -251,7 +251,7 @@ export default function Checkout() {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="btn-premium w-full py-5 md:py-7 italic group text-xs md:text-sm tracking-[0.2em] relative overflow-hidden rounded-full"
+                className="btn-premium w-full py-4 md:py-7 italic group text-xs md:text-sm tracking-[0.2em] relative overflow-hidden rounded-full"
               >
                 <div className="absolute inset-0 bg-espresso translate-y-full group-hover:translate-y-0 transition-transform duration-700" />
                 <span className="relative z-10 flex items-center justify-center gap-6">
@@ -263,12 +263,12 @@ export default function Checkout() {
 
           {/* Summary Sticky */}
           <div className="lg:col-span-4 lg:sticky lg:top-40 h-fit">
-            <div className="p-8 md:p-16 bg-white shadow-premium-2xl border border-white rounded-[3rem] md:rounded-[5rem] space-y-8 md:space-y-12 relative overflow-hidden group">
+            <div className="p-6 md:p-16 bg-white shadow-premium-2xl border border-white rounded-[3rem] md:rounded-[5rem] space-y-6 md:space-y-12 relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-64 h-64 bg-cream blur-[80px] opacity-20 -translate-y-1/2 -translate-x-1/2 rounded-full pointer-events-none" />
               
               <div className="space-y-4 relative z-10">
                 <span className="stat-label text-caramel">Allocation Overview</span>
-                <h3 className="text-3xl md:text-4xl font-display font-black text-espresso italic tracking-tightest leading-none">Manifest <span className="not-italic text-coffee-300 md:block">Review.</span></h3>
+                <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest leading-none">Manifest <span className="not-italic text-coffee-300 md:block">Review.</span></h3>
               </div>
 
               <div className="space-y-8 relative z-10">
@@ -283,7 +283,7 @@ export default function Checkout() {
                         <p className="text-[10px] text-coffee-300 font-black uppercase tracking-widest italic">QTY_X{item.quantity}</p>
                       </div>
                     </div>
-                    <span className="text-lg font-display font-black text-espresso italic tracking-tightest">{formatPrice(item.price * item.quantity)}</span>
+                    <span className="text-fluid-body md:text-lg font-display font-black text-espresso italic tracking-tightest">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -299,7 +299,7 @@ export default function Checkout() {
                 </div>
                 <div className="flex justify-between items-end pt-4">
                   <span className="text-sm font-black uppercase tracking-[0.5em] text-espresso">Commitment</span>
-                  <span className="text-5xl font-display font-black text-caramel-gold tracking-tightest italic">{formatPrice(total)}</span>
+                  <span className="text-fluid-heading font-display font-black text-caramel-gold tracking-tightest italic">{formatPrice(total)}</span>
                 </div>
               </div>
 
@@ -309,9 +309,9 @@ export default function Checkout() {
                   <input 
                     type="text" 
                     placeholder="ENTER_COUPON"
-                    className="flex-grow px-8 py-5 bg-cream border border-espresso/5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] outline-none focus:border-caramel transition-all italic placeholder:text-coffee-100"
+                    className="flex-grow px-6 py-4 md:px-8 md:py-5 bg-cream border border-espresso/5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] outline-none focus:border-caramel transition-all italic placeholder:text-coffee-100"
                   />
-                  <button type="button" className="px-8 py-5 bg-espresso text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] italic hover:bg-caramel transition-all">Apply</button>
+                  <button type="button" className="px-6 py-4 md:px-8 md:py-5 bg-espresso text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] italic hover:bg-caramel transition-all">Apply</button>
                 </div>
               </div>
 

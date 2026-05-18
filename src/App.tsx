@@ -20,8 +20,11 @@ import ProductDetail from './pages/ProductDetail';
 import Wishlist from './pages/Wishlist';
 import CategoryProducts from './pages/CategoryProducts';
 import About from './pages/About';
+import Blog from './pages/Blog';
+import FAQ from './pages/FAQ';
 import Contact from './pages/Contact';
 import CoffeeQuiz from './pages/CoffeeQuiz';
+import NotFound from './pages/NotFound';
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminInventory from './pages/Admin/Inventory';
 import AdminOrders from './pages/Admin/Orders';
@@ -51,9 +54,11 @@ function AppContent() {
             <Route path="/shop" element={<PageTransition><Shop /></PageTransition>} />
             <Route path="/category/:category" element={<PageTransition><CategoryProducts /></PageTransition>} />
             <Route path="/subscriptions" element={<PageTransition><Subscriptions /></PageTransition>} />
-            <Route path="/ai-barista" element={<AiBarista />} />
+            <Route path="/ai-barista" element={<PageTransition><AiBarista /></PageTransition>} />
             <Route path="/coffee-quiz" element={<PageTransition><CoffeeQuiz /></PageTransition>} />
             <Route path="/about" element={<PageTransition><About /></PageTransition>} />
+            <Route path="/blog" element={<PageTransition><Blog /></PageTransition>} />
+            <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
             <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
             <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
             <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
@@ -62,6 +67,7 @@ function AppContent() {
             <Route path="/wishlist" element={<ProtectedRoute><PageTransition><Wishlist /></PageTransition></ProtectedRoute>} />
             <Route path="/wholesale" element={<PageTransition><Wholesale /></PageTransition>} />
             <Route path="/product/:id" element={<PageTransition><ProductDetail /></PageTransition>} />
+            <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
             
             {/* Dashboard Routes */}
             <Route path="/dashboard" element={<ProtectedRoute><PageTransition><DashboardOverview /></PageTransition></ProtectedRoute>} />

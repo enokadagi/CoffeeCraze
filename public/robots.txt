@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://coffeecraze.nilelink.app/sitemap.xml

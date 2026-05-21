@@ -1,10 +1,12 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Compass, ArrowRight } from 'lucide-react';
+import SEO from '../components/common/SEO';
 
 export default function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-cream grainy-overlay relative overflow-hidden pt-32 pb-24">
+      <SEO title="404 - Not Found" description="The page you are looking for does not exist." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       <div className="page-container relative z-10 text-center">
         <motion.div

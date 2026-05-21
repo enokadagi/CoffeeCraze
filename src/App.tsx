@@ -1,37 +1,51 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
+import { Suspense, lazy, type ReactNode } from 'react';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import Home from './pages/Home';
-import Shop from './pages/Shop';
-import Subscriptions from './pages/Subscriptions';
-import AiBarista from './pages/AiBarista';
-import Auth from './pages/Auth';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import OrderSuccess from './pages/OrderSuccess';
-import DashboardOverview from './pages/Dashboard/Overview';
-import MyOrders from './pages/Dashboard/Orders';
-import AccountSettings from './pages/Dashboard/Settings';
-import DashboardSubscriptions from './pages/Dashboard/Subscriptions';
-import LoyaltyRitual from './pages/Dashboard/Loyalty';
-import Wholesale from './pages/Wholesale';
-import ProductDetail from './pages/ProductDetail';
-import Wishlist from './pages/Wishlist';
-import CategoryProducts from './pages/CategoryProducts';
-import About from './pages/About';
-import Blog from './pages/Blog';
-import FAQ from './pages/FAQ';
-import Contact from './pages/Contact';
-import CoffeeQuiz from './pages/CoffeeQuiz';
-import NotFound from './pages/NotFound';
-import AdminDashboard from './pages/Admin/Dashboard';
-import AdminInventory from './pages/Admin/Inventory';
-import AdminOrders from './pages/Admin/Orders';
-import AdminAnalytics from './pages/Admin/Analytics';
-import AdminCustomers from './pages/Admin/Customers';
-import AdminWholesale from './pages/Admin/Wholesale';
-import AdminSubscriptions from './pages/Admin/Subscriptions';
+// Lazy load all non-critical route pages for smaller initial bundle sizes.
+const Shop = lazy(() => import('./pages/Shop'));
+const Subscriptions = lazy(() => import('./pages/Subscriptions'));
+const AiBarista = lazy(() => import('./pages/AiBarista'));
+const Auth = lazy(() => import('./pages/Auth'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
+const SubscriptionConfirmation = lazy(() => import('./pages/SubscriptionConfirmation'));
+const Wholesale = lazy(() => import('./pages/Wholesale'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const CategoryProducts = lazy(() => import('./pages/CategoryProducts'));
+const About = lazy(() => import('./pages/About'));
+const Blog = lazy(() => import('./pages/Blog'));
+const FAQ = lazy(() => import('./pages/FAQ'));
+const Contact = lazy(() => import('./pages/Contact'));
+const CoffeeQuiz = lazy(() => import('./pages/CoffeeQuiz'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const CustomPlanBuilder = lazy(() => import('./pages/CustomPlanBuilder'));
+
+// Lazy-loaded dashboard and admin routes for code splitting
+const DashboardOverview = lazy(() => import('./pages/Dashboard/Overview'));
+const MyOrders = lazy(() => import('./pages/Dashboard/Orders'));
+const AccountSettings = lazy(() => import('./pages/Dashboard/Settings'));
+const DashboardSubscriptions = lazy(() => import('./pages/Dashboard/Subscriptions'));
+const LoyaltyRitual = lazy(() => import('./pages/Dashboard/Loyalty'));
+const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
+const AdminInventory = lazy(() => import('./pages/Admin/Inventory'));
+const AdminOrders = lazy(() => import('./pages/Admin/Orders'));
+const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'));
+const AdminCustomers = lazy(() => import('./pages/Admin/Customers'));
+const AdminWholesale = lazy(() => import('./pages/Admin/Wholesale'));
+const AdminSubscriptions = lazy(() => import('./pages/Admin/Subscriptions'));
+const AdminPlans = lazy(() => import('./pages/Admin/Plans'));
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-cream">
+    <div className="w-16 h-16 border-4 border-mocha/20 border-t-espresso rounded-full animate-spin shadow-premium" />
+  </div>
+);
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -40,6 +54,12 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { UserRole } from './types';
 import PageTransition from './components/layout/PageTransition';
 
+const LazyPage = ({ children }: { children: ReactNode }) => (
+  <Suspense fallback={<PageLoader />}>
+    <PageTransition>{children}</PageTransition>
+  </Suspense>
+);
+
 function AppContent() {
   const location = useLocation();
 
@@ -47,43 +67,47 @@ function AppContent() {
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="bottom-right" richColors />
       <Header />
-      <main className="flex-grow">
+      <a href="#main-content" className="skip-to-content">Skip to main content</a>
+      <main id="main-content" className="flex-grow">
         <AnimatePresence mode="wait" initial={false}>
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageTransition><Home /></PageTransition>} />
-            <Route path="/shop" element={<PageTransition><Shop /></PageTransition>} />
-            <Route path="/category/:category" element={<PageTransition><CategoryProducts /></PageTransition>} />
-            <Route path="/subscriptions" element={<PageTransition><Subscriptions /></PageTransition>} />
-            <Route path="/ai-barista" element={<PageTransition><AiBarista /></PageTransition>} />
-            <Route path="/coffee-quiz" element={<PageTransition><CoffeeQuiz /></PageTransition>} />
-            <Route path="/about" element={<PageTransition><About /></PageTransition>} />
-            <Route path="/blog" element={<PageTransition><Blog /></PageTransition>} />
-            <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
-            <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
-            <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
-            <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
-            <Route path="/checkout" element={<ProtectedRoute><PageTransition><Checkout /></PageTransition></ProtectedRoute>} />
-            <Route path="/order-success/:id" element={<ProtectedRoute><PageTransition><OrderSuccess /></PageTransition></ProtectedRoute>} />
-            <Route path="/wishlist" element={<ProtectedRoute><PageTransition><Wishlist /></PageTransition></ProtectedRoute>} />
-            <Route path="/wholesale" element={<PageTransition><Wholesale /></PageTransition>} />
-            <Route path="/product/:id" element={<PageTransition><ProductDetail /></PageTransition>} />
-            <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+            <Route path="/shop" element={<LazyPage><Shop /></LazyPage>} />
+            <Route path="/category/:category" element={<LazyPage><CategoryProducts /></LazyPage>} />
+            <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
+            <Route path="/ai-barista" element={<LazyPage><AiBarista /></LazyPage>} />
+            <Route path="/coffee-quiz" element={<LazyPage><CoffeeQuiz /></LazyPage>} />
+            <Route path="/about" element={<LazyPage><About /></LazyPage>} />
+            <Route path="/blog" element={<LazyPage><Blog /></LazyPage>} />
+            <Route path="/faq" element={<LazyPage><FAQ /></LazyPage>} />
+            <Route path="/contact" element={<LazyPage><Contact /></LazyPage>} />
+            <Route path="/auth" element={<LazyPage><Auth /></LazyPage>} />
+            <Route path="/cart" element={<LazyPage><Cart /></LazyPage>} />
+            <Route path="/checkout" element={<ProtectedRoute><LazyPage><Checkout /></LazyPage></ProtectedRoute>} />
+            <Route path="/order-success/:id" element={<ProtectedRoute><LazyPage><OrderSuccess /></LazyPage></ProtectedRoute>} />
+            <Route path="/subscription/confirmation" element={<ProtectedRoute><LazyPage><SubscriptionConfirmation /></LazyPage></ProtectedRoute>} />
+            <Route path="/wishlist" element={<ProtectedRoute><LazyPage><Wishlist /></LazyPage></ProtectedRoute>} />
+            <Route path="/wholesale" element={<LazyPage><Wholesale /></LazyPage>} />
+            <Route path="/product/:id" element={<LazyPage><ProductDetail /></LazyPage>} />
+            <Route path="/custom-plan-builder" element={<ProtectedRoute><LazyPage><CustomPlanBuilder /></LazyPage></ProtectedRoute>} />
+            <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
             
             {/* Dashboard Routes */}
-            <Route path="/dashboard" element={<ProtectedRoute><PageTransition><DashboardOverview /></PageTransition></ProtectedRoute>} />
-            <Route path="/dashboard/orders" element={<ProtectedRoute><PageTransition><MyOrders /></PageTransition></ProtectedRoute>} />
-            <Route path="/dashboard/subscriptions" element={<ProtectedRoute><PageTransition><DashboardSubscriptions /></PageTransition></ProtectedRoute>} />
-            <Route path="/dashboard/loyalty" element={<ProtectedRoute><PageTransition><LoyaltyRitual /></PageTransition></ProtectedRoute>} />
-            <Route path="/dashboard/settings" element={<ProtectedRoute><PageTransition><AccountSettings /></PageTransition></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><LazyPage><DashboardOverview /></LazyPage></ProtectedRoute>} />
+            <Route path="/dashboard/orders" element={<ProtectedRoute><LazyPage><MyOrders /></LazyPage></ProtectedRoute>} />
+            <Route path="/dashboard/subscriptions" element={<ProtectedRoute><LazyPage><DashboardSubscriptions /></LazyPage></ProtectedRoute>} />
+            <Route path="/dashboard/loyalty" element={<ProtectedRoute><LazyPage><LoyaltyRitual /></LazyPage></ProtectedRoute>} />
+            <Route path="/dashboard/settings" element={<ProtectedRoute><LazyPage><AccountSettings /></LazyPage></ProtectedRoute>} />
 
             {/* Admin Routes */}
-            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminDashboard /></PageTransition></ProtectedRoute>} />
-            <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminInventory /></PageTransition></ProtectedRoute>} />
-            <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminOrders /></PageTransition></ProtectedRoute>} />
-            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminAnalytics /></PageTransition></ProtectedRoute>} />
-            <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminCustomers /></PageTransition></ProtectedRoute>} />
-            <Route path="/admin/wholesale" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminWholesale /></PageTransition></ProtectedRoute>} />
-            <Route path="/admin/subscriptions" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><PageTransition><AdminSubscriptions /></PageTransition></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminDashboard /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminInventory /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminOrders /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminAnalytics /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminCustomers /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/wholesale" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminWholesale /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/subscriptions" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminSubscriptions /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/plans" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminPlans /></LazyPage></ProtectedRoute>} />
           </Routes>
         </AnimatePresence>
       </main>
@@ -94,14 +118,16 @@ function AppContent() {
 
 export default function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <WishlistProvider>
-          <CartProvider>
-            <AppContent />
-          </CartProvider>
-        </WishlistProvider>
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <WishlistProvider>
+            <CartProvider>
+              <AppContent />
+            </CartProvider>
+          </WishlistProvider>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }

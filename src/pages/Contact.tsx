@@ -1,6 +1,7 @@
 import { MapPin, Mail, Phone, Send, ArrowRight, Instagram, Twitter, Linkedin, MessageSquare, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import SEO from '../components/common/SEO';
 import ChatWidget from '../components/common/ChatWidget';
 
 export default function Contact() {
@@ -18,6 +19,7 @@ export default function Contact() {
 
   return (
     <div className="pt-16 sm:pt-24 md:pt-32 pb-20 sm:pb-30 md:pb-40 px-6 max-w-7xl mx-auto min-h-screen bg-white relative">
+      <SEO title="Contact" description="Get in touch with CoffeeCraze for support, wholesale inquiries, and more." />
       <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[400px] md:h-[400px] lg:w-[600px] lg:h-[600px] bg-coffee-50 rounded-full blur-[150px] opacity-20 -z-0 translate-x-1/4 -translate-y-1/4" />
       
       <div className="text-center space-y-6 sm:space-y-8 mb-16 md:mb-24 lg:mb-32 relative z-10">

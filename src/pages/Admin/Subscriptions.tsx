@@ -8,6 +8,7 @@ import {
 import { collection, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { formatPrice, cn } from '../../lib/utils';
+import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Subscription, SubscriptionStatus } from '../../types';
 import { toast } from 'sonner';
@@ -56,6 +57,7 @@ export default function AdminSubscriptions() {
   return (
     <DashboardLayout>
       <div className="space-y-16 relative">
+        <SEO title="Subscriptions" description="Manage CoffeeCraze subscription plans and recurring deliveries." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-50 pb-16">
           <div className="space-y-4">
             <span className="stat-label text-gold-500 italic">Program Administration</span>

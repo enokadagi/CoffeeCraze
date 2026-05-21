@@ -7,7 +7,9 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import { formatPrice, cn, getDualPricing } from '../lib/utils';
+import ImageWithFallback from '../components/common/ImageWithFallback';
 import { ShoppingCart, Star, Heart, ArrowLeft, Truck, ShieldCheck, Zap, MessageSquare, ArrowRight, ThumbsUp } from 'lucide-react';
+import SEO from '../components/common/SEO';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/shop/ProductCard';
 import { toast } from 'sonner';
@@ -169,32 +171,31 @@ export default function ProductDetail() {
   if (!product) return (
     <div className="pt-40 md:pt-60 text-center min-h-screen bg-cream">
       <h1 className="text-4xl font-display font-black text-espresso italic">NODE_NOT_FOUND</h1>
-      <button onClick={() => navigate('/shop')} className="mt-8 px-8 py-4 bg-espresso text-white rounded-full text-[10px] font-black uppercase tracking-widest italic">Return to Catalog</button>
+      <button type="button" onClick={() => navigate('/shop')} className="mt-8 inline-flex items-center justify-center px-8 py-4 bg-espresso text-white rounded-full text-[10px] font-black uppercase tracking-widest italic shadow-premium transition-all hover:bg-caramel">
+        Return to Catalog
+      </button>
     </div>
   );
 
   return (
     <div className="pt-24 pb-24 md:pt-40 md:pb-40 lg:pt-56 lg:pb-56 grainy-overlay min-h-screen bg-cream">
+      <SEO title={product?.name || 'Product Detail'} description={product?.description || 'View product details for this premium coffee offering.'} />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
-        <button onClick={() => navigate(-1)} className="group flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 md:mb-24 text-coffee-300 hover:text-espresso transition-all text-[11px] font-black uppercase tracking-[0.6em] italic">
+        <button type="button" onClick={() => navigate(-1)} className="group flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 md:mb-24 text-coffee-300 hover:text-espresso transition-all text-[11px] font-black uppercase tracking-[0.6em] italic">
           <ArrowLeft size={16} strokeWidth={3} className="group-hover:-translate-x-3 transition-transform duration-700" /> Protocol Return
         </button>
 
         {/* Main Grid: Cinematic Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 md:gap-16 lg:gap-32 mb-16 sm:mb-24 md:mb-32 lg:mb-56 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-8 sm:gap-12 md:gap-16 lg:gap-32 mb-16 sm:mb-24 md:mb-32 lg:mb-56 items-start">
           {/* Immersive Imagery */}
-          <div className="lg:col-span-7 space-y-6 sm:space-y-8 md:space-y-12">
+          <div className="lg:col-span-7 space-y-6 sm:space-y-8 md:space-y-12 min-w-0">
             <div className="aspect-square md:aspect-[4/5] bg-white backdrop-blur-3xl rounded-[3rem] md:rounded-[6rem] overflow-hidden border border-white/60 shadow-premium-xl relative group">
               <AnimatePresence mode="wait">
-                <motion.img 
-                  key={activeImage}
-                  initial={{ scale: 1.1, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-                  src={currentImage} 
+                  <ImageWithFallback
+                  src={currentImage}
+                  alt={product.name}
                   className="w-full h-full object-cover grayscale transition-all duration-[2s] group-hover:grayscale-0 group-hover:scale-105"
                   referrerPolicy="no-referrer"
                 />
@@ -208,6 +209,7 @@ export default function ProductDetail() {
               </div>
 
               <button 
+                type="button"
                 onClick={() => toggleWishlist(product)}
                 className={cn(
                   "absolute top-6 sm:top-8 md:top-12 right-6 sm:right-8 md:right-12 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white/40 backdrop-blur-2xl rounded-full shadow-premium ring-1 ring-white/60 transition-all duration-700 active:scale-90 flex items-center justify-center hover-premium",
@@ -236,7 +238,7 @@ export default function ProductDetail() {
                       : "border-transparent opacity-40 grayscale hover:opacity-100 hover:grayscale-0"
                   )}
                 >
-                  <img src={img} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-125" referrerPolicy="no-referrer" />
+                  <ImageWithFallback src={img} alt={`${product.name} thumbnail`} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-125" referrerPolicy="no-referrer" />
                 </button>
               ))}
             </div>
@@ -253,9 +255,9 @@ export default function ProductDetail() {
                   </div>
                </div>
                
-               <h1 className="text-3xl sm:text-4xl lg:text-6xl font-display font-black text-espresso leading-[1] md:leading-[1.1] tracking-tightest italic uppercase">
-                 {product.name}
-               </h1>
+               <h1 className="text-fluid-heading font-display font-bold text-espresso leading-[1.05] tracking-tight">
+                  {product.name}
+                </h1>
 
                <div className="flex flex-col gap-2 border-l-4 border-caramel pl-4 sm:pl-6 md:pl-8">
                   <div className="flex items-center gap-4 mb-2">
@@ -266,8 +268,8 @@ export default function ProductDetail() {
                        {product.stock > 10 ? 'In Stock' : product.stock > 0 ? `Low Stock (${product.stock} left)` : 'Out of Stock'}
                      </span>
                   </div>
-                  <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-4 text-espresso">
-                     <span className="text-3xl md:text-4xl font-display font-black tracking-tightest italic leading-none">
+                  <div className="flex flex-col md:flex-row items-start md:items-end gap-2 md:gap-4 text-espresso">
+                     <span className="text-fluid-hero font-display font-black tracking-tight leading-none break-words">
                        {formatPrice(currentPriceLbp)}
                      </span>
                   </div>
@@ -308,7 +310,7 @@ export default function ProductDetail() {
                )}
                
                <div className="flex flex-wrap gap-2 sm:gap-3 pt-4 sm:pt-6 border-t border-espresso/5">
-                  {product.tags.map(tag => (
+                  {(product.tags || []).map(tag => (
                     <span key={tag} className="px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 bg-espresso text-white rounded-full text-[8.5px] font-black uppercase tracking-[0.35em] italic shadow-premium hover:bg-caramel-gold transition-all duration-700 cursor-default">
                       {tag}
                     </span>
@@ -317,14 +319,16 @@ export default function ProductDetail() {
             </div>
 
             <div className="space-y-6 sm:space-y-8">
-              <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
-                <div className="flex items-center bg-white border border-espresso/10 rounded-full shadow-premium md:w-auto w-full justify-between px-4 py-2">
+              <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6">
+                <div className="flex items-center bg-white border border-espresso/10 rounded-full shadow-premium w-full sm:w-auto justify-between px-4 py-2">
                   <button 
+                    type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-espresso hover:bg-cream transition-colors text-xl font-black"
                   >-</button>
                   <span className="w-12 sm:w-16 text-center font-display font-black text-xl sm:text-2xl italic">{quantity}</span>
                   <button 
+                    type="button"
                     onClick={() => setQuantity(quantity + 1)}
                     className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-espresso hover:bg-cream transition-colors text-xl font-black"
                   >+</button>
@@ -340,7 +344,7 @@ export default function ProductDetail() {
                     setQuantity(1);
                     toast.success("Allocation Synchronized.");
                   }}
-                  className="flex-grow w-full md:w-auto py-4 md:py-5 bg-espresso text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] transition-all hover:bg-caramel-gold hover:text-white flex items-center justify-center gap-4 md:gap-6 shadow-premium-xl active:scale-[0.98] duration-700 italic group/btn ring-1 ring-white/10"
+                  className="btn-premium flex-grow w-full md:w-auto py-4 md:py-5 text-sm uppercase tracking-wide"
                 >
                   <ShoppingCart size={18} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform duration-700" /> 
                   Add {quantity} to Cart
@@ -368,7 +372,7 @@ export default function ProductDetail() {
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-8 sm:gap-10 md:gap-16 border-b border-coffee-50 pb-8 sm:pb-12 md:pb-20">
               <div className="space-y-4 sm:space-y-6 md:space-y-8">
                 <span className="stat-label text-caramel-gold uppercase">Neural Sync</span>
-                <h2 className="text-5xl md:text-7xl font-display font-black text-espresso italic tracking-tightest leading-none">Shared <br/><span className="not-italic text-coffee-400">Genotypes.</span></h2>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-espresso tracking-tight leading-none">Shared <span className="text-coffee-400">Genotypes.</span></h2>
               </div>
               <Link to="/shop" className="group text-[11px] font-black uppercase tracking-[0.6em] text-espresso pb-4 border-b-4 border-coffee-50 hover:border-caramel-gold transition-all duration-700 italic inline-flex items-center gap-6">
                 Full Database Protocol <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
@@ -388,17 +392,17 @@ export default function ProductDetail() {
              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(140,106,77,0.2),transparent)]" />
              <div className="relative z-10 space-y-6 sm:space-y-8 md:space-y-10 max-w-2xl text-center lg:text-left">
               <span className="stat-label text-caramel-gold uppercase">Global Registry</span>
-              <h2 className="text-5xl md:text-7xl font-display font-black leading-[0.9] md:leading-[0.8] tracking-tightest italic">Trusted By <br/><span className="text-white font-black not-italic block uppercase">The Elite.</span></h2>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold leading-[1.1] tracking-tight">Trusted By <span className="text-white block uppercase">The Elite.</span></h2>
               <p className="text-lg md:text-xl text-coffee-400 font-serif italic leading-relaxed">"Verification logs aggregated from verified neural roastery nodes."</p>
             </div>
             <div className="relative z-10 flex items-center gap-12 lg:gap-32 w-full lg:w-auto justify-center">
                <div className="text-center">
-                  <span className="block text-7xl md:text-9xl font-display font-black text-caramel-gold tracking-tightest italic">{product.rating}</span>
-                  <span className="text-[9px] md:text-[10px] font-black text-coffee-500 uppercase tracking-[0.4em] italic leading-none block mt-2">Node Score</span>
-               </div>
-               <div className="text-center">
-                  <span className="block text-7xl md:text-9xl font-display font-black text-white tracking-tightest italic">{product.reviewCount}</span>
-                  <span className="text-[9px] md:text-[10px] font-black text-coffee-500 uppercase tracking-[0.4em] italic leading-none block mt-2">Logs</span>
+                   <span className="block text-4xl sm:text-5xl font-display font-bold text-caramel-gold tracking-tight">{product.rating}</span>
+                   <span className="text-[10px] font-medium text-coffee-500 uppercase tracking-wide leading-none block mt-2">Node Score</span>
+                </div>
+                <div className="text-center">
+                   <span className="block text-4xl sm:text-5xl font-display font-bold text-white tracking-tight">{product.reviewCount}</span>
+                   <span className="text-[10px] font-medium text-coffee-500 uppercase tracking-wide leading-none block mt-2">Logs</span>
                </div>
             </div>
           </div>
@@ -454,7 +458,7 @@ export default function ProductDetail() {
              <div className="w-full max-w-5xl p-6 sm:p-8 md:p-16 lg:p-20 bg-white shadow-premium-xl rounded-[3rem] md:rounded-[7rem] border border-white/60 relative overflow-hidden text-center space-y-8 sm:space-y-10 md:space-y-16">
                 <div className="mesh-gradient absolute inset-0 opacity-10 pointer-events-none" />
                 <div className="space-y-4 sm:space-y-6 md:space-y-8 relative z-10">
-                  <h3 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-espresso italic tracking-tighter leading-none uppercase">Post Your <br className="md:hidden" /><span className="not-italic text-caramel">Validation.</span></h3>
+                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-espresso tracking-tight leading-none uppercase">Post Your <span className="text-caramel">Validation.</span></h3>
                   <p className="text-base sm:text-lg md:text-2xl text-coffee-400 font-serif italic max-w-xl mx-auto leading-relaxed">Personal roastery logs stabilize the local consensus network.</p>
                 </div>
                 

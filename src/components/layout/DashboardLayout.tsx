@@ -35,6 +35,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { label: 'Customer Archive', href: '/admin/customers', icon: Users, roles: [UserRole.ADMIN] },
   { label: 'Wholesale Hub', href: '/admin/wholesale', icon: Building2, roles: [UserRole.ADMIN] },
   { label: 'Analytics Forge', href: '/admin/analytics', icon: BarChart3, roles: [UserRole.ADMIN] },
+  { label: 'Plan Management', href: '/admin/plans', icon: Star, roles: [UserRole.ADMIN] },
 
   { label: 'Ritual Overview', href: '/dashboard', icon: LayoutDashboard, roles: [UserRole.CUSTOMER, UserRole.WHOLESALE] },
   { label: 'My Orders', href: '/dashboard/orders', icon: ShoppingBag, roles: [UserRole.CUSTOMER, UserRole.WHOLESALE] },
@@ -70,55 +71,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </AnimatePresence>
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 w-72 sm:w-80 bg-white/80 backdrop-blur-3xl border-r border-white shadow-premium-xl z-50 transition-all duration-1000 lg:translate-x-0 lg:static lg:block pt-20 sm:pt-24",
+        "fixed inset-y-0 left-0 w-72 sm:w-80 bg-espresso/95 backdrop-blur-3xl border-r border-white/10 shadow-premium-xl z-50 transition-all duration-1000 lg:translate-x-0 lg:static lg:block pt-20 sm:pt-24",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8 xl:p-10">
+        <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8 xl:p-10 text-cream">
           <Link to="/" className="flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 lg:mb-16 px-2 sm:px-4 group">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-espresso rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center font-display font-black text-white shadow-premium-lg transition-transform group-hover:rotate-12 duration-700">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-cream/10 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center font-display font-black text-cream shadow-premium-lg transition-transform group-hover:rotate-12 duration-700 border border-white/10">
               CC
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-display font-black tracking-tightest leading-none text-espresso italic uppercase">Coffee</div>
-              <div className="text-[8px] sm:text-[9px] lg:text-[10px] font-black text-caramel tracking-[0.3em] sm:tracking-[0.4em] leading-none mt-1 uppercase italic">Archive</div>
+              <div className="text-lg sm:text-xl font-display font-bold tracking-tight leading-none text-cream uppercase">Coffee</div>
+              <div className="text-[10px] sm:text-xs font-medium text-caramel tracking-[0.15em] leading-none mt-1 uppercase">Archive</div>
             </div>
           </Link>
 
           <nav className="flex-grow space-y-2 sm:space-y-3 lg:space-y-4 overflow-y-auto pr-2 sm:pr-4">
-            <div className="text-[9px] sm:text-[10px] lg:text-[11px] font-black uppercase tracking-[0.6em] sm:tracking-[0.8em] text-coffee-200 mb-6 sm:mb-8 lg:mb-10 px-4 sm:px-6 italic">Workspace</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-cream/70 mb-4 sm:mb-6 px-4 sm:px-6">Workspace</div>
             {filteredItems.map((item) => (
               <Link
                 key={item.href}
                 to={item.href}
                 onClick={() => setIsSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 xl:py-6 rounded-[1.5rem] sm:rounded-[2rem] transition-all duration-700 text-[9px] sm:text-[10px] lg:text-[11px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] italic group relative overflow-hidden",
+                  "flex items-center gap-3 sm:gap-4 px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 rounded-2xl transition-all duration-400 text-xs sm:text-sm font-semibold uppercase tracking-[0.06em] group relative overflow-hidden",
                   location.pathname === item.href
-                    ? "bg-espresso text-white shadow-premium-xl scale-[1.02]"
-                    : "text-coffee-400 hover:bg-cream hover:text-espresso border border-transparent hover:border-white/60"
+                    ? "bg-cream/10 text-cream shadow-premium"
+                    : "text-cream/70 hover:bg-white/10 hover:text-cream border border-transparent hover:border-white/10"
                 )}
               >
-                <item.icon size={20} strokeWidth={1.5} className={cn("shrink-0 transition-transform duration-700", location.pathname === item.href ? "text-caramel-gold" : "group-hover:rotate-12")} />
+                <item.icon size={20} strokeWidth={1.5} className={cn("shrink-0 transition-transform duration-700", location.pathname === item.href ? "text-caramel" : "group-hover:rotate-12 text-cream/70")} />
                 <span className="relative z-10">{item.label}</span>
               </Link>
             ))}
           </nav>
 
-          <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-espresso/5">
-            <div className="flex items-center gap-4 sm:gap-6 p-3 sm:p-4 lg:p-5 xl:p-6 bg-cream rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border border-white shadow-premium mb-4 sm:mb-6 group hover-premium transition-all duration-700">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-espresso text-caramel-gold rounded-[1rem] sm:rounded-[1.2rem] flex items-center justify-center font-black text-lg sm:text-xl lg:text-2xl italic shadow-premium shrink-0 group-hover:rotate-6 transition-transform">
+          <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/10">
+            <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white/10 rounded-2xl border border-white/10 shadow-premium mb-4 sm:mb-6 transition-all duration-500">
+              <div className="w-10 h-10 sm:w-12 bg-caramel rounded-xl flex items-center justify-center font-bold text-espresso shadow-premium shrink-0">
                 {profile?.displayName?.[0] || 'U'}
               </div>
               <div className="overflow-hidden min-w-0">
-                <p className="text-xs sm:text-sm font-black text-espresso truncate uppercase tracking-tight italic">{profile?.displayName}</p>
-                <p className="text-[8px] sm:text-[9px] lg:text-[10px] text-caramel font-black truncate uppercase mt-0.5 sm:mt-1 tracking-[0.1em] sm:tracking-[0.2em] italic opacity-60">{profile?.role}_UNIT</p>
+                <p className="text-xs sm:text-sm font-semibold text-cream truncate tracking-tight">{profile?.displayName}</p>
+                <p className="text-[11px] text-caramel font-medium truncate uppercase mt-0.5 opacity-80">{profile?.role}</p>
               </div>
             </div>
             <button
               onClick={logout}
-              className="w-full flex items-center gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[9px] sm:text-[10px] lg:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] text-red-400 hover:bg-red-50 hover:text-red-600 transition-all italic border border-transparent hover:border-red-100"
+              className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold tracking-wide text-espresso bg-caramel/10 hover:bg-caramel transition-all border border-white/10"
             >
-              <LogOut size={20} strokeWidth={1.5} />
+              <LogOut size={18} strokeWidth={1.5} />
               Disconnect
             </button>
           </div>

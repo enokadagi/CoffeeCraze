@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Order } from '../../types';
+import { Order, Product } from '../../types';
 import { formatPrice } from '../../lib/utils';
-import { BarChart3, TrendingUp, Users, DollarSign, ArrowUpRight, ArrowDownRight, Package } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { BarChart3, TrendingUp, Users, DollarSign, Package } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { motion } from 'motion/react';
 
@@ -15,6 +16,8 @@ export default function AdminAnalytics() {
     activeCustomers: 0,
     inventoryCount: 0
   });
+  const [weeklyRevenue, setWeeklyRevenue] = useState<{ name: string; revenue: number }[]>([]);
+  const [categorySales, setCategorySales] = useState<{ name: string; sales: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,8 +28,18 @@ export default function AdminAnalytics() {
         getDocs(collection(db, 'users'))
       ]);
 
-      const orders = ordersSnap.docs.map(doc => doc.data() as Order);
-      const revenue = orders.reduce((acc, curr) => acc + curr.total, 0);
+      const orders = ordersSnap.docs.map(doc => {
+        const data = doc.data();
+        const createdAt = data.createdAt;
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: createdAt instanceof Timestamp
+            ? createdAt.toDate().toISOString()
+            : (createdAt || new Date().toISOString())
+        } as Order;
+      });
+      const revenue = orders.reduce((acc, curr) => acc + (curr.total || 0), 0);
 
       setStats({
         totalRevenue: revenue,
@@ -34,22 +47,33 @@ export default function AdminAnalytics() {
         activeCustomers: usersSnap.size,
         inventoryCount: productsSnap.docs.reduce((acc, curr) => acc + (curr.data().stock || 0), 0)
       });
+
+      // Compute weekly revenue from orders
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayRevenue = [0, 0, 0, 0, 0, 0, 0];
+      orders.forEach(order => {
+        const d = new Date(order.createdAt);
+        dayRevenue[d.getDay()] += order.total || 0;
+      });
+      setWeeklyRevenue(dayNames.map((name, i) => ({
+        name: name.slice(0, 3),
+        revenue: dayRevenue[i] || 0
+      })));
+
+      // Compute category sales from products
+      const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const catMap: Record<string, number> = {};
+      products.forEach(p => {
+        catMap[p.category] = (catMap[p.category] || 0) + (p.stock || 0);
+      });
+      setCategorySales(Object.entries(catMap).map(([name, sales]) => ({ name, sales })));
+
       setLoading(false);
     };
     fetchData();
   }, []);
 
-  const data = [
-    { name: 'Mon', revenue: 4000 },
-    { name: 'Tue', revenue: 3000 },
-    { name: 'Wed', revenue: 2000 },
-    { name: 'Thu', revenue: 2780 },
-    { name: 'Fri', revenue: 1890 },
-    { name: 'Sat', revenue: 2390 },
-    { name: 'Sun', revenue: 3490 },
-  ];
-
-  const StatCard = ({ title, value, icon: Icon, trend, trendValue }: any) => (
+  const StatCard = ({ title, value, icon: Icon }: any) => (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -60,12 +84,9 @@ export default function AdminAnalytics() {
         <div className="w-14 h-14 bg-mocha/5 rounded-2xl flex items-center justify-center text-caramel shadow-premium group-hover:rotate-12 transition-transform duration-700 border border-mocha/10">
           <Icon size={24} strokeWidth={1.5} />
         </div>
-        {trend && (
-          <div className={`flex items-center gap-2 text-[10px] font-black px-4 py-2 rounded-full italic border ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-            {trend === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-            {trendValue}%
-          </div>
-        )}
+        <div className="px-4 py-2 rounded-full text-[10px] font-black italic border bg-coffee-50 text-coffee-400 border-coffee-100">
+          LIVE
+        </div>
       </div>
       <div className="relative z-10">
         <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] mb-3 italic">{title}_VECTOR</p>
@@ -77,6 +98,7 @@ export default function AdminAnalytics() {
   return (
     <DashboardLayout>
       <div className="space-y-20 relative">
+        <SEO title="Analytics" description="View CoffeeCraze sales performance, revenue trends, and business insights." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-100 pb-16">
           <div className="space-y-4">
             <span className="stat-label text-caramel italic">Deep Sensory Analysis</span>
@@ -93,9 +115,9 @@ export default function AdminAnalytics() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <StatCard title="Total Revenue" value={formatPrice(stats.totalRevenue).split('LBP')[1] + 'K'} icon={DollarSign} trend="up" trendValue="12.5" />
-          <StatCard title="Total Orders" value={stats.totalOrders} icon={TrendingUp} trend="up" trendValue="8.2" />
-          <StatCard title="Active Ritualists" value={stats.activeCustomers} icon={Users} trend="up" trendValue="15.0" />
+          <StatCard title="Total Revenue" value={formatPrice(stats.totalRevenue)} icon={DollarSign} />
+          <StatCard title="Total Orders" value={stats.totalOrders} icon={TrendingUp} />
+          <StatCard title="Active Ritualists" value={stats.activeCustomers} icon={Users} />
           <StatCard title="Stock Units" value={stats.inventoryCount} icon={Package} />
         </div>
 
@@ -116,7 +138,7 @@ export default function AdminAnalytics() {
             </div>
             <div className="h-96 w-full relative z-10">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
+                <AreaChart data={weeklyRevenue}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#C0A080" stopOpacity={0.3}/>
@@ -139,8 +161,8 @@ export default function AdminAnalytics() {
                 </AreaChart>
               </ResponsiveContainer>
               <div className="flex justify-between px-4 pt-8 border-t border-coffee-100">
-                 {data.map(d => (
-                   <span key={d.name} className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic leading-none">{d.name}</span>
+                 {weeklyRevenue.map((d, i) => (
+                   <span key={i} className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic leading-none">{d.name}</span>
                  ))}
               </div>
             </div>
@@ -159,24 +181,23 @@ export default function AdminAnalytics() {
               </div>
             </div>
             <div className="h-96 w-full relative z-10">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { name: 'Beans', sales: 4500 },
-                  { name: 'Nodes', sales: 3000 },
-                  { name: 'Cells', sales: 2000 },
-                  { name: 'Gear', sales: 1500 },
-                ]}>
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }} 
-                    contentStyle={{ borderRadius: '2rem', border: 'none', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' }} 
-                  />
-                  <Bar dataKey="sales" fill="#C0A080" radius={[12, 12, 0, 0]} barSize={60} />
-                  <XAxis dataKey="name" hide />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-4 gap-4 pt-8 border-t border-coffee-100">
-                 {['Beans', 'Nodes', 'Cells', 'Gear'].map(name => (
-                   <span key={name} className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic text-center leading-none">{name}</span>
+              {categorySales.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categorySales}>
+                    <Tooltip 
+                      cursor={{ fill: 'transparent' }} 
+                      contentStyle={{ borderRadius: '2rem', border: 'none', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' }} 
+                    />
+                    <Bar dataKey="sales" fill="#C0A080" radius={[12, 12, 0, 0]} barSize={60} />
+                    <XAxis dataKey="name" hide />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-coffee-300 font-serif italic">No category data available</div>
+              )}
+              <div className="grid grid-cols-1 gap-4 pt-8 border-t border-coffee-100">
+                 {categorySales.map(d => (
+                   <span key={d.name} className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic text-center leading-none">{d.name}</span>
                  ))}
               </div>
             </div>

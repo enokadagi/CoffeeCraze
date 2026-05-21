@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Order, Subscription, Review, UserProfile } from '../types';
+import { Product, Order, Subscription, Review, UserProfile, Plan } from '../types';
 
 export const ProductService = {
   async getAll(): Promise<Product[]> {
@@ -49,8 +49,22 @@ export const OrderService = {
   }
 };
 
+export const PlanService = {
+  async getAll(): Promise<Plan[]> {
+    const q = query(collection(db, 'plans'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plan));
+  },
+
+  async getById(id: string): Promise<Plan | null> {
+    const docRef = doc(db, 'plans', id);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Plan) : null;
+  }
+};
+
 export const SubscriptionService = {
-  async create(sub: Omit<Subscription, 'id' | 'createdAt'>): Promise<string> {
+  async create(sub: Record<string, any>): Promise<string> {
     const docRef = await addDoc(collection(db, 'subscriptions'), {
       ...sub,
       createdAt: serverTimestamp(),

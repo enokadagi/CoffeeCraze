@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { Type } from "@google/genai";
 
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = typeof import.meta !== 'undefined' ? import.meta.env.VITE_GEMINI_API_KEY : '';
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export async function getCoffeeRecommendation(preferences: string) {

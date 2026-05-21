@@ -2,10 +2,12 @@ import { motion } from 'motion/react';
 import { ArrowRight, Coffee, ShieldCheck, Zap, Star, Sparkles, Globe, Quote, Compass } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import SEO from '../components/common/SEO';
 
 export default function Home() {
   return (
-    <div className="relative overflow-hidden bg-cream grainy-overlay">
+    <div className="relative overflow-hidden bg-hero hero-advanced grainy-overlay">
+      <SEO title="Home" description="Experience the finest premium coffee ritual delivered to your door by CoffeeCraze." />
       {/* Cinematic Cinematic Hero Section 2026 */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-24 pb-32 md:pt-32 md:pb-40 px-4 md:px-10 lg:px-20">
         <div className="mesh-gradient absolute inset-0 opacity-[0.5]" />
@@ -65,11 +67,11 @@ export default function Home() {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[2s]" />
             <div className="w-2 md:w-3 h-2 md:h-3 bg-caramel-gold animate-pulse rounded-full shadow-[0_0_15px_rgba(198,148,82,0.5)]" />
-            <span className="text-espresso uppercase tracking-[0.8rem] md:tracking-[1.5rem] text-fluid-small font-black italic ml-3 md:ml-6">ARCHIVAL_SYNC // PROTOCOL_01</span>
+            <span className="text-on-hero uppercase tracking-[0.8rem] md:tracking-[1.5rem] text-fluid-small font-black italic ml-3 md:ml-6">ARCHIVAL_SYNC // PROTOCOL_01</span>
           </motion.div>
 
           <header className="relative mb-6 md:mb-20">
-            <h1 className="text-fluid-hero font-display font-black leading-[0.85] md:leading-[0.8] tracking-tightest text-balance text-espresso relative italic uppercase">
+            <h1 className="text-fluid-hero font-display font-black leading-[0.85] md:leading-[0.8] tracking-tightest text-balance text-on-hero relative italic uppercase">
               <span className="text-reveal-mask">
                 <motion.span 
                   initial={{ y: "150%", skewY: 15 }}
@@ -98,9 +100,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1.8, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="text-fluid-subtitle text-espresso/60 font-serif italic leading-tight text-balance px-2 md:px-4 max-w-4xl mx-auto tracking-tight"
+              className="text-fluid-subtitle text-on-hero/80 font-serif italic leading-tight text-balance px-2 md:px-4 max-w-4xl mx-auto tracking-tight"
             >
-              "Architecting the ritual for <span className="text-espresso">discerning citizens</span>."
+              Architecting the ritual for <span className="text-secondary">discerning citizens</span>.
             </motion.p>
 
             <motion.div 
@@ -109,12 +111,12 @@ export default function Home() {
               transition={{ duration: 1.5, delay: 1.1, ease: [0.22, 1, 0.36, 1] }}
               className="flex flex-col sm:flex-row gap-3 md:gap-8 items-center justify-center pt-2 md:pt-8"
             >
-              <Link to="/subscriptions" className="btn-premium px-6 md:px-16 py-3 md:py-7 text-fluid-small md:text-base group">
-                 <span className="relative z-10 flex items-center gap-4 md:gap-8">
-                    GET THE RITUAL <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-1000" />
+              <Link to="/subscriptions" className="btn-premium text-fluid-small md:text-base">
+                 <span className="relative z-10 flex items-center gap-3 md:gap-5">
+                    GET THE RITUAL <ArrowRight size={20} className="group-hover:translate-x-3 transition-transform duration-300" />
                  </span>
               </Link>
-              <Link to="/shop" className="btn-outline px-6 md:px-12 py-3 md:py-6 text-fluid-small">
+              <Link to="/shop" className="btn-outline text-fluid-small md:text-base">
                 <span className="relative z-10">THE ARCHIVE</span>
               </Link>
             </motion.div>
@@ -137,7 +139,8 @@ export default function Home() {
       </section>
 
       {/* Layered Content System */}
-      <section className="section-spacing bg-white relative z-10 overflow-hidden">
+      <section className="section-spacing bg-coffee-50 relative z-10 overflow-hidden">
+        <div className="mesh-gradient absolute inset-0 opacity-[0.06]" />
         <div className="page-container px-6 md:px-12 lg:px-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-32 items-center">
             <motion.div 
@@ -200,7 +203,7 @@ export default function Home() {
       </section>
 
       {/* Subscription Call: Automated Ritual */}
-      <section className="py-12 md:py-64 bg-espresso relative overflow-hidden rounded-[2rem] md:rounded-[8rem] mx-2 md:mx-12 my-6 md:my-32">
+      <section className="py-12 sm:py-20 lg:py-32 bg-espresso relative overflow-hidden rounded-2xl lg:rounded-[3rem] mx-2 sm:mx-6 lg:mx-12 my-6 sm:my-12 lg:my-24">
          <div className="absolute inset-0 mesh-gradient opacity-15" />
          <div className="absolute top-0 right-0 w-[250px] md:w-[800px] h-[250px] md:h-[800px] bg-caramel/10 blur-[100px] md:blur-[200px] rounded-full animate-pulse" />
          
@@ -280,7 +283,7 @@ export default function Home() {
               >
                 <Link to={`/category/${cat.link}`} className="group relative block aspect-[4/5] sm:aspect-[4/6] rounded-[1.5rem] md:rounded-[4rem] overflow-hidden shadow-premium-lg hover-premium border border-espresso/[0.03]">
                   <img src={cat.img} className="w-full h-full object-cover transition-transform duration-[6s] group-hover:scale-125 saturate-[0.8] brightness-[0.9]" alt={cat.name} />
-                  <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-espresso/80 via-espresso/20 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-2/3 archive-gradient" />
                   <div className="absolute top-6 left-6 md:top-10 md:left-10">
                     <span className="px-3 md:px-5 py-1 md:py-2 bg-white/10 backdrop-blur-3xl rounded-full text-fluid-small font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-white italic border border-white/10 group-hover:bg-caramel group-hover:text-white transition-all duration-700">{cat.tag}</span>
                   </div>
@@ -342,48 +345,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Global Influence / Trust Section - Polished */}
-      <section className="section-spacing bg-cream py-16 md:py-64">
-        <div className="page-container px-6 md:px-12">
-          <div className="flex flex-col items-center text-center mb-16 md:mb-40 space-y-6 md:space-y-12">
-            <span className="stat-label text-caramel">Resonance Network</span>
-            <h2 className="text-fluid-hero font-display font-black leading-[0.8] md:leading-[0.7] tracking-tightest text-espresso uppercase">
-              The <span className="italic font-light text-coffee-300">Resonant</span> Collective.
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-24 opacity-30 grayscale hover:grayscale-0 transition-all duration-1000">
-            {['VOGUE', 'ROBB REPORT', 'FORBES', 'GQ'].map((brand, i) => (
-              <div key={i} className="flex items-center justify-center border-y border-coffee-100 py-8 md:py-20 group">
-                <span className="text-fluid-title font-black tracking-[0.3em] md:tracking-[0.5em] text-espresso group-hover:text-caramel transition-colors duration-1000 cursor-default italic uppercase">{brand}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-16 md:mt-64 pt-12 md:pt-40 border-t border-coffee-100 grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-24">
-            {[
-              { q: "The protocol has fundamentally altered my understanding of morning sensory input.", a: "S. Haddad / ARCHITECT" },
-              { q: "Finally, a subscription that respects the complexity of the bean. Truly world-class logistics.", a: "M. Karam / COLLECTOR" },
-              { q: "The Overseer knows my palate better than I do. Unsettlingly accurate.", a: "L. Mansour / CRITIC" }
-            ].map((testimonial, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1.5, delay: i * 0.2, ease: [0.22, 1, 0.36, 1] }}
-                viewport={{ once: true }}
-                className="space-y-6 md:space-y-12 group p-6 md:p-12 rounded-[2rem] md:rounded-[4rem] hover:bg-white transition-all duration-1000 hover:shadow-premium"
-              >
-                <div className="flex gap-1.5 md:gap-2">
-                  {[1, 2, 3, 4, 5].map(j => <Star key={j} className="w-3.5 h-3.5 md:w-4 md:h-4 fill-caramel-gold text-caramel-gold opacity-40 group-hover:opacity-100 transition-opacity" />)}
-                </div>
-                <p className="text-fluid-subtitle font-serif italic leading-relaxed text-espresso opacity-90">"{testimonial.q}"</p>
-                <p className="text-fluid-small font-black uppercase tracking-[0.3em] md:tracking-[0.5em] text-coffee-300 group-hover:text-caramel transition-colors">— {testimonial.a}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
+</div>
   );
 }

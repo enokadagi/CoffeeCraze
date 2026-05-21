@@ -6,6 +6,7 @@ import { Building2, Search, CheckCircle, XCircle, Clock, MoreVertical, Coffee, E
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 
 export default function AdminWholesale() {
@@ -50,6 +51,7 @@ export default function AdminWholesale() {
   return (
     <DashboardLayout>
       <div className="space-y-16 relative">
+        <SEO title="Wholesale Partners" description="Manage CoffeeCraze wholesale partner accounts and approvals." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-50 pb-16">
           <div className="space-y-4">
             <span className="stat-label text-gold-500 italic">Supply Line Mastery</span>

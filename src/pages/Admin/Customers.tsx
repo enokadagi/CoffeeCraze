@@ -5,6 +5,7 @@ import { Profile, UserRole } from '../../types';
 import { Users, Search, MoreVertical, Shield, Star, Mail, Edit2, Ban } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
+import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 
 export default function AdminCustomers() {
@@ -43,6 +44,7 @@ export default function AdminCustomers() {
   return (
     <DashboardLayout>
       <div className="space-y-16 relative">
+        <SEO title="Customers" description="Manage CoffeeCraze customer accounts and user roles." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-50 pb-16">
           <div className="space-y-4">
             <span className="stat-label text-gold-500 italic">Network Intelligence</span>

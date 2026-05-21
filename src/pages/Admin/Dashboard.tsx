@@ -1,38 +1,52 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { 
-  Users, ShoppingBag, Coffee as CoffeeIcon, 
-  ChevronRight, ArrowUpRight, TrendingUp, DollarSign, RefreshCw,
-  Truck, User
+import {
+  Users, ShoppingBag, Coffee, TrendingUp, AlertTriangle,
+  Package, Truck, DollarSign, CalendarDays, Settings,
+  BarChart3, PieChart, Activity, Clock
 } from 'lucide-react';
+import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
+import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { formatPrice, cn } from '../../lib/utils';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { cn } from '../../lib/utils';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { UserRole } from '../../types';
+import { UserRole, Order, Subscription, SubscriptionStatus, DeliveryStatus } from '../../types';
+import { formatUSD, formatLBP } from '../../utils/exchange';
+import { BarChart, Bar, LineChart, Line, Tooltip, ResponsiveContainer, XAxis, YAxis, Legend } from 'recharts';
 
-const data = [
-  { name: 'Mon', revenue: 4000000, orders: 24 },
-  { name: 'Tue', revenue: 3000000, orders: 18 },
-  { name: 'Wed', revenue: 5000000, orders: 32 },
-  { name: 'Thu', revenue: 2780000, orders: 15 },
-  { name: 'Fri', revenue: 6890000, orders: 42 },
-  { name: 'Sat', revenue: 8390000, orders: 55 },
-  { name: 'Sun', revenue: 7490000, orders: 48 },
-];
+interface AdminStats {
+  totalCustomers: number;
+  totalProducts: number;
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  lowStockItems: number;
+  pendingOrders: number;
+  overdueLedger: number;
+  weeklyRevenue: { name: string; revenue: number }[];
+  totalRevenueLBP: number;
+  totalRevenueUSD: number;
+}
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [counts, setCounts] = useState({
-    products: 0,
-    orders: 0,
-    customers: 0,
-    subscriptions: 0
+
+  const [stats, setStats] = useState<AdminStats>({
+    totalCustomers: 0,
+    totalProducts: 0,
+    totalSubscriptions: 0,
+    activeSubscriptions: 0,
+    lowStockItems: 0,
+    pendingOrders: 0,
+    overdueLedger: 0,
+    weeklyRevenue: [],
+    totalRevenueLBP: 0,
+    totalRevenueUSD: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'overview' | 'operations' | 'analytics'>('overview');
 
   // Protection
   useEffect(() => {
@@ -42,219 +56,404 @@ export default function AdminDashboard() {
   }, [profile, navigate]);
 
   useEffect(() => {
-    const fetchCounts = async () => {
-      const productsSnap = await getDocs(collection(db, 'products'));
-      const ordersSnap = await getDocs(collection(db, 'orders'));
-      const customersSnap = await getDocs(query(collection(db, 'users'), where('role', '!=', UserRole.ADMIN)));
-      const subsSnap = await getDocs(collection(db, 'subscriptions'));
+    if (profile?.role === UserRole.ADMIN) {
+      fetchAdminData();
+    }
+  }, [profile]);
 
-      setCounts({
-        products: productsSnap.size,
-        orders: ordersSnap.size,
-        customers: customersSnap.size,
-        subscriptions: subsSnap.size
+  const fetchAdminData = async () => {
+    try {
+      // Fetch collections
+      const [productsSnap, ordersSnap, customersSnap, subsSnap, wholesaleSnap] = await Promise.all([
+        getDocs(collection(db, 'products')),
+        getDocs(collection(db, 'orders')),
+        getDocs(query(collection(db, 'users'), where('role', '!=', UserRole.ADMIN))),
+        getDocs(collection(db, 'subscriptions')),
+        getDocs(query(collection(db, 'wholesaleAccounts'), where('status', '==', 'pending')))
+      ]);
+
+      // Products analysis
+      const productsList = productsSnap.docs.map(doc => doc.data());
+      const lowStockCount = productsList.filter((p: any) => (p.stock ?? 0) < 10).length;
+
+      // Subscriptions analysis
+      const subsList = subsSnap.docs.map(doc => doc.data());
+      const activeCount = subsList.filter((s: any) => s.status === SubscriptionStatus.ACTIVE).length;
+
+      // Orders analysis
+      const allOrders = ordersSnap.docs.map(doc => {
+        const data = doc.data();
+        const createdAt = data.createdAt;
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: createdAt instanceof Timestamp
+            ? createdAt.toDate().toISOString()
+            : (createdAt || new Date().toISOString())
+        } as Order;
       });
-    };
-    fetchCounts();
-  }, []);
 
-  const stats = [
-    { label: 'Total Revenue', value: 'LBP 125,400k', icon: <DollarSign />, color: 'bg-emerald-500', trend: '+12.5%' },
-    { label: 'Ritual Members', value: counts.customers.toLocaleString(), icon: <Users />, color: 'bg-coffee-500', trend: '+8.2%' },
-    { label: 'Active Subscriptions', value: counts.subscriptions.toLocaleString(), icon: <CoffeeIcon />, color: 'bg-amber-500', trend: '+15.3%' },
-    { label: 'Open Orders', value: counts.orders.toLocaleString(), icon: <ShoppingBag />, color: 'bg-blue-500', trend: '-2.1%' },
-  ];
+      const pendingOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
+      const revenueLBP = allOrders.reduce((acc, o) => acc + (o.totalLbp || o.total || 0), 0);
+      const revenueUSD = revenueLBP / 89500; // Approximate exchange rate
+
+      // Weekly revenue calculation
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayRevenue = [0, 0, 0, 0, 0, 0, 0];
+      allOrders.forEach(order => {
+        const d = new Date(order.createdAt);
+        const day = d.getDay();
+        dayRevenue[day] += order.totalLbp || order.total || 0;
+      });
+
+      const weeklyData = dayNames.map((name, idx) => ({
+        name,
+        revenue: dayRevenue[idx] / 1000000 // Convert to millions for display
+      }));
+
+      setStats({
+        totalCustomers: customersSnap.size,
+        totalProducts: productsSnap.size,
+        totalSubscriptions: subsSnap.size,
+        activeSubscriptions: activeCount,
+        lowStockItems: lowStockCount,
+        pendingOrders: pendingOrdersCount,
+        overdueLedger: 0, // Would need payment data
+        weeklyRevenue: weeklyData,
+        totalRevenueLBP: revenueLBP,
+        totalRevenueUSD: revenueUSD,
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching admin data:', error);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div className="h-20 bg-white animate-pulse rounded-2xl" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-white animate-pulse rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 md:space-y-16 relative">
-        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 md:gap-10 border-b border-coffee-50 pb-8 md:pb-16">
-          <div className="space-y-4">
-            <span className="stat-label text-gold-500 italic">Enterprise Oversight</span>
-            <h1 className="text-fluid-hero font-display font-black text-coffee-950 tracking-tightest leading-none italic uppercase">Operations <br/><span className="not-italic text-coffee-400">Center.</span></h1>
-            <p className="text-fluid-body text-coffee-400 font-serif italic">Strategic monitoring of the <span className="text-coffee-950 font-black not-italic uppercase">CoffeeCraze</span> sensory ecosystem.</p>
-          </div>
+      <div className="space-y-8">
+        <SEO title="Admin Dashboard" description="Manage operations, inventory, subscriptions, and analytics." />
 
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="px-6 md:px-8 py-4 md:py-5 bg-white shadow-premium rounded-[2rem] flex items-center gap-6 border border-coffee-50">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></div>
-              <span className="text-[11px] font-black text-coffee-950 uppercase tracking-[0.4em] italic leading-none">Global_Nodes: Online</span>
-            </div>
-            <div className="px-6 md:px-8 py-4 md:py-5 bg-coffee-950 shadow-premium-lg rounded-[2rem] flex items-center gap-6 border border-white/10">
-              <TrendingUp size={18} className="text-gold-500" />
-              <span className="text-[11px] font-black text-white uppercase tracking-[0.4em] italic leading-none">Efficiency: 98.4%</span>
-            </div>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-espresso/5 pb-8">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-2">Admin Control Center</p>
+            <h1 className="text-4xl md:text-5xl font-display font-black text-espresso italic">Operations Hub</h1>
+            <p className="text-sm text-coffee-400 mt-2">Platform management & analytics</p>
           </div>
-        </header>
+        </div>
 
-        {/* Core KPI Matrix */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
-          {stats.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="bg-white p-6 md:p-10 lg:p-12 rounded-[4rem] border border-coffee-50 shadow-premium hover:shadow-premium-xl relative overflow-hidden group hover:-translate-y-2 transition-all duration-1000"
+        {/* Tab Navigation */}
+        <div className="flex gap-3 border-b border-espresso/5">
+          {(['overview', 'operations', 'analytics'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                'px-6 py-3 font-bold text-sm uppercase tracking-widest border-b-2 transition-all',
+                tab === t
+                  ? 'border-espresso text-espresso'
+                  : 'border-transparent text-coffee-400 hover:text-espresso'
+              )}
             >
-              <div className="mesh-gradient absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-1000 pointer-events-none" />
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6 md:mb-10">
-                  <div className={cn("w-10 h-10 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-white shadow-xl transition-transform duration-700 group-hover:rotate-12", stat.color)}>
-                    {stat.icon}
-                  </div>
-                  <div className={cn("px-4 py-2 rounded-full text-[10px] font-black italic border transition-colors duration-700", 
-                    stat.trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white' : 'bg-red-50 text-red-600 border-red-100 group-hover:bg-red-600 group-hover:text-white'
-                  )}>
-                    {stat.trend}
-                  </div>
-                </div>
-                <h3 className="text-coffee-300 text-[11px] font-black uppercase tracking-[0.4em] mb-4 italic leading-none">{stat.label}_METRIC</h3>
-                <p className="text-fluid-heading font-display font-black text-coffee-950 tracking-tightest italic leading-none uppercase">{stat.value}</p>
-              </div>
-              <div className="absolute top-0 right-0 w-48 h-48 bg-coffee-50/50 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 group-hover:bg-gold-500/10 transition-colors duration-1000"></div>
-            </motion.div>
+              {t === 'overview' ? 'Overview' : t === 'operations' ? 'Operations' : 'Analytics'}
+            </button>
           ))}
         </div>
 
-        {/* Insights Vector */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-12">
-          {/* Next Deliveries Section */}
-          <div className="xl:col-span-1 bg-white p-6 md:p-12 lg:p-16 rounded-[5rem] border border-coffee-50 shadow-premium-lg relative overflow-hidden group h-fit">
-            <div className="flex items-center justify-between mb-8 md:mb-16 relative z-10">
-              <div className="space-y-4">
-                <span className="stat-label text-gold-500">Logistics_Queue</span>
-                <h2 className="text-fluid-heading font-display font-black text-coffee-950 italic uppercase tracking-tightest leading-none">Next <br/><span className="not-italic text-coffee-400">Extractions.</span></h2>
-              </div>
-              <div className="w-10 h-10 md:w-14 md:h-14 bg-coffee-50 rounded-2xl flex items-center justify-center text-gold-500 shadow-premium border border-coffee-100">
-                <Truck size={24} strokeWidth={1} />
-              </div>
+        {/* Overview Tab */}
+        {tab === 'overview' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            {/* Key Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricBox
+                label="Total Customers"
+                value={stats.totalCustomers}
+                icon={<Users size={24} />}
+                trend="up"
+              />
+              <MetricBox
+                label="Active Subscriptions"
+                value={stats.activeSubscriptions}
+                icon={<Coffee size={24} />}
+                trend="up"
+              />
+              <MetricBox
+                label="Pending Orders"
+                value={stats.pendingOrders}
+                icon={<Package size={24} />}
+                alert={stats.pendingOrders > 5}
+              />
+              <MetricBox
+                label="Low Stock Items"
+                value={stats.lowStockItems}
+                icon={<AlertTriangle size={24} />}
+                alert={stats.lowStockItems > 0}
+              />
             </div>
 
-            <div className="space-y-10 relative z-10">
-              {/* This would be populated from subscriptions where nextDelivery is soon */}
-              {[1, 2, 3].map((_, i) => (
-                <div key={i} className="p-4 md:p-8 bg-cream/50 rounded-[3rem] border border-white hover:border-gold-500/30 transition-all duration-700 group/item">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4 md:gap-6">
-                      <div className="w-12 h-12 rounded-xl bg-espresso flex items-center justify-center text-caramel shadow-premium">
-                        <User size={18} />
-                      </div>
-                      <div>
-                        <p className="font-display font-black text-coffee-950 italic leading-none uppercase tracking-tight">RITUALIST_#{942 - i}</p>
-                        <p className="text-[10px] font-black text-coffee-300 tracking-[0.4em] uppercase mt-2 italic">BEIRUT_LOC</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-display font-black text-gold-500 italic leading-none uppercase">MAY_{15 + i}</p>
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic mt-2">14:00_FLOW</p>
-                    </div>
+            {/* Revenue Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white border border-espresso/5 rounded-2xl p-8 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-4">Total Revenue</p>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-coffee-400 mb-1">LBP</p>
+                    <p className="text-3xl font-bold text-espresso font-display italic">
+                      {formatLBP(stats.totalRevenueLBP)}
+                    </p>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="px-5 py-2 bg-white rounded-full text-[9px] font-black uppercase tracking-widest text-coffee-400 border border-coffee-50 italic">ESPRESSO_ALLOCATION</div>
-                    <div className="px-5 py-2 bg-coffee-950 text-white rounded-full text-[9px] font-black uppercase tracking-widest italic">PAID</div>
+                  <div>
+                    <p className="text-xs text-coffee-400 mb-1">USD</p>
+                    <p className="text-2xl font-bold text-caramel font-display italic">
+                      ${stats.totalRevenueUSD.toFixed(2)}
+                    </p>
                   </div>
                 </div>
-              ))}
-              <Link to="/admin/subscriptions" className="btn-premium w-full py-4 md:py-6 italic text-xs uppercase ring-1 ring-coffee-50 group/more">
-                View Full Queue <ChevronRight size={18} className="ml-4 group-hover/more:translate-x-4 transition-transform duration-700" />
-              </Link>
-            </div>
-          </div>
+              </div>
 
-          <div className="xl:col-span-2 bg-white p-6 md:p-12 lg:p-16 rounded-[5rem] border border-coffee-50 shadow-premium-lg relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 md:p-16 opacity-[0.03] transition-opacity duration-1000 group-hover:opacity-[0.08] pointer-events-none">
-              <TrendingUp size={300} strokeWidth={0.5} />
-            </div>
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 md:mb-16 gap-4 md:gap-8 relative z-10">
-              <div className="space-y-4">
-                <span className="stat-label text-gold-500">Flux Analysis</span>
-                <h2 className="text-fluid-heading font-display font-black text-coffee-950 italic uppercase tracking-tightest leading-none">Market <br/><span className="not-italic text-coffee-400">Diffusion.</span></h2>
+              <div className="bg-white border border-espresso/5 rounded-2xl p-8 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-4">Platform Stats</p>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-coffee-400">Total Products</span>
+                    <span className="font-bold text-espresso">{stats.totalProducts}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-3 border-b border-espresso/5">
+                    <span className="text-coffee-400">Total Subscriptions</span>
+                    <span className="font-bold text-espresso">{stats.totalSubscriptions}</span>
+                  </div>
+                  <button
+                    onClick={() => navigate('/admin/inventory')}
+                    className="w-full py-2 bg-espresso text-white rounded-lg font-bold text-xs hover:bg-espresso/90 transition-colors"
+                  >
+                    View Inventory
+                  </button>
+                </div>
               </div>
-              <div className="flex bg-coffee-50/50 p-2 rounded-[1.5rem] border border-coffee-100 backdrop-blur-sm">
-                <button className="px-6 py-3 bg-white text-coffee-950 shadow-premium rounded-xl text-[10px] font-black uppercase tracking-[0.3em] font-display italic">Cycle_7D</button>
-                <button className="px-6 py-3 text-coffee-400 hover:text-coffee-950 rounded-xl text-[10px] font-black uppercase tracking-[0.3em] font-display italic transition-colors">Cycle_30D</button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-gradient-to-br from-espresso/5 to-caramel/5 border border-espresso/10 rounded-2xl p-8">
+              <h3 className="font-bold text-espresso text-lg mb-6 italic">Quick Actions</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <ActionButton
+                  icon={<Package size={20} />}
+                  label="Manage Products"
+                  onClick={() => navigate('/admin/products')}
+                />
+                <ActionButton
+                  icon={<Coffee size={20} />}
+                  label="Manage Plans"
+                  onClick={() => navigate('/admin/plans')}
+                />
+                <ActionButton
+                  icon={<Users size={20} />}
+                  label="View Customers"
+                  onClick={() => navigate('/admin/customers')}
+                />
+                <ActionButton
+                  icon={<ShoppingBag size={20} />}
+                  label="Order Management"
+                  onClick={() => navigate('/admin/orders')}
+                />
+                <ActionButton
+                  icon={<DollarSign size={20} />}
+                  label="Payment Tracking"
+                  onClick={() => navigate('/admin/payments')}
+                />
+                <ActionButton
+                  icon={<Truck size={20} />}
+                  label="Delivery Management"
+                  onClick={() => navigate('/admin/deliveries')}
+                />
               </div>
             </div>
-            <div className="h-[450px] w-full relative z-10">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8c6a4d" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#d9c5b2" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '2rem', 
-                      border: '1px solid rgba(140, 106, 77, 0.1)', 
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)',
-                      padding: '1.5rem',
-                      fontFamily: 'Inter, sans-serif'
-                    }}
-                    cursor={{ stroke: '#8c6a4d', strokeWidth: 1, strokeDasharray: '5 5' }}
-                  />
-                  <XAxis dataKey="name" hide />
-                  <YAxis hide domain={['dataMin - 1000000', 'dataMax + 1000000']} />
-                  <Area type="monotone" dataKey="revenue" stroke="#8c6a4d" strokeWidth={5} fillOpacity={1} fill="url(#colorRev)" />
-                </AreaChart>
+          </motion.div>
+        )}
+
+        {/* Operations Tab */}
+        {tab === 'operations' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="bg-white border border-espresso/5 rounded-2xl p-8 shadow-sm">
+              <h3 className="font-bold text-espresso text-lg mb-6 italic">Operational Tasks</h3>
+              <div className="space-y-3">
+                <TaskItem
+                  title="Pending Subscription Approvals"
+                  count={5}
+                  priority="high"
+                />
+                <TaskItem
+                  title="Failed Deliveries to Retry"
+                  count={2}
+                  priority="medium"
+                />
+                <TaskItem
+                  title="Overdue Payments"
+                  count={stats.overdueLedger}
+                  priority="high"
+                />
+                <TaskItem
+                  title="Low Stock Alerts"
+                  count={stats.lowStockItems}
+                  priority={stats.lowStockItems > 5 ? 'high' : 'medium'}
+                />
+                <TaskItem
+                  title="Open Support Tickets"
+                  count={3}
+                  priority="medium"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Analytics Tab */}
+        {tab === 'analytics' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="bg-white border border-espresso/5 rounded-2xl p-8 shadow-sm">
+              <h3 className="font-bold text-espresso text-lg mb-6 italic">Weekly Revenue</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={stats.weeklyRevenue}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="revenue" fill="#1a0f0a" name="Revenue (Millions LBP)" />
+                </BarChart>
               </ResponsiveContainer>
-              <div className="flex justify-between px-4 pt-8 border-t border-coffee-50/50">
-                 {data.map(d => (
-                   <span key={d.name} className="text-[10px] font-black text-coffee-300 uppercase tracking-[0.3em] italic">{d.name}_CYC</span>
-                 ))}
-              </div>
             </div>
-          </div>
-
-          <div className="bg-coffee-950 text-white p-6 md:p-12 lg:p-16 rounded-[5rem] border border-white/5 shadow-premium-xl relative overflow-hidden group">
-            <div className="mesh-gradient absolute inset-0 opacity-[0.05] pointer-events-none" />
-            <div className="flex items-center justify-between mb-8 md:mb-16 relative z-10">
-              <div className="space-y-4">
-                <span className="stat-label text-gold-500">Live_Protocol</span>
-                <h2 className="text-fluid-heading font-display font-black text-white italic uppercase tracking-tightest leading-none">Extraction <br/><span className="not-italic text-coffee-500">Logging.</span></h2>
-              </div>
-              <button className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-gold-500 hover:bg-gold-500 hover:text-white transition-all duration-700">
-                <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-1000" />
-              </button>
-            </div>
-            
-            <div className="space-y-6 md:space-y-12 relative z-10">
-              {[1, 2, 3, 4, 5].map((_, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 + 0.5 }}
-                  key={i} 
-                  className="flex items-center justify-between group/row border-b border-white/5 pb-8 last:border-0"
-                >
-                  <div className="flex items-center gap-6">
-                    <div className="w-10 h-10 md:w-14 md:h-14 bg-white/5 rounded-2xl flex items-center justify-center group-hover/row:bg-gold-500 group-hover/row:text-white transition-all duration-500 shadow-xl border border-white/10">
-                      <ShoppingBag size={20} strokeWidth={1} />
-                    </div>
-                    <div>
-                      <p className="text-fluid-body font-display font-black text-white italic uppercase leading-none tracking-tight">LOG_#{842 - i}</p>
-                      <p className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.4em] italic mt-2">TIMESTAMP: {i + 1}M_AGO</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-fluid-body font-display font-black text-gold-500 italic tracking-tighter leading-none">{formatPrice(Math.random() * 2000000 + 400000).split('LBP')[1]}K</p>
-                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic mt-2">NOMINAL_AUTH</p>
-                  </div>
-                </motion.div>
-              ))}
-              <div className="pt-8">
-                <Link to="/admin/orders" className="btn-premium w-full py-4 md:py-6 italic text-xs uppercase ring-1 ring-white/20 shadow-none hover:shadow-gold-500/20 group/audit">
-                  Audit All Logs <ChevronRight size={18} className="ml-4 group-hover/audit:translate-x-4 transition-transform duration-700" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        )}
       </div>
     </DashboardLayout>
   );
 }
+
+// Helper Components
+function MetricBox({
+  label,
+  value,
+  icon,
+  trend,
+  alert,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  trend?: 'up' | 'down';
+  alert?: boolean;
+}) {
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className={cn(
+        'p-6 rounded-2xl border transition-all duration-300',
+        alert
+          ? 'bg-red-50 border-red-200'
+          : 'bg-white border-espresso/5 hover:shadow-md'
+      )}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className={cn(
+          'p-3 rounded-lg',
+          alert ? 'bg-red-100 text-red-600' : 'bg-espresso/10 text-espresso'
+        )}>
+          {icon}
+        </div>
+        {trend && (
+          <span className={cn(
+            'text-xs font-bold px-2 py-1 rounded-full',
+            trend === 'up'
+              ? 'bg-green-100 text-green-700'
+              : 'bg-red-100 text-red-700'
+          )}>
+            {trend === 'up' ? '↑' : '↓'} 12%
+          </span>
+        )}
+      </div>
+      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-1">{label}</p>
+      <p className="text-3xl font-bold text-espresso italic">{value}</p>
+    </motion.div>
+  );
+}
+
+function ActionButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 p-4 bg-white border border-espresso/5 rounded-xl hover:bg-espresso/5 hover:border-espresso/20 transition-all duration-300 text-left"
+    >
+      <div className="p-2 bg-espresso/10 rounded-lg text-espresso">{icon}</div>
+      <span className="font-bold text-sm text-espresso">{label}</span>
+    </button>
+  );
+}
+
+function TaskItem({
+  title,
+  count,
+  priority,
+}: {
+  title: string;
+  count: number;
+  priority: 'high' | 'medium' | 'low';
+}) {
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-4">
+        <div
+          className={cn(
+            'w-2 h-2 rounded-full',
+            priority === 'high'
+              ? 'bg-red-500'
+              : priority === 'medium'
+                ? 'bg-amber-500'
+                : 'bg-green-500'
+          )}
+        />
+        <span className="font-semibold text-sm text-espresso">{title}</span>
+      </div>
+      <span className="px-3 py-1 bg-white border border-espresso/10 rounded-full text-xs font-bold text-espresso">
+        {count}
+      </span>
+    </div>
+  );
+}
+

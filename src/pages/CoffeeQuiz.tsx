@@ -4,6 +4,7 @@ import { GeminiService } from '../services/gemini';
 import { Coffee, ChevronRight, Sparkles, CheckCircle2, ArrowRight, RefreshCw, ShoppingBag } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
+import SEO from '../components/common/SEO';
 
 const QUESTIONS = [
   {
@@ -67,6 +68,7 @@ export default function CoffeeQuiz() {
 
   return (
     <div className="pt-24 pb-24 md:pt-40 md:pb-40 lg:pt-48 lg:pb-48 px-6 max-w-4xl mx-auto min-h-[80vh] flex flex-col items-center">
+      <SEO title="Coffee Quiz" description="Find your perfect coffee match with our interactive coffee quiz." />
       <AnimatePresence mode="wait">
         {!recommendation && !loading && (
           <motion.div 

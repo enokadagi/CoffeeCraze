@@ -2,9 +2,9 @@ import { motion } from 'motion/react';
 import { ReactNode } from 'react';
 
 const variants = {
-  initial: { opacity: 0, x: 20, filter: "blur(4px)" },
-  animate: { opacity: 1, x: 0, filter: "blur(0px)" },
-  exit: { opacity: 0, x: -20, filter: "blur(4px)" },
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -12 },
 };
 
 export default function PageTransition({ children }: { children: ReactNode }) {
@@ -14,7 +14,7 @@ export default function PageTransition({ children }: { children: ReactNode }) {
       initial="initial"
       animate="animate"
       exit="exit"
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

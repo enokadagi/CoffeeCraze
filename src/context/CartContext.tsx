@@ -40,19 +40,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   const addItem = (product: any, qty = 1) => {
+    if (product.stock !== undefined && product.stock <= 0) {
+      toast.error(`${product.name} is currently out of stock.`);
+      return;
+    }
+    if (product.stock !== undefined && qty > product.stock) {
+      toast.error(`Only ${product.stock} units of ${product.name} available.`);
+      return;
+    }
     setItems((prev) => {
       const existing = prev.find((i) =>
         i.id === product.id &&
         i.selectedVariant?.id === product.selectedVariant?.id
       );
       if (existing) {
+        const newQty = existing.quantity + qty;
+        if (product.stock !== undefined && newQty > product.stock) {
+          toast.error(`Only ${product.stock} units available. You already have ${existing.quantity} in your cart.`);
+          return prev;
+        }
         return prev.map((i) =>
           (i.id === product.id && i.selectedVariant?.id === product.selectedVariant?.id)
-            ? { ...i, quantity: i.quantity + qty }
+            ? { ...i, quantity: newQty }
             : i
         );
       }
-      return [...prev, { ...product, quantity: qty }];
+      const newCartItem = {
+        ...product,
+        productId: product.productId || product.id,
+        image: product.image || product.images?.[0] || '',
+        quantity: qty
+      };
+      return [...prev, newCartItem];
     });
     toast.success(`${product.name} added to your ritual cart!`);
   };

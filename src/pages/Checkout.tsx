@@ -1,61 +1,189 @@
-﻿import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/firestore';
-import { formatPrice, cn } from '../lib/utils';
-import { Truck, CreditCard, ShieldCheck, ArrowRight, ChevronLeft, MapPin, Phone, User } from 'lucide-react';
-import { motion } from 'motion/react';
+import { EXCHANGE_RATE } from '../utils/exchange';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import Seo from '../components/common/SEO';
+import { cn } from '../lib/utils';
+import { OrderItem, OrderStatus, PaymentStatus } from '../types';
+import {
+  CreditCard,
+  ShieldCheck,
+  ArrowRight,
+  ChevronLeft,
+  MapPin,
+  Calendar,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, total, clearCart } = useCart();
   const { user, profile } = useAuth();
+
+  const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Scheduling, 4: Review
   const [loading, setLoading] = useState(false);
 
+  const today = new Date().toISOString().split('T')[0];
+
   const [formData, setFormData] = useState({
-    firstName: profile?.displayName.split(' ')[0] || '',
-    lastName: profile?.displayName.split(' ')[1] || '',
-    address: '',
-    city: '',
-    phone: '',
-    paymentMethod: 'cod',
+    // Shipping Info
+    firstName: profile?.displayName?.split(' ')[0] || '',
+    lastName: profile?.displayName?.split(' ')?.slice(1).join(' ') || '',
+    phone: profile?.phone || '',
+    street: '',
+    building: '',
+    floor: '',
+    city: 'Beirut',
+
+    // Delivery Scheduling
     deliveryDate: '',
-    deliveryTime: ''
+    deliveryTimeWindow: 'Morning (9:00 AM - 12:00 PM)',
+
+    // Payment
+    paymentMethod: 'cash_on_delivery',
+    paymentTiming: 'monthly' as 'prepaid' | 'monthly' | 'deferred',
+    subscriptionDuration: 1,
+
+    // Additional
+    customNotes: '',
+    gateCode: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!items.length) {
+      navigate('/shop');
+    }
+  }, [items.length, navigate]);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    const [firstName = '', ...lastNameParts] = profile.displayName?.split(' ') || [];
+    setFormData((prev) => ({
+      ...prev,
+      firstName,
+      lastName: lastNameParts.join(' '),
+      phone: profile.phone || prev.phone,
+    }));
+  }, [profile]);
+
+  const timeSlots = [
+    'Morning (9:00 AM - 12:00 PM)',
+    'Afternoon (12:00 PM - 4:00 PM)',
+    'Evening (4:00 PM - 8:00 PM)',
+  ];
+
+  const paymentMethods = [
+    { id: 'cash_on_delivery', label: 'Cash on Delivery', icon: '💵' },
+    { id: 'card', label: 'Credit/Debit Card', icon: '💳' },
+    { id: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
+  ];
+
+  const subscriptionDurations = [
+    { value: 1, label: '1 Month', discount: 0 },
+    { value: 3, label: '3 Months', discount: 5 },
+    { value: 6, label: '6 Months', discount: 10 },
+    { value: 12, label: '12 Months', discount: 15 },
+  ];
+
+  // Pricing (keep existing behavior shape; formatting handled elsewhere)
+  const subtotalLbp = total;
+  const shippingLbp = subtotalLbp > 1500000 ? 0 : 25000;
+
+  const discountFactor = formData.paymentTiming === 'prepaid' ? 0.9 : 1.0;
+  const durationDiscount =
+    subscriptionDurations.find((d) => d.value === formData.subscriptionDuration)?.discount || 0;
+
+  const discountAmountLbp = Math.floor((subtotalLbp + shippingLbp) * (durationDiscount / 100));
+  const grandTotalLbp = (subtotalLbp + shippingLbp - discountAmountLbp) * discountFactor;
+  const grandTotalUsd = grandTotalLbp / EXCHANGE_RATE;
+
+  let buttonLabel = 'Continue';
+  if (loading) {
+    buttonLabel = 'Processing...';
+  } else if (step === 4) {
+    buttonLabel = 'Place Order';
+  }
+
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+
     if (!user) {
-      toast.error("Please login to complete your order");
+      toast.error('Please login to complete your order');
       return;
     }
 
+    if (step < 4) {
+      setStep(step + 1);
+      return;
+    }
+
+    if (!formData.deliveryDate) {
+      toast.error('Please select a delivery date');
+      return;
+    }
+
+    const orderItems: OrderItem[] = items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image,
+    }));
+
+    const shippingAddress = {
+      id: `${user.uid}-shipping`,
+      street: formData.street,
+      building: formData.building,
+      floor: formData.floor,
+      apartment: '',
+      city: formData.city,
+      country: 'Lebanon',
+      phoneNumber: formData.phone,
+      isDefault: true,
+      instructions: formData.customNotes,
+      gateCode: formData.gateCode,
+      landmark: '',
+      postalCode: '',
+    };
+
+    const orderPayload = {
+      userId: user.uid,
+      items: orderItems,
+      subtotal: subtotalLbp,
+      subtotalLbp,
+      shipping: shippingLbp,
+      shippingLbp,
+      total: grandTotalLbp,
+      totalLbp: grandTotalLbp,
+      totalUsd: Number(grandTotalUsd.toFixed(2)),
+      paymentMethod: formData.paymentMethod as 'cash_on_delivery' | 'card' | 'bank_transfer',
+      paymentStatus: PaymentStatus.PENDING,
+      paymentTiming: formData.paymentTiming,
+      shippingAddress,
+      deliveryDate: formData.deliveryDate,
+      deliveryTime: formData.deliveryTimeWindow,
+      customNotes: formData.customNotes,
+      gateCode: formData.gateCode,
+      status: OrderStatus.PENDING,
+    };
+
     setLoading(true);
     try {
-      const orderId = await OrderService.create({
-        userId: user.uid,
-        items,
-        total,
-        paymentMethod: formData.paymentMethod,
-        paymentStatus: 'pending',
-        shippingAddress: {
-          name: `${formData.firstName} ${formData.lastName}`,
-          address: formData.address,
-          city: formData.city,
-          phone: formData.phone
-        },
-        deliveryDate: formData.deliveryDate,
-        deliveryTime: formData.deliveryTime,
-        status: 'pending'
-      });
+      const orderId = await OrderService.create(orderPayload);
 
-      toast.success("Order placed successfully!");
+      toast.success('Order placed successfully!');
       clearCart();
       navigate(`/order-success/${orderId}`);
     } catch (err) {
-      toast.error("Failed to place order. Please try again.");
+      console.error('Checkout error:', err);
+      toast.error('Failed to place order. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -67,265 +195,453 @@ export default function Checkout() {
   }
 
   return (
-    <div className="pt-20 pb-20 md:pt-40 md:pb-32 grainy-overlay min-h-screen relative overflow-hidden bg-cream">
-      <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
-      
-      <div className="page-container relative z-10">
-        <header className="mb-16 md:mb-32 space-y-6 md:space-y-8">
-          <button onClick={() => navigate('/cart')} className="flex items-center gap-4 text-coffee-400 hover:text-espresso transition-all duration-700 text-[10px] md:text-[11px] font-black uppercase tracking-[0.4em] italic group">
-            <div className="w-10 h-10 bg-white shadow-premium rounded-xl flex items-center justify-center group-hover:-translate-x-2 transition-transform">
-              <ChevronLeft size={18} /> 
-            </div>
-            Exit To Archive
+    <div className="min-h-screen bg-cream py-12 md:py-24">
+      <Seo title="Checkout" description="Complete your CoffeeCraze order" />
+
+      <div className="page-container">
+        <div className="mb-12">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-caramel hover:text-espresso transition-colors mb-6"
+          >
+            <ChevronLeft size={18} />
+            Back
           </button>
-          
-          <div className="flex flex-col md:flex-row items-end justify-between gap-8 md:gap-12 border-b border-espresso/5 pb-12 md:pb-20">
-            <h1 className="text-fluid-hero font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Final <br/><span className="not-italic text-caramel">Induction.</span></h1>
-            <div className="text-right hidden sm:block">
-               <span className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.6em] italic block mb-2">PROTOCOL_VERIFICATION</span>
-               <div className="h-1 w-32 bg-caramel/20 rounded-full ml-auto overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 2 }}
-                    className="h-full bg-caramel"
+          <h1 className="text-5xl font-display font-black text-espresso italic mb-2">Checkout</h1>
+          <p className="text-coffee-400">Complete your order in a few steps</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="flex items-center justify-between mb-8">
+              {[1, 2, 3, 4].map((s) => (
+                <div key={s} className="flex items-center">
+                  <div
+                    className={cn(
+                      'w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all',
+                      step >= s
+                        ? 'bg-espresso text-white'
+                        : 'bg-white border-2 border-espresso/20 text-coffee-400'
+                    )}
+                  >
+                    {step > s ? <CheckCircle2 size={20} /> : s}
+                  </div>
+                  {s < 4 && (
+                    <div
+                      className={cn(
+                        'h-1 flex-1 mx-2 transition-all',
+                        step > s ? 'bg-espresso' : 'bg-espresso/20'
+                      )}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 text-center text-xs font-bold uppercase tracking-widest">
+              <span className={step >= 1 ? 'text-espresso' : 'text-coffee-300'}>Shipping</span>
+              <span className={step >= 2 ? 'text-espresso' : 'text-coffee-300'}>Payment</span>
+              <span className={step >= 3 ? 'text-espresso' : 'text-coffee-300'}>Scheduling</span>
+              <span className={step >= 4 ? 'text-espresso' : 'text-coffee-300'}>Review</span>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {step === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-2xl p-8 space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-espresso italic mb-6 flex items-center gap-3">
+                    <MapPin size={24} /> Shipping Address
+                  </h2>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="checkout-first-name" className="sr-only">
+                        First Name
+                      </label>
+                      <input
+                        id="checkout-first-name"
+                        type="text"
+                        placeholder="First Name"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        className="col-span-1 px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="checkout-last-name" className="sr-only">
+                        Last Name
+                      </label>
+                      <input
+                        id="checkout-last-name"
+                        type="text"
+                        placeholder="Last Name"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        className="col-span-1 px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <label htmlFor="checkout-phone" className="sr-only">
+                    Phone Number
+                  </label>
+                  <input
+                    id="checkout-phone"
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="col-span-2 px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso w-full"
+                    required
                   />
-               </div>
+
+                  <label htmlFor="checkout-street" className="sr-only">
+                    Street Address
+                  </label>
+                  <input
+                    id="checkout-street"
+                    type="text"
+                    placeholder="Street Address"
+                    value={formData.street}
+                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                    className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                    required
+                  />
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <input
+                      type="text"
+                      placeholder="Building"
+                      value={formData.building}
+                      onChange={(e) => setFormData({ ...formData, building: e.target.value })}
+                      className="px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Floor"
+                      value={formData.floor}
+                      onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
+                      className="px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                    />
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                    />
+                  </div>
+
+                  <label htmlFor="checkout-gate-code" className="sr-only">
+                    Gate Code
+                  </label>
+                  <input
+                    id="checkout-gate-code"
+                    type="text"
+                    placeholder="Gate Code (optional)"
+                    value={formData.gateCode}
+                    onChange={(e) => setFormData({ ...formData, gateCode: e.target.value })}
+                    className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                  />
+
+                  <label htmlFor="checkout-instructions" className="sr-only">
+                    Delivery Instructions
+                  </label>
+                  <textarea
+                    id="checkout-instructions"
+                    placeholder="Delivery Instructions (optional)"
+                    value={formData.customNotes}
+                    onChange={(e) => setFormData({ ...formData, customNotes: e.target.value })}
+                    className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso h-24"
+                  />
+                </motion.div>
+              )}
+
+              {step === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-2xl p-8 space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-espresso italic mb-6 flex items-center gap-3">
+                    <CreditCard size={24} /> Payment Method
+                  </h2>
+
+                  <div className="space-y-3">
+                    {paymentMethods.map((method) => (
+                      <label
+                        key={method.id}
+                        className={cn(
+                          'flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all',
+                          formData.paymentMethod === method.id
+                            ? 'border-espresso bg-espresso/10'
+                            : 'border-espresso/20 bg-white'
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={method.id}
+                          checked={formData.paymentMethod === method.id}
+                          onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                          className="w-4 h-4 mr-4"
+                        />
+                        <span className="text-2xl mr-3">{method.icon}</span>
+                        <span className="font-bold text-espresso">{method.label}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-espresso/10">
+                    <h3 className="font-bold text-espresso mb-4">Payment Timing</h3>
+                    <div className="space-y-3">
+                      {[
+                        { value: 'prepaid', label: 'Pay Now', discount: '-10%' },
+                        { value: 'monthly', label: 'Monthly Payment' },
+                        { value: 'deferred', label: 'Pay at Delivery' },
+                      ].map((opt) => (
+                        <label
+                          key={opt.value}
+                          className="flex items-center p-4 border border-espresso/10 rounded-lg cursor-pointer hover:bg-espresso/5 transition-all"
+                        >
+                          <input
+                            type="radio"
+                            name="paymentTiming"
+                            value={opt.value}
+                            checked={formData.paymentTiming === (opt.value as any)}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                paymentTiming: e.target.value as any,
+                              })
+                            }
+                            className="w-4 h-4"
+                          />
+                          <span className="ml-3 font-semibold text-espresso flex-1">{opt.label}</span>
+                          {opt.discount && <span className="text-green-600 font-bold">{opt.discount}</span>}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-espresso mb-4 mt-6">Plan Duration (if applicable)</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {subscriptionDurations.map((d) => (
+                        <button
+                          key={d.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, subscriptionDuration: d.value })}
+                          className={cn(
+                            'py-3 rounded-xl text-xs font-black uppercase tracking-wider border transition-all',
+                            formData.subscriptionDuration === d.value
+                              ? 'bg-espresso text-white border-espresso'
+                              : 'bg-cream text-espresso hover:bg-white border-espresso/10'
+                          )}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-2xl p-8 space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-espresso italic mb-6 flex items-center gap-3">
+                    <Calendar size={24} /> Delivery Scheduling
+                  </h2>
+
+                  <div>
+                    <label htmlFor="checkout-delivery-date" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-2">
+                      Delivery Date
+                    </label>
+                    <input
+                      id="checkout-delivery-date"
+                      type="date"
+                      min={today}
+                      value={formData.deliveryDate}
+                      onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
+                      className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-3">
+                      Preferred Time Window
+                    </p>
+                    <div className="space-y-2">
+                      {timeSlots.map((slot) => (
+                        <label
+                          key={slot}
+                          className="flex items-center p-3 border border-espresso/10 rounded-lg cursor-pointer hover:bg-espresso/5 transition-all"
+                        >
+                          <input
+                            type="radio"
+                            name="timeSlot"
+                            value={slot}
+                            checked={formData.deliveryTimeWindow === slot}
+                            onChange={(e) => setFormData({ ...formData, deliveryTimeWindow: e.target.value })}
+                            className="w-4 h-4"
+                          />
+                          <Clock size={18} className="ml-3 text-caramel" />
+                          <span className="ml-2 font-semibold text-espresso">{slot}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="checkout-instructions" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-2">
+                      Special Instructions (optional)
+                    </label>
+                    <textarea
+                      id="checkout-instructions"
+                      value={formData.customNotes}
+                      onChange={(e) => setFormData({ ...formData, customNotes: e.target.value })}
+                      className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso h-24"
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 4 && (
+                <motion.div
+                  key="step4"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-2xl p-8 space-y-6"
+                >
+                  <h2 className="text-2xl font-bold text-espresso italic mb-6 flex items-center gap-3">
+                    <CheckCircle2 size={24} /> Review Order
+                  </h2>
+
+                  <div className="space-y-4">
+                    <div className="border-b border-espresso/10 pb-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">Shipping To</p>
+                      <p className="font-semibold text-espresso">
+                        {formData.firstName} {formData.lastName}
+                      </p>
+                      <p className="text-sm text-coffee-400">
+                        {formData.street}, {formData.building && `Bldg ${formData.building}`}
+                        {formData.floor && `, Floor ${formData.floor}`}, {formData.city}
+                      </p>
+                      <p className="text-sm text-coffee-400">{formData.phone}</p>
+                    </div>
+
+                    <div className="border-b border-espresso/10 pb-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">
+                        Delivery Date & Time
+                      </p>
+                      <p className="font-semibold text-espresso">
+                        {new Date(formData.deliveryDate).toLocaleDateString()} • {formData.deliveryTimeWindow}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">Payment</p>
+                      <p className="font-semibold text-espresso">
+                        {paymentMethods.find((m) => m.id === formData.paymentMethod)?.label} • {formData.paymentTiming}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-bold mb-1">Please Review</p>
+                      <p>Make sure all details are correct before confirming your order.</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex gap-4 mt-8">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="flex-1 py-4 border-2 border-espresso text-espresso rounded-lg font-bold hover:bg-espresso/5 transition-all flex items-center justify-center gap-2"
+                >
+                  <ChevronLeft size={20} />
+                  Previous
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-4 bg-espresso text-white rounded-lg font-bold hover:bg-espresso/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              >
+                {buttonLabel}
+                {!loading && <ArrowRight size={20} />}
+              </button>
             </div>
           </div>
-        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-32">
-          {/* Form Section */}
-          <div className="lg:col-span-8">
-            <form onSubmit={handleSubmit} className="space-y-16 md:space-y-24">
-              {/* Delivery Info */}
-              <div className="space-y-8 md:space-y-12">
-                <div className="flex items-center gap-4 md:gap-6">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-espresso text-caramel-gold rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-premium ring-1 ring-white/20">
-                    <MapPin className="w-5 h-5 md:w-6 md:h-6" strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest">Logistics <span className="not-italic text-coffee-300">Target.</span></h3>
-                </div>
+          <div className="h-fit sticky top-8">
+            <div className="bg-white rounded-2xl p-8 border border-espresso/5 space-y-6">
+              <h3 className="text-xl font-bold text-espresso italic">Order Summary</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-                  <div className="space-y-4">
-                    <label className="text-[10px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">FIRST_NAME_ID</label>
-                    <div className="relative group">
-                      <User className="absolute left-6 md:left-8 top-1/2 -translate-y-1/2 text-caramel transition-transform group-focus-within:rotate-12" size={18} />
-                      <input 
-                        required
-                        type="text" 
-                        value={formData.firstName}
-                        onChange={e => setFormData({...formData, firstName: e.target.value})}
-                        placeholder="Sensory"
-                        className="w-full pl-14 md:pl-20 pr-6 md:pr-10 py-4 md:py-6 bg-white border border-white rounded-[2rem] md:rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic placeholder:text-coffee-50 placeholder:italic text-sm md:text-base"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">LAST_NAME_ID</label>
-                    <input 
-                      required
-                      type="text" 
-                      value={formData.lastName}
-                      onChange={e => setFormData({...formData, lastName: e.target.value})}
-                      placeholder="Specialist"
-                      className="w-full px-6 md:px-10 py-4 md:py-6 bg-white border border-white rounded-[2rem] md:rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic placeholder:text-coffee-50 placeholder:italic text-sm md:text-base"
-                    />
-                  </div>
-                  <div className="md:col-span-2 space-y-4">
-                    <label className="text-[10px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">PHYSICAL_COORDINATES</label>
-                    <div className="relative group">
-                      <MapPin className="absolute left-6 md:left-8 top-1/2 -translate-y-1/2 text-caramel transition-transform group-focus-within:scale-125" size={18} />
-                      <input 
-                        required
-                        type="text" 
-                        value={formData.address}
-                        onChange={e => setFormData({...formData, address: e.target.value})}
-                        placeholder="123 Ritual St, Roastery District"
-                        className="w-full pl-14 md:pl-20 pr-6 md:pr-10 py-4 md:py-6 bg-white border border-white rounded-[2rem] md:rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic placeholder:text-coffee-50 placeholder:italic text-sm md:text-base"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">CITY_PARAMETER</label>
-                    <input 
-                      required
-                      type="text" 
-                      value={formData.city}
-                      onChange={e => setFormData({...formData, city: e.target.value})}
-                      placeholder="Beirut"
-                      className="w-full px-6 md:px-10 py-4 md:py-6 bg-white border border-white rounded-[2rem] md:rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic placeholder:text-coffee-50 placeholder:italic text-sm md:text-base"
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">NEURAL_LINK_CONTACT</label>
-                    <div className="relative group">
-                      <Phone className="absolute left-6 md:left-8 top-1/2 -translate-y-1/2 text-caramel transition-transform group-focus-within:rotate-12" size={18} />
-                      <input 
-                        required
-                        type="tel" 
-                        value={formData.phone}
-                        onChange={e => setFormData({...formData, phone: e.target.value})}
-                        placeholder="+961 81 234 567"
-                        className="w-full pl-14 md:pl-20 pr-6 md:pr-10 py-4 md:py-6 bg-white border border-white rounded-[2rem] md:rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic placeholder:text-coffee-50 placeholder:italic text-sm md:text-base"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">DELIVERY_DATE</label>
-                    <input 
-                      required
-                      type="date" 
-                      value={formData.deliveryDate}
-                      onChange={e => setFormData({...formData, deliveryDate: e.target.value})}
-                      className="w-full px-10 py-6 bg-white border border-white rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic text-espresso"
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic ml-6">DELIVERY_TIME</label>
-                    <input 
-                      required
-                      type="time" 
-                      value={formData.deliveryTime}
-                      onChange={e => setFormData({...formData, deliveryTime: e.target.value})}
-                      className="w-full px-10 py-6 bg-white border border-white rounded-[2.5rem] focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium-lg italic text-espresso"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div className="space-y-12">
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-espresso text-caramel-gold rounded-[1.5rem] flex items-center justify-center shadow-premium ring-1 ring-white/20">
-                    <CreditCard size={24} strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest">Settlement <span className="not-italic text-coffee-300">Mode.</span></h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <button 
-                    type="button"
-                    onClick={() => setFormData({...formData, paymentMethod: 'cod'})}
-                    className={cn(
-                      "p-5 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border flex items-center gap-6 md:gap-8 transition-all duration-700 relative overflow-hidden group",
-                      formData.paymentMethod === 'cod' 
-                        ? "border-caramel bg-espresso text-white shadow-premium-2xl scale-105" 
-                        : "border-white bg-white text-coffee-400 hover:border-caramel shadow-premium"
-                    )}
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {items.map((item: any) => (
+                  <div
+                    key={item.productId}
+                    className="flex items-center justify-between text-sm pb-3 border-b border-espresso/5"
                   >
-                    <div className={cn(
-                      "w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-700 shadow-premium group-hover:rotate-6",
-                      formData.paymentMethod === 'cod' ? "bg-caramel text-white" : "bg-cream text-caramel"
-                    )}>
-                      <Truck className="w-[18px] h-[18px] md:w-6 md:h-6" strokeWidth={1} />
+                    <div>
+                      <p className="font-semibold text-espresso">{item.name}</p>
+                      <p className="text-xs text-coffee-400">×{item.quantity}</p>
                     </div>
-                    <div className="text-left relative z-10">
-                      <p className={cn("text-fluid-body md:text-xl font-display font-black italic uppercase tracking-tight", formData.paymentMethod === 'cod' ? "text-white" : "text-espresso")}>Tactile Settlement</p>
-                      <p className="text-[10px] uppercase font-black tracking-[0.3em] opacity-60 mt-1 italic">CASH_ON_DELIVERY</p>
-                    </div>
-                    {formData.paymentMethod === 'cod' && (
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-caramel/10 blur-3xl rounded-full" />
-                    )}
-                  </button>
-
-                  <button 
-                    disabled
-                    type="button"
-                    className="p-6 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] border border-white bg-white/40 opacity-40 cursor-not-allowed flex items-center gap-6 md:gap-8 shadow-inner grayscale"
-                  >
-                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-[1.5rem] bg-cream text-caramel flex items-center justify-center shadow-premium shrink-0">
-                      <CreditCard className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-fluid-body md:text-xl font-display font-black italic uppercase tracking-tight text-espresso">Encrypted Flux</p>
-                      <p className="text-[10px] uppercase font-black tracking-[0.3em] opacity-60 mt-1 italic">CREDIT_CARD_OFFLINE</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="btn-premium w-full py-4 md:py-7 italic group text-xs md:text-sm tracking-[0.2em] relative overflow-hidden rounded-full"
-              >
-                <div className="absolute inset-0 bg-espresso translate-y-full group-hover:translate-y-0 transition-transform duration-700" />
-                <span className="relative z-10 flex items-center justify-center gap-6">
-                  {loading ? "SYNCHRONIZING..." : <>ESTABLISH RITUAL COMMITMENT <ArrowRight size={20} className="group-hover:translate-x-6 transition-transform duration-700" /></>}
-                </span>
-              </button>
-            </form>
-          </div>
-
-          {/* Summary Sticky */}
-          <div className="lg:col-span-4 lg:sticky lg:top-40 h-fit">
-            <div className="p-6 md:p-16 bg-white shadow-premium-2xl border border-white rounded-[3rem] md:rounded-[5rem] space-y-6 md:space-y-12 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-64 h-64 bg-cream blur-[80px] opacity-20 -translate-y-1/2 -translate-x-1/2 rounded-full pointer-events-none" />
-              
-              <div className="space-y-4 relative z-10">
-                <span className="stat-label text-caramel">Allocation Overview</span>
-                <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest leading-none">Manifest <span className="not-italic text-coffee-300 md:block">Review.</span></h3>
-              </div>
-
-              <div className="space-y-8 relative z-10">
-                {items.map(item => (
-                  <div key={item.id} className="flex items-center justify-between group/item">
-                    <div className="flex items-center gap-4 md:gap-6">
-                      <div className="w-12 h-12 md:w-16 md:h-16 bg-cream rounded-xl md:rounded-2xl overflow-hidden shadow-inner border border-white group-hover/item:scale-110 transition-transform duration-700 shrink-0">
-                        <img src={item.images[0]} className="w-full h-full object-cover grayscale group-hover/item:grayscale-0 transition-all duration-700" alt="" referrerPolicy="no-referrer" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-black text-espresso uppercase italic tracking-tight">{item.name}</p>
-                        <p className="text-[10px] text-coffee-300 font-black uppercase tracking-widest italic">QTY_X{item.quantity}</p>
-                      </div>
-                    </div>
-                    <span className="text-fluid-body md:text-lg font-display font-black text-espresso italic tracking-tightest">{formatPrice(item.price * item.quantity)}</span>
+                    <p className="font-bold text-espresso">{item.price ? item.price : ''}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-12 border-t border-espresso/5 space-y-8 relative z-10 italic">
-                <div className="flex justify-between text-[11px] font-black uppercase tracking-[0.4em] text-coffee-300">
-                  <span>Gross Allocation</span>
-                  <span className="text-espresso">{formatPrice(total)}</span>
+              <div className="space-y-3 border-t border-espresso/10 pt-6">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-coffee-400">Subtotal (LBP)</span>
+                  <span className="font-semibold text-espresso">{Math.max(0, total)}</span>
                 </div>
-                <div className="flex justify-between text-[11px] font-black uppercase tracking-[0.4em] text-caramel">
-                  <span>Logistics protocol</span>
-                  <span>FREE</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-coffee-400">Total (USD)</span>
+                  <span className="font-semibold text-espresso">${grandTotalUsd.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-end pt-4">
-                  <span className="text-sm font-black uppercase tracking-[0.5em] text-espresso">Commitment</span>
-                  <span className="text-fluid-heading font-display font-black text-caramel-gold tracking-tightest italic">{formatPrice(total)}</span>
-                </div>
-              </div>
-
-              <div className="space-y-6 relative z-10">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-300 italic mb-2 block ml-4">Neural_Incentive_Node</span>
-                <div className="flex gap-4">
-                  <input 
-                    type="text" 
-                    placeholder="ENTER_COUPON"
-                    className="flex-grow px-6 py-4 md:px-8 md:py-5 bg-cream border border-espresso/5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] outline-none focus:border-caramel transition-all italic placeholder:text-coffee-100"
-                  />
-                  <button type="button" className="px-6 py-4 md:px-8 md:py-5 bg-espresso text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] italic hover:bg-caramel transition-all">Apply</button>
+                <div className="bg-espresso/5 border border-espresso/10 rounded-lg p-4 flex items-center justify-between">
+                  <span className="font-bold text-espresso">Final Total</span>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-espresso italic">${grandTotalUsd.toFixed(2)}</p>
+                    <p className="text-xs text-coffee-400">~ {Math.round(grandTotalLbp)} LBP</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-10 bg-cream rounded-[3.5rem] border border-white flex gap-6 shadow-inner relative z-10 group/safe overflow-hidden">
-                <div className="absolute inset-0 bg-white translate-y-full group-hover/safe:translate-y-0 transition-transform duration-1000 opacity-50" />
-                <ShieldCheck className="text-caramel shrink-0 relative z-10" size={24} strokeWidth={1} />
-                <p className="text-[10px] text-coffee-400 leading-relaxed font-black uppercase tracking-widest italic relative z-10">
-                  <span className="text-espresso">Encrypted Transaction.</span><br/> Your ritual is secured by CC-G7 protocols. 
-                </p>
+              <div className="flex items-center gap-2 text-xs text-coffee-400 justify-center">
+                <ShieldCheck size={16} /> Secure Checkout
               </div>
             </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
 }
+

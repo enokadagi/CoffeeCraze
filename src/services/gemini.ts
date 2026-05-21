@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const apiKey = typeof import.meta !== 'undefined' ? import.meta.env.VITE_GEMINI_API_KEY : '';
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export const GeminiService = {
   async getBaristaResponse(message: string, history: any[] = []) {

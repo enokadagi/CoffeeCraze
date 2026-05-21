@@ -44,42 +44,44 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-espresso text-white pt-16 sm:pt-24 lg:pt-32 pb-12 sm:pb-16 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(at_bottom_right,rgba(195,146,78,0.1),transparent_70%)] opacity-30" />
+    <footer className="bg-espresso/95 text-cream pt-12 sm:pt-16 lg:pt-20 pb-8 sm:pb-10 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(at_bottom_right,rgba(210,218,209,0.16),transparent_72%)] opacity-40" />
       <div className="page-container relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 sm:gap-16 lg:gap-24 pb-16 sm:pb-20 lg:pb-24 border-b border-white/5">
-          <div className="lg:col-span-4 space-y-6 sm:space-y-8 lg:space-y-10">
-            <Link to="/" className="flex items-center gap-4 sm:gap-6 group w-fit">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-white text-espresso rounded-[1rem] sm:rounded-[1.25rem] flex items-center justify-center font-display font-black text-lg sm:text-xl lg:text-2xl shadow-premium transition-all duration-1000 group-hover:rotate-12 group-hover:scale-110">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 lg:gap-14 pb-10 sm:pb-14 border-b border-white/10">
+          {/* Brand Column */}
+          <div className="lg:col-span-4 space-y-5 sm:space-y-6">
+            <Link to="/" className="flex items-center gap-3 sm:gap-4 group w-fit">
+              <div className="w-10 h-10 sm:w-12 bg-cream/10 text-cream rounded-2xl flex items-center justify-center font-display font-black text-base sm:text-lg shadow-premium transition-all duration-500 group-hover:-rotate-6 border border-cream/15">
                 CC
               </div>
-              <div className="text-[10px] sm:text-[11px] lg:text-[12px] font-black tracking-[0.6em] sm:tracking-[0.8em] leading-none uppercase italic">
-                COFFEE<span className="text-caramel">CRAZE</span>
+              <div className="text-[10px] sm:text-[11px] font-semibold tracking-[0.35em] leading-none uppercase text-cream/80">
+                COFFEE <span className="text-caramel">CRAZE</span>
               </div>
             </Link>
-            <p className="text-sm sm:text-base lg:text-lg text-coffee-400 font-serif italic leading-relaxed max-w-sm">
+            <p className="text-sm sm:text-base text-cream/70 leading-relaxed max-w-sm">
               Architecting the morning ritual through archival harvests and sensory precision.
             </p>
-            <div className="space-y-1 sm:space-y-2 pt-2 sm:pt-4 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] text-coffee-300 italic">
-               <a href="mailto:coffeecraze@nilelink.app" className="block hover:text-caramel transition-colors">coffeecraze@nilelink.app</a>
-               <a href="tel:+96171972495" className="block hover:text-caramel transition-colors">+961 71 972 495</a>
+            <div className="space-y-1 text-xs text-cream/60 tracking-wide">
+               <a href="mailto:coffeecraze@nilelink.app" className="block hover:text-cream transition-colors">coffeecraze@nilelink.app</a>
+               <a href="tel:+96171972495" className="block hover:text-cream transition-colors">+961 71 972 495</a>
             </div>
-            <div className="flex gap-4 sm:gap-6 pt-2 sm:pt-4">
+            <div className="flex gap-3 pt-2">
               {[Instagram, Twitter, Facebook].map((Icon, i) => (
-                <a key={i} href="#" className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 flex items-center justify-center bg-white/5 rounded-full text-coffee-400 hover:text-caramel hover:bg-white/10 transition-all duration-700 hover:translate-y-[-4px] group border border-white/5">
-                  <Icon size={18} strokeWidth={1.5} />
+                <a key={i} href="#" className="w-9 h-9 flex items-center justify-center bg-white/5 rounded-full text-cream/70 hover:text-cream hover:bg-white/10 transition-all duration-500 border border-white/10">
+                  <Icon size={16} strokeWidth={1.5} />
                 </a>
               ))}
             </div>
           </div>
 
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-12 lg:gap-16">
+          {/* Link Columns */}
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-10">
             {footerLinks.map((section) => (
-              <div key={section.title} className="space-y-4 sm:space-y-6 lg:space-y-8">
-                <h4 className="text-[10px] sm:text-[11px] font-black text-white uppercase tracking-[0.4em] sm:tracking-[0.5em] italic">{section.title}</h4>
-                <div className="flex flex-col gap-2 sm:gap-3 lg:gap-4">
+              <div key={section.title} className="space-y-3 sm:space-y-4">
+                <h4 className="text-[10px] sm:text-[11px] font-semibold text-cream uppercase tracking-[0.28em]">{section.title}</h4>
+                <div className="flex flex-col gap-2">
                   {section.links.map((link) => (
-                    <Link key={link.label} to={link.href} className="text-[9px] sm:text-[10px] font-black text-coffee-500 uppercase tracking-[0.1em] sm:tracking-[0.2em] hover:text-caramel transition-colors italic whitespace-nowrap">
+                    <Link key={link.label} to={link.href} className="text-[11px] sm:text-sm text-cream/70 hover:text-cream transition-colors">
                       {link.label}
                     </Link>
                   ))}
@@ -89,13 +91,14 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 sm:mt-12 lg:mt-16 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 lg:gap-12 text-[8px] sm:text-[9px] lg:text-[10px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] lg:tracking-[0.6em] text-coffee-700 italic">
-          <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6 lg:gap-16">
-            <p>© {currentYear} ARCHIVAL_CC. DESIGNED_BY_OVERSEER.</p>
-            <p className="flex items-center gap-2 sm:gap-4"><MapPin size={12} className="text-caramel opacity-40 shrink-0" /> BEIRUT_V1.4_HUB</p>
+        {/* Bottom Bar */}
+        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-cream/60 tracking-wide">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
+            <p>© {currentYear} CoffeeCraze. All rights reserved.</p>
+            <p className="flex items-center gap-2"><MapPin size={12} className="text-caramel opacity-80 shrink-0" /> Beirut, Lebanon</p>
           </div>
-          <div className="flex items-center gap-6 sm:gap-10 opacity-60">
-            <span className="flex items-center gap-2 sm:gap-3"><Globe size={12} className="text-caramel" /> SYNC_2026_UTC</span>
+          <div className="flex items-center gap-4 opacity-70">
+            <span className="flex items-center gap-2"><Globe size={12} className="text-caramel" /> 2026</span>
           </div>
         </div>
       </div>

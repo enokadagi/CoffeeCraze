@@ -6,42 +6,49 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-serif: "Outfit", serif;
 
-  --color-espresso: #110e0c;
-  --color-mocha: #1e1b19;
-  --color-mocha-light: #2d2a28;
-  --color-caramel: #b89066;
-  --color-caramel-gold: #c3924e;
-  --color-cream: #f4f4f5;
-  --color-cream-dark: #e4e4e7;
-  --color-coffee-50: #fafafb;
-  --color-coffee-100: #f6efe6;
-  --color-coffee-200: #e8dbcc;
-  --color-coffee-300: #d6ae89;
-  --color-coffee-400: #af8968;
-  --color-coffee-500: #8b6247;
-  --color-coffee-600: #6d4b36;
-  --color-coffee-700: #523728;
-  --color-coffee-800: #36241b;
-  --color-coffee-900: #1b120d;
-  --color-coffee-950: #0f0a08;
+  --color-espresso: #09120f;
+  --color-mocha: #1f1817;
+  --color-mocha-light: #3e2f2e;
+  --color-caramel: #b98c56;
+  --color-caramel-gold: #d6b77d;
+  --color-cream: #f7efe3;
+  --color-cream-dark: #e8dccb;
+  --color-coffee-50: #f7f1ea;
+  --color-coffee-100: #e6dbc9;
+  --color-coffee-200: #d9c7b0;
+  --color-coffee-300: #c8ae91;
+  --color-coffee-400: #b38b67;
+  --color-coffee-500: #977253;
+  --color-coffee-600: #7a5d43;
+  --color-coffee-700: #5e4734;
+  --color-coffee-800: #3f3124;
+  --color-coffee-900: #201b15;
+  --color-coffee-950: #12110e;
 
-  --color-gold-50: #fff9eb;
-  --color-gold-100: #ffefc7;
-  --color-gold-200: #ffdd8f;
-  --color-gold-300: #ffc44f;
-  --color-gold-400: #ffaa1c;
-  --color-gold-500: #f78d0a;
-  --color-gold-600: #dc6d06;
-  --color-gold-700: #b74f08;
+  --color-primary: #0e372b;
+  --color-secondary: #d2dad1;
+  --color-hero: #372c2d;
+  --color-primary-rgb: 14,55,43;
+  --color-secondary-rgb: 210,218,209;
+  --color-hero-rgb: 55,44,45;
+
+  --color-gold-50: #faf4ea;
+  --color-gold-100: #f1e4c6;
+  --color-gold-200: #e4ce9d;
+  --color-gold-300: #d1ac6d;
+  --color-gold-400: #b38a36;
+  --color-gold-500: #926f22;
+  --color-gold-600: #6f5817;
+  --color-gold-700: #5b4714;
 
   --radius-3xl: 1.5rem;
   --radius-4xl: 2rem;
   --radius-5xl: 3.5rem;
 
-  --shadow-premium: 0 4px 20px -2px rgba(17, 14, 12, 0.04), 0 10px 30px -4px rgba(17, 14, 12, 0.08);
-  --shadow-premium-lg: 0 20px 40px -10px rgba(17, 14, 12, 0.12), 0 10px 20px -5px rgba(17, 14, 12, 0.06);
-  --shadow-premium-xl: 0 35px 70px -15px rgba(17, 14, 12, 0.2), 0 15px 30px -10px rgba(17, 14, 12, 0.1);
-  --shadow-inner-soft: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+  --shadow-premium: 0 4px 28px -8px rgba(9, 24, 18, 0.15), 0 14px 40px -16px rgba(9, 24, 18, 0.18);
+  --shadow-premium-lg: 0 18px 48px -18px rgba(9, 24, 18, 0.18), 0 12px 28px -10px rgba(9, 24, 18, 0.14);
+  --shadow-premium-xl: 0 34px 80px -20px rgba(9, 24, 18, 0.22), 0 22px 48px -18px rgba(9, 24, 18, 0.16);
+  --shadow-inner-soft: inset 0 2px 6px 0 rgba(0, 0, 0, 0.05);
 }
 
 @layer base {
@@ -51,15 +58,15 @@
   }
 
   body {
-    @apply bg-cream text-espresso antialiased selection:bg-caramel selection:text-white overflow-x-hidden;
+    @apply bg-espresso text-cream antialiased selection:bg-caramel selection:text-espresso overflow-x-hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight text-espresso leading-[1.1] font-bold;
+    @apply font-display tracking-tight text-espresso leading-[1.15] font-bold;
   }
 
   p {
-    @apply leading-[1.6] tracking-normal opacity-80;
+    @apply leading-[1.75] tracking-normal text-cream/90;
   }
 }
 
@@ -70,50 +77,64 @@
     max-width: min(90rem, 100% - 2rem);
   }
 
-  /* --- Fluid Typography Scale --- */
+  /* --- Fluid Typography Scale (2026 Premium Refinement) --- */
   .text-fluid-hero {
-    font-size: clamp(2.5rem, 12vw, 10rem);
+    font-size: clamp(2rem, 5vw, 3.75rem);
   }
   .text-fluid-heading {
-    font-size: clamp(1.75rem, 6vw, 5rem);
+    font-size: clamp(1.375rem, 3.5vw, 2.75rem);
   }
   .text-fluid-title {
-    font-size: clamp(1.5rem, 5vw, 4rem);
+    font-size: clamp(1.125rem, 2.8vw, 2.125rem);
   }
   .text-fluid-subtitle {
-    font-size: clamp(1.125rem, 3.5vw, 2.5rem);
+    font-size: clamp(0.9375rem, 2vw, 1.25rem);
   }
   .text-fluid-body {
-    font-size: clamp(0.875rem, 2vw, 1.25rem);
+    font-size: clamp(0.8125rem, 1.5vw, 1rem);
   }
   .text-fluid-small {
-    font-size: clamp(0.625rem, 1.2vw, 0.8125rem);
+    font-size: clamp(0.6875rem, 1vw, 0.8125rem);
   }
 
-  /* --- Fluid Spacing --- */
+  /* --- Fluid Spacing (2026 Premium Refinement) --- */
   .section-spacing {
-    @apply py-12 sm:py-20 md:py-32 lg:py-48;
+    @apply py-10 sm:py-16 md:py-24 lg:py-32;
   }
 
   .section-spacing-sm {
-    @apply py-8 sm:py-12 md:py-20 lg:py-32;
+    @apply py-6 sm:py-10 md:py-16 lg:py-24;
   }
 
   .gap-fluid {
-    gap: clamp(1rem, 3vw, 3rem);
+    gap: clamp(0.75rem, 2vw, 2rem);
   }
 
   .p-fluid {
-    padding: clamp(1rem, 3vw, 3rem);
+    padding: clamp(0.75rem, 2vw, 2rem);
   }
 
   .m-fluid {
-    margin: clamp(1rem, 3vw, 3rem);
+    margin: clamp(0.75rem, 2vw, 2rem);
   }
 
   /* --- Glass & Premium Effects --- */
-  .premium-blur {
+    .premium-blur {
     @apply backdrop-blur-3xl bg-white/60 border border-white/40 shadow-premium;
+  }
+
+  /* Premium motion presets */
+  .ease-premium {
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .duration-premium {
+    transition-duration: 500ms;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-500 hover:-translate-y-1 hover:shadow-premium-lg;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .glass-card {
@@ -121,59 +142,59 @@
   }
 
   .nav-link {
-    @apply relative py-1 text-[11px] font-black uppercase tracking-[0.4em] transition-all duration-700 text-coffee-400 hover:text-espresso italic;
+    @apply relative py-1 text-xs font-bold uppercase tracking-[0.15em] transition-all duration-500 text-cream/80 hover:text-cream;
   }
 
   .nav-link::after {
-    @apply content-[''] absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-1 bg-caramel transition-all duration-700 rounded-full;
+    @apply content-[''] absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-caramel-gold transition-all duration-500 rounded-full;
   }
 
   .nav-link:hover::after {
-    @apply w-4;
+    @apply w-6;
   }
 
-  /* --- Responsive Button System --- */
+  /* --- Premium Button System (2026 Refined) --- */
   .btn-premium {
-    @apply px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-4 bg-espresso text-white rounded-full font-black
-           text-[8px] sm:text-[9px] lg:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] lg:tracking-[0.4em]
-           transition-all duration-700 hover:bg-caramel-gold hover:translate-y-[-3px] active:scale-95 shadow-premium
-           disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 lg:gap-4 italic relative overflow-hidden;
+    @apply inline-flex items-center justify-center gap-2.5 px-5 sm:px-7 py-3 bg-mocha text-cream rounded-full font-semibold
+           text-xs sm:text-sm tracking-wide
+           transition-all duration-500 hover:bg-caramel hover:-translate-y-0.5 active:scale-[0.97] shadow-premium
+           disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .btn-premium::after {
-    @apply content-[''] absolute inset-0 bg-white/5 opacity-0 hover:opacity-100 transition-opacity duration-700 pointer-events-none;
+    @apply content-[''] absolute inset-0 bg-white/[0.06] opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none;
   }
 
   .btn-outline {
-    @apply px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-4 border border-espresso/15 text-espresso rounded-full font-black
-           text-[8px] sm:text-[9px] lg:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] lg:tracking-[0.4em]
-           transition-all duration-700 hover:border-espresso hover:bg-espresso/5 active:scale-95 italic text-center leading-none backdrop-blur-sm;
+    @apply inline-flex items-center justify-center gap-2.5 px-5 sm:px-7 py-3 border border-cream/20 text-cream rounded-full font-semibold
+           text-xs sm:text-sm tracking-wide
+           transition-all duration-500 hover:border-cream hover:bg-cream/10 active:scale-[0.97] backdrop-blur-sm;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .btn-ghost {
-    @apply px-4 sm:px-6 py-2.5 sm:py-3 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 hover:text-espresso hover:bg-cream-dark rounded-full transition-all duration-500 italic;
+    @apply inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide text-cream/80 hover:text-cream hover:bg-cream-dark rounded-full transition-all duration-400;
   }
 
   .btn-sm {
-    @apply px-3 sm:px-4 py-1.5 sm:py-2 text-[7px] sm:text-[8px] lg:text-[9px] rounded-full;
+    @apply px-4 py-2 text-[11px] rounded-full;
   }
 
   .btn-lg {
-    @apply px-6 sm:px-8 lg:px-12 py-3 sm:py-4 lg:py-6 text-[9px] sm:text-[10px] lg:text-[11px];
+    @apply px-8 sm:px-10 py-4 sm:py-5 text-sm sm:text-base;
   }
 
   .stat-label {
-    @apply text-[9px] sm:text-[10px] lg:text-[11px] uppercase font-black tracking-[0.4em] sm:tracking-[0.5em] lg:tracking-[0.6em] text-coffee-400 italic block;
+    @apply text-[10px] sm:text-[11px] uppercase font-semibold tracking-[0.2em] text-coffee-400 block;
   }
 
   .mesh-gradient {
     background-image:
-      radial-gradient(at 0% 0%, rgba(229, 213, 193, 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(140, 106, 77, 0.06) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(17, 14, 12, 0.04) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(195, 146, 78, 0.08) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(210, 218, 209, 0.22) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(55, 44, 45, 0.14) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(14, 55, 43, 0.12) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(178, 201, 188, 0.16) 0px, transparent 50%);
   }
 
   .grainy-overlay {
@@ -192,6 +213,31 @@
     z-index: 50;
   }
 
+  /* Color & hero utilities */
+  .bg-primary {
+    background-color: var(--color-primary) !important;
+  }
+  .bg-secondary {
+    background-color: var(--color-secondary) !important;
+  }
+  .bg-hero {
+    background-color: var(--color-hero) !important;
+  }
+  .text-on-hero {
+    color: var(--color-secondary) !important;
+  }
+  .archive-gradient {
+    background: linear-gradient(180deg, rgba(var(--color-hero-rgb),0.85) 0%, rgba(var(--color-hero-rgb),0.25) 35%, transparent 80%);
+  }
+  /* Advanced hero animation helpers */
+  .hero-advanced .mesh-gradient { opacity: 0.12; }
+  @keyframes hero-pulse-move {
+    0% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-8px) scale(1.02); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  .hero-advanced .hero-pulse { animation: hero-pulse-move 8s ease-in-out infinite; }
+
   .text-reveal-mask {
     @apply block overflow-hidden;
   }
@@ -207,7 +253,7 @@
 
   /* --- Responsive Card --- */
   .card-responsive {
-    @apply p-4 sm:p-6 lg:p-8 xl:p-10 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] xl:rounded-[3rem];
+    @apply p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl;
   }
 
   /* --- Responsive Image Container --- */
@@ -242,11 +288,11 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-cream;
+  @apply bg-espresso;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-coffee-200 border-2 border-solid border-cream rounded-full hover:bg-caramel transition-all duration-700;
+  @apply bg-coffee-300 border-2 border-solid border-cream rounded-full hover:bg-coffee-400 transition-all duration-700;
 }
 
 /* Typography Enhancements */
@@ -288,7 +334,7 @@
 }
 
 .hover-premium {
-  @apply transition-all duration-1000 hover:translate-y-[-10px] hover:shadow-premium-xl;
+  @apply transition-all duration-700 hover:-translate-y-1.5 hover:shadow-premium-xl;
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -311,5 +357,35 @@
 @container (min-width: 600px) {
   .cq-adaptive {
     --cq-padding: 2rem;
+  }
+}
+
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 0.75rem 1.5rem;
+  background: #110e0c;
+  color: #f4f4f5;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border-radius: 0 0 0.75rem 0;
+  text-decoration: none;
+  transition: none;
+}
+.skip-to-content:focus {
+  left: 0;
+  outline: 2px solid #c3924e;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

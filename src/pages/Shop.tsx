@@ -3,10 +3,13 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product } from '../types';
 import ProductCard from '../components/shop/ProductCard';
+import ImageWithFallback from '../components/common/ImageWithFallback';
 import { Search, X, Star, DollarSign, Compass, ArrowRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
+import SEO from '../components/common/SEO';
 
 const CATEGORIES = ['All', 'Coffee Beans', 'Capsules', 'Espresso Machines', 'Accessories', 'Syrups'];
 
@@ -53,6 +56,7 @@ export default function Shop() {
         setProducts(productsData);
       } catch (err) {
         console.error('Error fetching products:', err);
+        toast.error('Failed to load product archive. Please refresh the page.');
       } finally {
         setLoading(false);
       }
@@ -96,15 +100,16 @@ export default function Shop() {
 
   return (
     <div className="pt-20 pb-20 md:pt-40 md:pb-56 grainy-overlay min-h-screen bg-cream">
+      <SEO title="Shop" description="Browse our curated collection of premium coffee beans, capsules, machines, and accessories." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
         {/* Header & Search */}
-        <div className="flex flex-col lg:flex-row items-end justify-between gap-8 md:gap-16 mb-12 md:mb-40">
+        <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-8 md:gap-16 mb-12 md:mb-40">
           <div className="space-y-8 md:space-y-12">
-            <span className="stat-label text-caramel">Sensory Catalog / 2026</span>
-            <h1 className="text-fluid-hero font-display font-black text-espresso tracking-tightest leading-[0.8] sm:leading-[0.75] italic uppercase">The <br/><span className="not-italic text-caramel-gold">Archive.</span></h1>
-            <p className="text-lg md:text-2xl text-coffee-500 font-serif italic max-w-xl leading-relaxed">"Each harvesting cycle is audited for isotopic sensory alignment. Explore the world's most exclusive allocations."</p>
+            <span className="stat-label text-caramel">Sensory Catalog 2026</span>
+            <h1 className="text-fluid-hero font-display font-bold text-espresso tracking-tight leading-[1.1] uppercase">The <span className="text-caramel-gold">Archive.</span></h1>
+            <p className="text-base sm:text-lg text-coffee-500 max-w-xl leading-relaxed">Each harvesting cycle is audited for isotopic sensory alignment. Explore the world's most exclusive allocations.</p>
           </div>
 
           <div className="relative w-full lg:w-[600px] group">
@@ -119,7 +124,7 @@ export default function Shop() {
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}
-                className="w-full pl-16 md:pl-22 pr-6 md:pr-10 py-4 md:py-6 bg-transparent focus:bg-white transition-all text-[10px] md:text-xs font-black uppercase tracking-[0.3em] md:tracking-[0.5em] placeholder:text-coffee-200 outline-none italic"
+                className="w-full pl-16 md:pl-20 pr-6 md:pr-10 py-4 md:py-6 bg-transparent focus:bg-white transition-all text-xs sm:text-sm font-medium uppercase tracking-wider placeholder:text-coffee-300 outline-none"
               />
             </div>
 
@@ -144,7 +149,7 @@ export default function Shop() {
                             onClick={() => setShowSuggestions(false)}
                             className="flex items-center gap-4 md:gap-8 p-6 hover:bg-espresso hover:text-white rounded-[3rem] transition-all duration-700 group mt-2 first:mt-0"
                           >
-                            <img src={p.images[0]} className="w-16 h-16 md:w-20 md:h-20 rounded-[1.5rem] object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 border border-white/40" referrerPolicy="no-referrer" />
+                            <ImageWithFallback src={p.images[0]} alt={p.name} className="w-16 h-16 md:w-20 md:h-20 rounded-[1.5rem] object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 border border-white/40" referrerPolicy="no-referrer" />
                             <div>
                               <p className="text-fluid-title font-display font-black tracking-tight italic uppercase">{p.name}</p>
                               <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40 group-hover:opacity-100 italic transition-all">{p.category}</p>
@@ -167,19 +172,20 @@ export default function Shop() {
           {/* Sidebar Filters */}
           <div className="w-full lg:w-96 space-y-8 md:space-y-20 lg:sticky lg:top-40 h-fit">
             <div className="space-y-8">
-              <h3 className="text-[10px] md:text-xs font-black text-coffee-300 uppercase tracking-[0.3em] md:tracking-[0.4em] flex items-center gap-3 md:gap-6 italic border-b border-coffee-50 pb-4 md:pb-6">
-                 <Compass size={18} strokeWidth={1.5} className="text-caramel" /> Filter Protocol
+              <h3 className="text-xs font-semibold text-coffee-400 uppercase tracking-wider flex items-center gap-3 border-b border-coffee-50 pb-4">
+                 <Compass size={16} strokeWidth={1.5} className="text-caramel" /> Filter
               </h3>
               <div className="flex flex-wrap lg:flex-col gap-2 md:gap-4">
                 {CATEGORIES.map(cat => (
                   <button
+                    type="button"
                     key={cat}
                     onClick={() => setFilters({ ...filters, category: cat })}
                     className={cn(
-                      "px-4 py-3 md:px-8 md:py-5 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-left rounded-full transition-all relative overflow-hidden group italic",
+                      "px-4 py-3 md:px-6 md:py-3.5 text-xs font-semibold uppercase tracking-wide text-left rounded-full transition-all relative overflow-hidden",
                       filters.category === cat 
                           ? "bg-espresso text-white shadow-premium" 
-                          : "text-coffee-400 hover:bg-white hover:text-espresso border border-coffee-50/50"
+                          : "text-coffee-500 hover:bg-white hover:text-espresso border border-coffee-50/50"
                     )}
                   >
                     <span className="relative z-10">{cat}</span>
@@ -191,11 +197,11 @@ export default function Shop() {
               </div>
             </div>
 
-            <div className="space-y-12 p-6 md:p-12 bg-white/40 backdrop-blur-2xl rounded-[3rem] md:rounded-[4rem] border border-white/60 shadow-premium group">
-              <h3 className="text-[10px] md:text-xs font-black text-coffee-300 uppercase tracking-[0.3em] md:tracking-[0.4em] flex items-center gap-4 md:gap-6 italic">
-                 <DollarSign size={20} strokeWidth={1.5} className="text-caramel" /> Pricing Cap
+            <div className="space-y-6 p-5 sm:p-6 bg-white/60 backdrop-blur-2xl rounded-2xl border border-white/60 shadow-premium">
+              <h3 className="text-xs font-semibold text-coffee-400 uppercase tracking-wider flex items-center gap-3">
+                 <DollarSign size={16} strokeWidth={1.5} className="text-caramel" /> Price
               </h3>
-              <div className="space-y-10 px-4 pb-4">
+              <div className="space-y-4 px-2 pb-2">
                 <input 
                   type="range" 
                   min="0" 
@@ -203,40 +209,42 @@ export default function Shop() {
                   step="500000"
                   value={filters.maxPrice}
                   onChange={e => setFilters({ ...filters, maxPrice: parseInt(e.target.value) })}
-                  className="w-full appearance-none h-2 bg-coffee-50 rounded-full accent-caramel-gold cursor-pointer" 
+                  className="w-full appearance-none h-1.5 bg-coffee-100 rounded-full accent-caramel-gold cursor-pointer" 
                 />
-                <div className="flex flex-col gap-3">
-                  <span className="text-[9px] font-black text-coffee-200 uppercase tracking-[0.5em] italic">Max Threshold</span>
-                  <span className="text-fluid-title font-display font-black text-espresso tracking-tightest italic">LBP {filters.maxPrice.toLocaleString()}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-medium text-coffee-400 tracking-wide">Maximum</span>
+                  <span className="text-lg font-display font-bold text-espresso tracking-tight">LBP {filters.maxPrice.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-10">
-              <h3 className="text-[10px] md:text-xs font-black text-coffee-300 uppercase tracking-[0.3em] md:tracking-[0.4em] flex items-center gap-4 md:gap-6 italic">
-                 <Star size={20} strokeWidth={1.5} className="text-caramel" /> Quality Grade
+              <h3 className="text-xs font-semibold text-coffee-400 uppercase tracking-wider flex items-center gap-3">
+                 <Star size={16} strokeWidth={1.5} className="text-caramel" /> Minimum Rating
               </h3>
-              <div className="flex flex-wrap gap-3 md:gap-4">
+              <div className="flex flex-wrap gap-2">
                 {[5, 4, 3, 2, 1].map(r => (
                   <button
+                    type="button"
                     key={r}
                     onClick={() => setFilters({ ...filters, minRating: filters.minRating === r ? 0 : r })}
                     className={cn(
-                      "w-12 h-12 md:w-16 md:h-16 rounded-full border transition-all duration-700 flex items-center justify-center gap-1 md:gap-2 font-black shadow-premium active:scale-90 italic",
-                      filters.minRating === r ? "bg-espresso border-espresso text-white" : "bg-white border-white/60 text-coffee-300 hover:border-caramel-gold hover:text-espresso"
+                      "w-10 h-10 rounded-full border transition-all duration-400 flex items-center justify-center gap-1 font-semibold shadow-premium active:scale-90",
+                      filters.minRating === r ? "bg-espresso border-espresso text-white" : "bg-white border-white/60 text-coffee-400 hover:border-caramel-gold hover:text-espresso"
                     )}
                   >
-                    {r}<Star size={14} className={cn(filters.minRating === r ? "fill-caramel-gold text-caramel-gold" : "text-coffee-100")} />
+                    {r}<Star size={12} className={cn(filters.minRating === r ? "fill-caramel-gold text-caramel-gold" : "text-coffee-200")} />
                   </button>
                 ))}
               </div>
             </div>
 
             <button 
+              type="button"
               onClick={resetFilters}
-              className="w-full py-4 md:py-6 text-[10px] font-black uppercase tracking-[0.6em] text-coffee-300 hover:text-red-500 border border-coffee-50 border-dashed rounded-full flex items-center justify-center gap-6 transition-all hover:bg-white italic shadow-premium active:scale-95 group"
+              className="w-full py-3 text-xs font-medium tracking-wide text-coffee-400 hover:text-red-500 border border-coffee-50 border-dashed rounded-full flex items-center justify-center gap-3 transition-all hover:bg-white shadow-premium active:scale-95 group"
             >
-              <X size={18} className="group-hover:rotate-90 transition-transform duration-700" /> Reset Protocols
+              <X size={16} className="group-hover:rotate-90 transition-transform duration-500" /> Reset Filters
             </button>
           </div>
 
@@ -262,19 +270,20 @@ export default function Shop() {
                 </AnimatePresence>
               </motion.div>
             ) : (
-              <div className="py-16 md:py-48 text-center bg-white/40 backdrop-blur-3xl rounded-[4rem] md:rounded-[6rem] border border-dashed border-coffee-100 shadow-premium space-y-8 md:space-y-16">
-                 <div className="w-24 h-24 md:w-40 md:h-40 bg-white rounded-full flex items-center justify-center mx-auto text-coffee-100 shadow-premium-xl border border-white/60">
-                    <Search strokeWidth={1} className="text-caramel opacity-20" size={32} />
+              <div className="py-16 lg:py-24 text-center bg-white/60 backdrop-blur-3xl rounded-2xl lg:rounded-3xl border border-dashed border-coffee-100 shadow-premium space-y-6">
+                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center mx-auto text-coffee-200 shadow-premium border border-white/60">
+                    <Search strokeWidth={1.5} size={24} />
                  </div>
-                 <div className="space-y-6 md:space-y-10 px-6">
-                   <h3 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest uppercase leading-none">No Allocations Found</h3>
-                   <p className="text-fluid-body md:text-2xl text-coffee-400 max-w-sm mx-auto font-serif italic leading-relaxed">"Re-evaluate your search parameters to find authorized archives."</p>
+                 <div className="space-y-3 px-6">
+                   <h3 className="text-2xl sm:text-3xl font-display font-bold text-espresso tracking-tight">No Products Found</h3>
+                   <p className="text-sm sm:text-base text-coffee-500 max-w-sm mx-auto leading-relaxed">Try adjusting your filters or search terms to discover more products.</p>
                  </div>
                  <button 
+                  type="button"
                   onClick={resetFilters}
-                  className="btn-premium px-8 md:px-14 py-4 md:py-6 text-[10px] md:text-[11px] italic mx-auto"
+                  className="btn-premium text-sm mx-auto"
                  >
-                   INITIALIZE FULL-ACCESS
+                   Reset All Filters
                  </button>
               </div>
             )}

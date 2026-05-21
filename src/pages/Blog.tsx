@@ -1,6 +1,8 @@
+import ImageWithFallback from '../components/common/ImageWithFallback';
 import { ArrowRight, Clock, Tag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
+import SEO from '../components/common/SEO';
 
 const POSTS = [
   { id: 1, title: 'The Art of the Lebanese Morning Ritual', excerpt: 'Discover how coffee shapes the culture of Beirut and beyond.', category: 'Culture', date: 'May 12, 2026', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80' },
@@ -11,6 +13,7 @@ const POSTS = [
 export default function Blog() {
   return (
     <div className="pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 min-h-screen relative overflow-hidden bg-cream">
+      <SEO title="Blog" description="Read stories, guides, and insights from the heart of CoffeeCraze." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
@@ -32,7 +35,7 @@ export default function Blog() {
               <Link to={`/blog/${post.id}`} className="block group">
                 <article className="bg-white border border-coffee-100 rounded-[3rem] overflow-hidden hover:shadow-2xl hover:shadow-coffee-950/10 transition-all duration-700 h-full">
                   <div className="aspect-video overflow-hidden">
-                    <img src={post.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <ImageWithFallback src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   </div>
                   <div className="p-6 sm:p-8 space-y-5 sm:space-y-6">
                     <div className="flex items-center gap-4 text-fluid-small font-bold uppercase tracking-widest text-coffee-400">

@@ -1,3 +1,4 @@
+import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { Star, Zap, ShoppingBag, Gift, ArrowRight, TrendingUp, History } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -20,6 +21,7 @@ export default function LoyaltyRitual() {
   return (
     <DashboardLayout>
       <div className="space-y-16">
+        <SEO title="Loyalty" description="Earn and redeem CoffeeCraze loyalty points with every purchase." />
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-12 border-b border-espresso/5 pb-16">
           <div className="space-y-4">
             <span className="stat-label text-caramel">Earning Protocol</span>
@@ -111,33 +113,21 @@ export default function LoyaltyRitual() {
           })}
         </div>
 
-        {/* Earning History */}
-        <div className="bg-white border border-white rounded-[5rem] overflow-hidden shadow-premium-2xl relative">
-          <div className="p-12 border-b border-espresso/5 flex items-center gap-6 bg-cream/30">
-             <div className="w-12 h-12 bg-espresso text-caramel rounded-2xl flex items-center justify-center shadow-premium">
-                <History size={20} strokeWidth={1.5} />
-             </div>
-             <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">Accumulation <span className="not-italic text-coffee-400">Log.</span></h3>
-          </div>
-          <div className="divide-y divide-espresso/5">
-            {[
-              { label: 'Ritual Purchase #1902', date: 'May 10, 2026', points: '+120' },
-              { label: 'Referral Bonus: Elias M.', date: 'May 08, 2026', points: '+200' },
-              { label: 'Onboarding Gift', date: 'May 01, 2026', points: '+100' }
-            ].map((item, i) => (
-              <div key={i} className="px-12 py-10 flex items-center justify-between hover:bg-cream/50 transition-all duration-500 group">
-                <div className="space-y-1">
-                  <p className="text-2xl font-display font-black text-espresso italic tracking-tight uppercase group-hover:text-caramel transition-colors">{item.label}</p>
-                  <p className="text-[11px] text-coffee-400 font-black uppercase tracking-[0.4em] italic">{item.date}</p>
-                </div>
-                <div className="text-right">
-                   <span className="text-3xl font-display font-black text-caramel-gold italic tracking-tightest">{item.points}</span>
-                   <p className="text-[10px] text-coffee-300 font-black uppercase tracking-[0.4em] italic leading-none mt-1">RESONANCE</p>
-                </div>
+          {/* Earning History */}
+          <div className="bg-white border border-white rounded-[5rem] overflow-hidden shadow-premium-2xl relative">
+            <div className="p-12 border-b border-espresso/5 flex items-center gap-6 bg-cream/30">
+               <div className="w-12 h-12 bg-espresso text-caramel rounded-2xl flex items-center justify-center shadow-premium">
+                  <History size={20} strokeWidth={1.5} />
+               </div>
+               <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">Accumulation <span className="not-italic text-coffee-400">Log.</span></h3>
+            </div>
+            <div className="py-20 text-center space-y-6">
+              <div className="w-16 h-16 bg-cream rounded-[2rem] flex items-center justify-center mx-auto text-coffee-200 shadow-inner">
+                <History size={24} strokeWidth={1} />
               </div>
-            ))}
+              <p className="text-lg text-coffee-300 font-serif italic">No accumulation history yet. Points are earned by completing orders and referring friends.</p>
+            </div>
           </div>
-        </div>
       </div>
     </DashboardLayout>
   );

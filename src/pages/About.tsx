@@ -1,9 +1,12 @@
+import ImageWithFallback from '../components/common/ImageWithFallback';
 import { Coffee, Heart, Users, MapPin, Mail, Phone, ArrowRight, Instagram, Twitter, Linkedin } from 'lucide-react';
 import { motion } from 'motion/react';
+import SEO from '../components/common/SEO';
 
 export default function About() {
   return (
     <div className="pt-16 sm:pt-24 md:pt-32 pb-20 sm:pb-30 md:pb-40 overflow-hidden bg-white">
+      <SEO title="About" description="Learn about CoffeeCraze's story, philosophy, and commitment to premium coffee." />
       {/* Hero Section */}
       <section className="px-6 max-w-7xl mx-auto mb-20 md:mb-30 lg:mb-40">
         <div className="flex flex-col lg:flex-row items-center gap-8 sm:gap-12 md:gap-16 lg:gap-24">
@@ -19,7 +22,7 @@ export default function About() {
           <div className="relative group">
             <div className="absolute inset-0 bg-coffee-950/5 blur-[100px] rounded-full scale-125 opacity-20"></div>
             <div className="w-[250px] h-[320px] sm:w-[300px] sm:h-[400px] md:w-[400px] md:h-[520px] lg:w-[500px] lg:h-[650px] bg-coffee-50 rounded-[3rem] sm:rounded-[4rem] lg:rounded-[5rem] overflow-hidden rotate-2 shadow-premium hover:rotate-0 transition-transform duration-1000 relative z-10">
-              <img src="https://images.unsplash.com/photo-1501339819358-ee5969a2f238?w=800&auto=format&fit=crop&q=80" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-[2s]" referrerPolicy="no-referrer" />
+              <ImageWithFallback src="https://images.unsplash.com/photo-1501339819358-ee5969a2f238?w=800&auto=format&fit=crop&q=80" alt="CoffeeCraze roastery and team" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-[2s]" referrerPolicy="no-referrer" />
             </div>
             <div className="absolute -bottom-8 sm:-bottom-10 lg:-bottom-12 -left-8 sm:-left-10 lg:-left-12 w-44 sm:w-52 lg:w-60 h-44 sm:h-52 lg:h-60 bg-coffee-950 p-6 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[2.5rem] lg:rounded-[3rem] shadow-premium-lg space-y-4 sm:space-y-6 -rotate-6 z-20 hover:scale-105 transition-transform duration-700">
               <div className="w-10 sm:w-12 lg:w-14 h-10 sm:h-12 lg:h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10">

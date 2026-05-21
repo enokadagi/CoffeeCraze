@@ -6,6 +6,7 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
+import SEO from '../components/common/SEO';
 
 export default function Wholesale() {
   const { user, profile } = useAuth();
@@ -61,6 +62,7 @@ export default function Wholesale() {
 
   return (
     <div className="bg-white min-h-screen">
+      <SEO title="Wholesale" description="Partner with CoffeeCraze for high-volume premium coffee supply for your business." />
       {/* Hero */}
       <section className="pt-16 sm:pt-24 md:pt-32 pb-20 sm:pb-30 md:pb-40 px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-12 md:gap-16 lg:gap-20 items-center mb-20 md:mb-30 lg:mb-40">
@@ -194,11 +196,11 @@ export default function Wholesale() {
              <h2 className="text-fluid-heading font-display font-black text-white leading-none italic tracking-tighter">Trusted by <br/><span className="text-coffee-500 not-italic">Finest Units.</span></h2>
              <p className="text-fluid-body text-coffee-400 font-light italic leading-relaxed">"Join a decentralized network of over 150+ partners who depend on the Ritual Protocol for daily excellence."</p>
            </div>
-           <div className="flex flex-wrap justify-center lg:justify-end gap-8 sm:gap-10 lg:gap-12 opacity-30 grayscale contrast-150 hover:grayscale-0 hover:opacity-100 transition-all duration-1000">
-             {[1,2,3,4,5].map(i => (
-                <div key={i} className="px-8 sm:px-10 py-5 sm:py-6 border border-white/10 rounded-[2rem] text-white font-display font-black text-fluid-title italic tracking-tighter hover:border-coffee-500 transition-all cursor-default">INSTITUTE_{i}</div>
-             ))}
-           </div>
+            <div className="flex flex-wrap justify-center lg:justify-end gap-8 sm:gap-10 lg:gap-12 opacity-30 grayscale contrast-150 hover:grayscale-0 hover:opacity-100 transition-all duration-1000">
+              {['Café Beirut', 'The Roastery', 'Brew Lab', 'Origin House', 'Summit Coffee'].map(name => (
+                 <div key={name} className="px-8 sm:px-10 py-5 sm:py-6 border border-white/10 rounded-[2rem] text-white font-display font-black text-fluid-title italic tracking-tighter hover:border-coffee-500 transition-all cursor-default">{name.toUpperCase().slice(0, 12)}</div>
+              ))}
+            </div>
         </div>
       </section>
     </div>

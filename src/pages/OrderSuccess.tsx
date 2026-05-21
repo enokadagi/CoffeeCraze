@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { CheckCircle, Package, ArrowRight, ShoppingBag } from 'lucide-react';
 import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
+import SEO from '../components/common/SEO';
 
 export default function OrderSuccess() {
   const { id } = useParams();
@@ -18,6 +19,7 @@ export default function OrderSuccess() {
 
   return (
     <div className="pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 min-h-screen bg-cream relative overflow-hidden">
+      <SEO title="Order Success" description="Your coffee ritual order has been confirmed successfully." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container flex flex-col items-center text-center relative z-10">

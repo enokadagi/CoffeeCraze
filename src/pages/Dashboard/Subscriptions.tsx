@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Subscription, SubscriptionStatus } from '../../types';
-import { Coffee, Calendar, RefreshCw, XCircle, ChevronRight, Package, AlertCircle, ArrowRight, Plus } from 'lucide-react';
+import { Address, Subscription, SubscriptionStatus } from '../../types';
+import ImageWithFallback from '../../components/common/ImageWithFallback';
+import { Coffee, Calendar, RefreshCw, XCircle, ChevronRight, Package, AlertCircle, ArrowRight, Plus, MapPin, Clock, Edit2, ShieldAlert } from 'lucide-react';
+import SEO from '../../components/common/SEO';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -33,7 +35,7 @@ export default function DashboardSubscriptions() {
     try {
       await updateDoc(doc(db, 'subscriptions', sub.id), { status: newStatus });
       setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, status: newStatus } : s));
-      toast.success(`Ritual ${statusLabel(newStatus)} successfully`);
+      toast.success(`Ritual ${newStatus === SubscriptionStatus.ACTIVE ? 'Resumed' : 'Paused'} successfully!`);
     } catch (err) {
       toast.error("Failed to update ritual status");
     }
@@ -51,135 +53,286 @@ export default function DashboardSubscriptions() {
   };
 
   const [editingSub, setEditingSub] = useState<Subscription | null>(null);
+  const [activeTab, setActiveTab] = useState<'items' | 'logistics' | 'duration'>('items');
+
+  // Logistics form state
+  const [logisticsForm, setLogisticsForm] = useState({
+    street: '',
+    building: '',
+    floor: '',
+    city: 'Beirut',
+    preferredTimeSlot: 'Morning (9:00 AM - 12:00 PM)',
+    customNotes: '',
+    gateCode: ''
+  });
+
+  useEffect(() => {
+    if (editingSub) {
+      const addr = editingSub.address as Address | string | undefined;
+      const shippingAddress = typeof addr === 'object' && addr !== null ? addr : undefined;
+      setLogisticsForm({
+        street: shippingAddress?.street || shippingAddress?.address || '' ,
+        building: shippingAddress?.building || '',
+        floor: shippingAddress?.floor || '',
+        city: shippingAddress?.city || 'Beirut',
+        preferredTimeSlot: (editingSub as any).preferredTimeSlot || editingSub.preferredTime || 'Morning (9:00 AM - 12:00 PM)',
+        customNotes: (editingSub as any).customNotes || '',
+        gateCode: (editingSub as any).gateCode || ''
+      });
+    }
+  }, [editingSub]);
+
+  const saveLogistics = async () => {
+    if (!editingSub) return;
+    try {
+      const updatedFields = {
+        address: {
+          street: logisticsForm.street,
+          building: logisticsForm.building,
+          floor: logisticsForm.floor,
+          city: logisticsForm.city,
+          address: `${logisticsForm.street}, Bldg ${logisticsForm.building}, Fl ${logisticsForm.floor}, ${logisticsForm.city}`
+        },
+        preferredTimeSlot: logisticsForm.preferredTimeSlot,
+        preferredTime: logisticsForm.preferredTimeSlot,
+        customNotes: logisticsForm.customNotes,
+        gateCode: logisticsForm.gateCode
+      };
+      await updateDoc(doc(db, 'subscriptions', editingSub.id), updatedFields);
+      setSubscriptions(subscriptions.map(s => s.id === editingSub.id ? { ...s, ...updatedFields } as Subscription : s));
+      toast.success("Delivery coordinates synced successfully!");
+      setEditingSub(null);
+    } catch (err) {
+      toast.error("Failed to update logistics");
+    }
+  };
 
   const updateFrequency = async (id: string, freq: any) => {
     try {
       await updateDoc(doc(db, 'subscriptions', id), { frequency: freq });
       setSubscriptions(subscriptions.map(s => s.id === id ? { ...s, frequency: freq } : s));
-      toast.success("Extraction cycle updated");
+      toast.success("Extraction frequency cycle modulated!");
       setEditingSub(null);
     } catch (err) {
-      toast.error("Failed to update cycle");
+      toast.error("Failed to update cycle frequency");
     }
   };
 
-  const statusLabel = (status: SubscriptionStatus) => {
-    switch (status) {
-      case SubscriptionStatus.ACTIVE: return 'resumed';
-      case SubscriptionStatus.PAUSED: return 'paused';
-      case SubscriptionStatus.CANCELLED: return 'cancelled';
-      default: return '';
+  const skipDeliveryCycle = async (sub: Subscription) => {
+    try {
+      const currentDate = new Date(sub.nextDelivery || new Date());
+      let daysToAdd = 7;
+      if (sub.frequency === 'biweekly') daysToAdd = 14;
+      else if (sub.frequency === 'monthly') daysToAdd = 30;
+      
+      currentDate.setDate(currentDate.getDate() + daysToAdd);
+      const nextDeliveryStr = currentDate.toISOString().split('T')[0];
+      
+      await updateDoc(doc(db, 'subscriptions', sub.id), { nextDelivery: nextDeliveryStr });
+      setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, nextDelivery: nextDeliveryStr } : s));
+      toast.success(`Successfully skipped cycle! Next delivery rescheduled for ${nextDeliveryStr}`);
+    } catch (err) {
+      toast.error("Failed to skip cycle");
     }
   };
+
+  const extendPlanDuration = async (sub: Subscription, additionalMonths: number) => {
+    try {
+      const currentDuration = (sub as any).durationMonths || 3;
+      const newDuration = currentDuration + additionalMonths;
+      
+      await updateDoc(doc(db, 'subscriptions', sub.id), { durationMonths: newDuration });
+      setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, durationMonths: newDuration } as any : s));
+      toast.success(`Ritual cycle extended successfully by ${additionalMonths} months!`);
+      setEditingSub(null);
+    } catch (err) {
+      toast.error("Failed to extend plan duration");
+    }
+  };
+
+  const timeSlots = [
+    'Morning (9:00 AM - 12:00 PM)',
+    'Afternoon (12:00 PM - 4:00 PM)',
+    'Evening (4:00 PM - 8:00 PM)'
+  ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-20 relative">
-        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-b border-espresso/5 pb-20">
-          <div className="space-y-4">
+      <div className="space-y-12 relative">
+        <SEO title="My Subscriptions" description="Manage your CoffeeCraze recurring coffee ritual subscriptions." />
+        
+        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-espresso/5 pb-8">
+          <div className="space-y-3">
             <span className="stat-label text-caramel">Operational Continuity</span>
-            <h1 className="text-5xl md:text-7xl font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-coffee-400">Cycles.</span></h1>
-            <p className="text-lg md:text-xl text-coffee-400 font-serif italic max-w-2xl leading-relaxed">Management of your recurring <span className="text-espresso font-black not-italic uppercase tracking-tightest">{subscriptions.length}</span> automated sensory protocols within the mainframe.</p>
+            <h1 className="text-4xl font-display font-black text-espresso tracking-tight leading-none uppercase">Ritual <span className="text-coffee-400">Cycles.</span></h1>
+            <p className="text-base text-coffee-400 font-serif italic max-w-2xl leading-relaxed">Management of your recurring <span className="text-espresso font-black not-italic uppercase tracking-tightest">{subscriptions.length}</span> automated sensory protocols within the mainframe.</p>
           </div>
 
-          <div className="flex items-center gap-4 md:gap-8 w-full md:w-auto">
-            <div className="w-full md:w-auto px-8 md:px-12 py-6 md:py-8 bg-white shadow-premium-xl border border-white rounded-[3rem] md:rounded-[4rem] flex items-center gap-6 md:gap-8 group hover:scale-105 transition-all duration-1000">
-              <div className="w-16 h-16 bg-espresso text-caramel rounded-[1.5rem] flex items-center justify-center shadow-premium-lg group-hover:rotate-12 transition-transform duration-700">
-                <RefreshCw size={24} strokeWidth={1} className="group-hover:rotate-180 transition-transform duration-1000" />
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="w-full md:w-auto px-6 py-4 bg-white shadow-premium border border-white rounded-2xl flex items-center gap-4 group transition-all duration-700">
+              <div className="w-12 h-12 bg-espresso text-caramel rounded-xl flex items-center justify-center shadow-premium group-hover:rotate-12 transition-transform duration-500">
+                <RefreshCw size={18} strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.4em] text-coffee-300 italic mb-1 uppercase">System Health</p>
-                <p className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase leading-none">{subscriptions.some(s => s.status === SubscriptionStatus.ACTIVE) ? 'Nominal' : 'Dormant'}</p>
+                <p className="text-[10px] font-semibold tracking-wide text-coffee-400 uppercase">System Health</p>
+                <p className="text-lg font-display font-bold text-espresso tracking-tight leading-none mt-1">{subscriptions.some(s => s.status === SubscriptionStatus.ACTIVE) ? 'Nominal' : 'Dormant'}</p>
               </div>
             </div>
           </div>
         </header>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[1, 2].map(i => (
-              <div key={i} className="h-[500px] bg-white/20 backdrop-blur-xl animate-pulse rounded-[5rem] border border-white/40" />
+              <div key={i} className="h-[350px] bg-white/20 backdrop-blur-md animate-pulse rounded-3xl border border-white/40 shadow-premium" />
             ))}
           </div>
         ) : subscriptions.length > 0 ? (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-16">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {subscriptions.map((sub) => (
               <motion.div 
                 key={sub.id} 
-                initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-                className="bg-white border border-white rounded-[6rem] p-16 md:p-20 space-y-16 relative overflow-hidden group shadow-premium-xl hover:shadow-premium-2xl transition-all duration-1000"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="bg-white border border-white/60 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden group shadow-premium hover-lift"
               >
-                <div className="absolute top-0 right-0 p-20 opacity-[0.03] transition-all duration-1000 group-hover:opacity-[0.1] pointer-events-none group-hover:rotate-12 group-hover:scale-125 grayscale">
-                  <Coffee size={400} strokeWidth={0.5} />
-                </div>
-
                 <div className="flex justify-between items-start relative z-10">
-                  <div className="space-y-8">
-                    <div className="flex items-center gap-4 md:gap-8">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
                       <span className={cn(
-                        "px-6 md:px-10 py-2 md:py-3 rounded-full text-[9px] md:text-[11px] font-black uppercase tracking-[0.4em] border shadow-premium italic transition-all duration-700",
+                        "px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-semibold tracking-wide border shadow-premium transition-all duration-500",
                         sub.status === SubscriptionStatus.ACTIVE ? 'bg-caramel text-white border-caramel' : 
                         sub.status === SubscriptionStatus.PAUSED ? 'bg-amber-50 text-amber-600 border-amber-100' : 
                         'bg-red-50 text-red-600 border-red-100'
                       )}>
-                        {sub.status}_PROTOCOL
+                        {sub.status.toUpperCase()}
                       </span>
-                      <span className="hidden md:inline-block text-[11px] font-black text-coffee-300 uppercase tracking-[0.5em] leading-none italic opacity-50 underline decoration-caramel/30 underline-offset-8">NODE_ALPHA_6</span>
+                      {((sub as any).durationMonths) && (
+                        <span className="bg-espresso text-caramel-gold border border-white/10 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
+                          {((sub as any).durationMonths)} MONTHS PLAN
+                        </span>
+                      )}
                     </div>
                     <div>
-                        <h3 className="text-5xl md:text-7xl font-display font-black text-espresso tracking-tightest italic leading-[0.8] uppercase">Ritual <br className="hidden md:block"/><span className="not-italic text-caramel-gold uppercase">{sub.planId}</span></h3>
-                        <p className="text-[9px] md:text-[11px] text-coffee-400 font-black uppercase tracking-[0.4em] md:tracking-[0.6em] mt-6 md:mt-10 italic bg-cream inline-block px-4 py-2 md:px-6 md:py-3 rounded-[1rem] md:rounded-2xl border border-white shadow-inner">Interval Cycle: {sub.frequency} Extraction Points</p>
+                      <h3 className="text-2xl font-display font-black text-espresso tracking-tight leading-none uppercase">Ritual <span className="text-caramel-gold">#{sub.id.slice(-6).toUpperCase()}</span></h3>
+                      <p className="text-[10px] text-coffee-500 font-bold tracking-widest uppercase mt-3 bg-cream inline-block px-3 py-1.5 rounded-lg border border-white/60">
+                        {sub.frequency.toUpperCase()} · {sub.items?.length || 0} ITEMS
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8 md:gap-16 pt-8 md:pt-16 border-t border-espresso/5 relative z-10">
-                  <div className="space-y-4">
-                    <p className="text-[9px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.3em] md:tracking-[0.5em] flex items-center gap-3 md:gap-5 italic">
-                      <Calendar size={16} className="text-caramel shrink-0" /> <span className="truncate">Extraction Vector</span>
-                    </p>
-                    <p className="text-2xl md:text-4xl font-display font-black text-espresso tracking-tightest italic leading-none">
-                      {sub.nextDelivery ? format(new Date(sub.nextDelivery), 'MMM dd, yy') : 'Offline'}
-                    </p>
-                  </div>
-                  <div className="space-y-4">
-                    <p className="text-[9px] md:text-[11px] font-black text-coffee-300 uppercase tracking-[0.3em] md:tracking-[0.5em] flex items-center gap-3 md:gap-5 italic">
-                      <Package size={16} className="text-caramel shrink-0" /> Sensory Keys
-                    </p>
-                    <p className="text-2xl md:text-4xl font-display font-black text-espresso tracking-tightest italic leading-none">{sub.items.length} Units</p>
+                {/* Subscribed items list */}
+                <div className="space-y-3 bg-cream/40 p-4 rounded-2xl border border-espresso/5">
+                  <p className="text-[9px] font-black text-coffee-300 uppercase tracking-widest">Ritual Recipe Components</p>
+                  <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                    {sub.items?.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-espresso uppercase truncate max-w-[200px]">{item.name}</span>
+                        <span className="text-coffee-400 font-medium">QTY {item.quantity}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div className="flex flex-col xl:flex-row flex-wrap gap-4 md:gap-8 pt-8 md:pt-10 relative z-10">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-espresso/5 relative z-10">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold text-coffee-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar size={12} className="text-caramel shrink-0" /> Next Delivery
+                    </p>
+                    <p className="text-base font-display font-black text-espresso tracking-tight leading-none">
+                      {sub.nextDelivery ? format(new Date(sub.nextDelivery), 'MMM dd, yyyy') : 'Offline'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold text-coffee-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock size={12} className="text-caramel shrink-0" /> Slot Lock
+                    </p>
+                    <p className="text-xs font-bold text-espresso truncate">
+                      {(sub as any).preferredTimeSlot || sub.preferredTime || 'Morning Slot'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Logistics summary info */}
+                {sub.address && (
+                  <div className="text-[10px] text-coffee-400 font-medium bg-cream/20 p-3 rounded-xl border border-dashed border-espresso/5 flex items-start gap-2">
+                    <MapPin size={12} className="text-caramel shrink-0 mt-0.5" />
+                    <span className="truncate">
+                      {typeof sub.address === 'object' ? sub.address.address : sub.address}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 pt-2 relative z-10">
                   {sub.status !== SubscriptionStatus.CANCELLED && (
                     <>
-                      <button 
-                        onClick={() => setEditingSub(sub)}
-                        className="w-full xl:flex-grow flex items-center justify-center gap-4 md:gap-6 px-8 md:px-12 py-5 md:py-8 bg-cream border border-espresso/5 text-espresso rounded-[2rem] md:rounded-[2.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] hover:bg-white hover:border-caramel transition-all duration-1000 shadow-premium italic active:scale-95 group/btn"
-                      >
-                         <RefreshCw size={20} strokeWidth={1} className="group-hover/btn:rotate-180 transition-transform duration-1000" /> Modify Cycle
-                      </button>
-                      <div className="flex gap-4 w-full xl:w-auto">
+                      <div className="grid grid-cols-2 gap-3">
                         <button 
-                          onClick={() => toggleStatus(sub)}
-                          className="flex-grow flex items-center justify-center gap-4 md:gap-6 px-8 md:px-12 py-5 md:py-8 bg-espresso text-white rounded-[2rem] md:rounded-[2.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] hover:bg-caramel transition-all duration-1000 shadow-premium italic active:scale-95 group/btn border border-white/5"
+                          onClick={() => {
+                            setEditingSub(sub);
+                            setActiveTab('items');
+                          }}
+                          className="btn-outline text-xs py-3"
                         >
-                          {sub.status === SubscriptionStatus.ACTIVE ? "Suspend" : "Re-Engage"}
+                           <Edit2 size={12} strokeWidth={2} /> Modify Items
                         </button>
                         <button 
-                          onClick={() => cancelSubscription(sub.id)}
-                          className="flex items-center justify-center gap-4 md:gap-6 px-8 md:px-12 py-5 md:py-8 bg-cream border border-espresso/5 text-espresso/40 hover:text-red-500 hover:bg-white hover:border-red-500 rounded-[2rem] md:rounded-[2.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] transition-all duration-1000 italic shadow-premium"
+                          onClick={() => {
+                            setEditingSub(sub);
+                            setActiveTab('logistics');
+                          }}
+                          className="btn-outline text-xs py-3"
                         >
-                          <XCircle size={20} strokeWidth={1} />
+                           <MapPin size={12} strokeWidth={2} /> Coordinates
+                        </button>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => toggleStatus(sub)}
+                          className={cn(
+                            "btn-premium text-xs py-3 flex-1 uppercase tracking-widest",
+                            sub.status === SubscriptionStatus.ACTIVE ? "bg-amber-600 hover:bg-amber-700 text-white" : ""
+                          )}
+                        >
+                          {sub.status === SubscriptionStatus.ACTIVE ? "Pause Cycle" : "Resume Cycle"}
+                        </button>
+                        
+                        {sub.status === SubscriptionStatus.ACTIVE && (
+                          <button 
+                            onClick={() => skipDeliveryCycle(sub)}
+                            className="btn-outline text-xs py-3 flex-1 uppercase tracking-widest"
+                            title="Skip this upcoming delivery cycle and advance to next period"
+                          >
+                            Skip Cycle
+                          </button>
+                        )}
+                        
+                        <button 
+                          onClick={() => {
+                            setEditingSub(sub);
+                            setActiveTab('duration');
+                          }}
+                          className="btn-outline text-xs border-caramel/20 text-caramel hover:border-caramel px-4 font-bold"
+                          title="Extend duration months"
+                        >
+                          + Extend
+                        </button>
+                        
+                        <button 
+                          onClick={() => cancelSubscription(sub.id)}
+                          className="btn-outline text-xs border-red-100 text-red-400 hover:border-red-400 hover:text-red-600 hover:bg-red-50 px-4"
+                          title="Terminate Subscription"
+                        >
+                          <XCircle size={14} strokeWidth={2} />
                         </button>
                       </div>
                     </>
                   )}
                   {sub.status === SubscriptionStatus.CANCELLED && (
-                    <button className="w-full flex items-center justify-center gap-6 px-12 py-8 bg-cream text-coffee-200 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.6em] cursor-not-allowed italic shadow-inner border border-espresso/5">
+                    <button className="w-full py-3 bg-cream text-coffee-300 rounded-full text-xs font-semibold tracking-wider uppercase cursor-not-allowed border border-espresso/5">
                       Archival Record Only
                     </button>
                   )}
@@ -188,113 +341,259 @@ export default function DashboardSubscriptions() {
             ))}
           </div>
         ) : (
-          <div className="py-32 md:py-72 bg-white border-2 border-espresso/5 border-dashed rounded-[4rem] md:rounded-[8rem] text-center space-y-12 md:space-y-16 shadow-premium-xl relative overflow-hidden group px-6 md:px-0">
-            <div className="mesh-gradient absolute inset-0 opacity-[0.05] pointer-events-none" />
-            <div className="w-24 h-24 md:w-40 md:h-40 bg-cream rounded-[3rem] md:rounded-[4rem] flex items-center justify-center mx-auto text-caramel shadow-premium-lg group-hover:rotate-12 transition-transform duration-1000 relative z-10 border border-white">
-              <Coffee size={48} className="md:w-[80px] md:h-[80px]" strokeWidth={0.5} />
+          <div className="py-16 bg-white border-2 border-espresso/5 border-dashed rounded-3xl text-center space-y-6 shadow-premium relative overflow-hidden group px-6">
+            <div className="w-16 h-16 bg-cream rounded-2xl flex items-center justify-center mx-auto text-caramel shadow-premium border border-white">
+              <Coffee size={28} strokeWidth={0.5} />
             </div>
-            <div className="space-y-6 md:space-y-8 relative z-10">
-              <h3 className="text-4xl md:text-7xl font-display font-black text-espresso italic tracking-tightest uppercase leading-none">Null <br className="md:hidden" /><span className="not-italic text-coffee-400 font-serif normal-case italic md:text-5xl">Rituals Detected.</span></h3>
-              <p className="text-lg md:text-2xl text-coffee-400 font-serif italic max-w-2xl mx-auto leading-relaxed">Your subscription manifest is currently offline. Activate recurring extractions for seamless sensory continuity and node priority.</p>
+            <div className="space-y-2 relative z-10">
+              <h3 className="text-2xl font-display font-black text-espresso tracking-tight leading-none uppercase">No Rituals Yet</h3>
+              <p className="text-xs text-coffee-500 max-w-sm mx-auto leading-normal">Your subscription manifest is currently offline. Activate recurring extractions for seamless sensory continuity.</p>
             </div>
-            <Link to="/subscriptions" className="btn-premium px-12 md:px-20 py-6 md:py-10 italic uppercase text-[10px] md:text-xs inline-flex items-center relative z-10">
-              Initiate Primary Sequence <ArrowRight size={24} className="ml-6 group-hover:translate-x-4 transition-transform duration-700" />
+            <Link to="/subscriptions" className="btn-premium text-xs inline-flex relative z-10">
+              Begin Your Journey <ArrowRight size={14} className="ml-2" />
             </Link>
           </div>
         )}
 
-        {/* Edit Frequency Modal */}
+        {/* Dynamic Modulation Drawer / Modal */}
         <AnimatePresence>
           {editingSub && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setEditingSub(null)}
-                className="absolute inset-0 bg-espresso/60 backdrop-blur-xl"
+                className="absolute inset-0 bg-espresso/70 backdrop-blur-md"
               />
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-xl bg-white rounded-[5rem] p-16 md:p-20 relative z-10 shadow-premium-2xl"
+                exit={{ opacity: 0, scale: 0.98, y: 10 }}
+                className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 relative z-10 shadow-premium-2xl border border-espresso/5 overflow-y-auto max-h-[90vh]"
               >
-                <div className="space-y-12">
-                   <header className="space-y-4">
-                      <span className="stat-label text-caramel">Cycle Modulation</span>
-                      <h2 className="text-6xl font-display font-black text-espresso tracking-tightest italic leading-none uppercase">Update <br/>Extraction.</h2>
+                <div className="space-y-6">
+                   <header className="space-y-2 border-b border-espresso/5 pb-4">
+                      <span className="stat-label text-caramel">Cycle Modulation Manifest</span>
+                      <h2 className="text-2xl font-display font-black text-espresso tracking-tight leading-none uppercase">Modulate Ritual</h2>
+                      
+                      {/* Navigation tabs */}
+                      <div className="flex gap-2 pt-4">
+                        <button 
+                          onClick={() => setActiveTab('items')}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'items' ? "bg-espresso text-white" : "bg-cream text-coffee-400 hover:text-espresso")}
+                        >
+                          Items & Frequency
+                        </button>
+                        <button 
+                          onClick={() => setActiveTab('logistics')}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'logistics' ? "bg-espresso text-white" : "bg-cream text-coffee-400 hover:text-espresso")}
+                        >
+                          Coordinates
+                        </button>
+                        <button 
+                          onClick={() => setActiveTab('duration')}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'duration' ? "bg-espresso text-white" : "bg-cream text-coffee-400 hover:text-espresso")}
+                        >
+                          Extend Duration
+                        </button>
+                      </div>
                    </header>
 
-                   <div className="space-y-8">
-                      <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.5em] italic">Manage Sensory Components</p>
-                      <div className="space-y-4">
-                        {editingSub.items.map((item: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-6 bg-cream rounded-3xl border border-espresso/5 shadow-inner group/item">
-                             <div className="flex items-center gap-6">
-                               <div className="w-14 h-14 bg-white rounded-2xl border border-white shadow-premium overflow-hidden">
-                                  <img src={item.images?.[0]} className="w-full h-full object-cover grayscale group-hover/item:grayscale-0 transition-all" />
-                               </div>
-                               <div>
-                                 <p className="text-sm font-black text-espresso uppercase italic leading-none">{item.name}</p>
-                                 <p className="text-[10px] text-caramel font-black uppercase tracking-widest mt-1 italic">{item.category}</p>
-                               </div>
-                             </div>
-                             <button 
-                               onClick={async () => {
-                                 const newItems = editingSub.items.filter((_: any, i: number) => i !== idx);
-                                 if (newItems.length === 0) {
-                                   toast.error("Ritual requires at least one component");
-                                   return;
-                                 }
-                                 try {
-                                   await updateDoc(doc(db, 'subscriptions', editingSub.id), { items: newItems });
-                                   setSubscriptions(subscriptions.map(s => s.id === editingSub.id ? { ...s, items: newItems } : s));
-                                   setEditingSub({ ...editingSub, items: newItems });
-                                   toast.success("Component de-initialized");
-                                 } catch (err) {
-                                   toast.error("Failed to remove component");
-                                 }
-                               }}
-                               className="w-12 h-12 flex items-center justify-center text-coffee-200 hover:text-red-500 hover:bg-white rounded-xl transition-all shadow-premium"
-                             >
-                               <XCircle size={18} />
-                             </button>
+                   {/* Tab 1: Items & Frequency */}
+                   {activeTab === 'items' && (
+                     <div className="space-y-6">
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black text-coffee-400 uppercase tracking-widest">Recipe Blueprint Items</p>
+                          <div className="space-y-2">
+                            {editingSub.items.map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-3 bg-cream rounded-xl border border-espresso/5">
+                                 <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 bg-white rounded-lg border border-white shadow-premium overflow-hidden">
+                                       <ImageWithFallback src={item.images?.[0]} alt={item.name} className="w-full h-full object-cover" />
+                                   </div>
+                                   <div>
+                                     <p className="text-xs font-black text-espresso leading-none uppercase truncate max-w-[200px]">{item.name}</p>
+                                     <p className="text-[9px] text-caramel font-black tracking-widest mt-1 uppercase">{item.category}</p>
+                                   </div>
+                                 </div>
+                                 <button 
+                                   onClick={async () => {
+                                     const newItems = editingSub.items.filter((_: any, i: number) => i !== idx);
+                                     if (newItems.length === 0) {
+                                       toast.error("Ritual requires at least one component");
+                                       return;
+                                     }
+                                     try {
+                                       await updateDoc(doc(db, 'subscriptions', editingSub.id), { items: newItems });
+                                       setSubscriptions(subscriptions.map(s => s.id === editingSub.id ? { ...s, items: newItems } : s));
+                                       setEditingSub({ ...editingSub, items: newItems });
+                                       toast.success("Component removed");
+                                     } catch (err) {
+                                       toast.error("Failed to remove component");
+                                     }
+                                   }}
+                                   className="w-8 h-8 flex items-center justify-center text-coffee-300 hover:text-red-500 bg-white rounded-lg transition-all shadow-sm"
+                                 >
+                                   <XCircle size={14} />
+                                 </button>
+                              </div>
+                            ))}
+                            <Link 
+                              to="/shop" 
+                              className="w-full py-3.5 flex items-center justify-center gap-2 border border-dashed border-espresso/10 rounded-xl text-xs font-bold tracking-wider uppercase text-coffee-400 hover:border-caramel hover:text-espresso transition-all group bg-cream/10"
+                            >
+                              <Plus size={14} className="group-hover:rotate-90 transition-transform" /> Add Component Bag
+                            </Link>
                           </div>
-                        ))}
-                        <Link 
-                          to="/shop" 
-                          className="w-full py-6 flex items-center justify-center gap-6 border-2 border-dashed border-espresso/10 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.4em] text-coffee-300 hover:border-caramel hover:text-espresso transition-all italic group"
-                        >
-                          <Plus size={16} className="group-hover:rotate-90 transition-transform" /> Add Component
-                        </Link>
-                      </div>
-                   </div>
+                        </div>
 
-                   <div className="space-y-8">
-                      <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.5em] italic">Extraction Frequency</p>
-                      <div className="grid grid-cols-1 gap-4">
-                        {['weekly', 'biweekly', 'monthly'].map((freq) => (
-                           <button 
-                             key={freq}
-                             onClick={() => updateFrequency(editingSub.id, freq)}
-                             className={cn(
-                               "w-full py-8 px-10 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] italic shadow-premium flex items-center justify-between group transition-all duration-700",
-                               editingSub.frequency === freq ? "bg-espresso text-white" : "bg-cream text-espresso hover:bg-white"
-                             )}
-                           >
-                             {freq === 'weekly' ? 'High Frequency (Weekly)' : freq === 'biweekly' ? 'Standard Protocol (Bi-Weekly)' : 'Conservative Cycle (Monthly)'}
-                             <ChevronRight size={18} className={cn("transition-transform", editingSub.frequency === freq ? "text-caramel rotate-90" : "group-hover:translate-x-2")} />
-                           </button>
-                        ))}
-                      </div>
-                   </div>
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black text-coffee-400 uppercase tracking-widest">Modulate Supply Speed</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['weekly', 'biweekly', 'monthly'].map((freq) => (
+                               <button 
+                                 key={freq}
+                                 onClick={() => updateFrequency(editingSub.id, freq)}
+                                 className={cn(
+                                   "py-3 rounded-xl text-xs font-black uppercase tracking-wider shadow-premium flex items-center justify-center gap-1.5 transition-all",
+                                   editingSub.frequency === freq ? "bg-espresso text-white" : "bg-cream text-espresso hover:bg-white border border-white"
+                                 )}
+                               >
+                                 {freq === 'weekly' ? 'Weekly' : freq === 'biweekly' ? 'Bi-Weekly' : 'Monthly'}
+                               </button>
+                            ))}
+                          </div>
+                        </div>
+                     </div>
+                   )}
+
+                   {/* Tab 2: Logistics / Coordinates */}
+                   {activeTab === 'logistics' && (
+                     <div className="space-y-4">
+                        <p className="text-[10px] font-black text-coffee-400 uppercase tracking-widest">Logistics Coordinates</p>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">STREET ADDRESS</label>
+                            <input 
+                              type="text" 
+                              value={logisticsForm.street}
+                              onChange={e => setLogisticsForm({...logisticsForm, street: e.target.value})}
+                              placeholder="e.g. 45 Roastery Road"
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">BUILDING / BLOCK</label>
+                            <input 
+                              type="text" 
+                              value={logisticsForm.building}
+                              onChange={e => setLogisticsForm({...logisticsForm, building: e.target.value})}
+                              placeholder="e.g. Block B"
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">FLOOR / APARTMENT</label>
+                            <input 
+                              type="text" 
+                              value={logisticsForm.floor}
+                              onChange={e => setLogisticsForm({...logisticsForm, floor: e.target.value})}
+                              placeholder="e.g. 4th Floor"
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">CITY / REGION</label>
+                            <input 
+                              type="text" 
+                              value={logisticsForm.city}
+                              onChange={e => setLogisticsForm({...logisticsForm, city: e.target.value})}
+                              placeholder="e.g. Beirut"
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            />
+                          </div>
+
+                          <div className="space-y-1 col-span-2">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">DELIVERY TIME-SLOT LOCK</label>
+                            <select 
+                              value={logisticsForm.preferredTimeSlot}
+                              onChange={e => setLogisticsForm({...logisticsForm, preferredTimeSlot: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            >
+                              {timeSlots.map(slot => (
+                                <option key={slot} value={slot}>{slot}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">BUILDING GATE CODE</label>
+                            <input 
+                              type="text" 
+                              value={logisticsForm.gateCode}
+                              onChange={e => setLogisticsForm({...logisticsForm, gateCode: e.target.value})}
+                              placeholder="e.g. Code #1234"
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">ROASTERY DELIVERY DIRECTIONS</label>
+                            <input 
+                              type="text" 
+                              value={logisticsForm.customNotes}
+                              onChange={e => setLogisticsForm({...logisticsForm, customNotes: e.target.value})}
+                              placeholder="e.g. Ring double bell"
+                              className="w-full px-4 py-2.5 bg-cream border border-espresso/5 rounded-xl text-xs font-bold focus:bg-white outline-none focus:border-caramel transition-all text-espresso"
+                            />
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={saveLogistics}
+                          className="btn-premium w-full py-3.5 mt-4 text-xs font-black uppercase tracking-wider"
+                        >
+                          Commit Delivery Coordinates
+                        </button>
+                     </div>
+                   )}
+
+                   {/* Tab 3: Extend Plan Duration */}
+                   {activeTab === 'duration' && (
+                     <div className="space-y-6 text-center py-4">
+                        <div className="w-16 h-16 bg-cream rounded-full flex items-center justify-center text-caramel mx-auto border border-espresso/5">
+                          <Clock size={28} />
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-display font-black text-espresso uppercase">Extend Extraction Cycle Plan</h3>
+                          <p className="text-xs text-coffee-400 font-medium max-w-md mx-auto">Extend your ongoing coffee roastery subscription plan to secure custom rates and seasonal batch selections.</p>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          {[3, 6, 12].map(m => (
+                            <button
+                              key={m}
+                              onClick={() => extendPlanDuration(editingSub, m)}
+                              className="p-4 bg-cream border border-espresso/5 hover:border-caramel hover:bg-white rounded-2xl flex flex-col items-center gap-2 group transition-all duration-500"
+                            >
+                              <span className="text-xl font-display font-black text-espresso group-hover:text-caramel">+{m} Months</span>
+                              <span className="text-[9px] font-black text-coffee-300 uppercase tracking-widest">Extend Protocol</span>
+                            </button>
+                          ))}
+                        </div>
+                     </div>
+                   )}
 
                    <button 
                     onClick={() => setEditingSub(null)}
-                    className="w-full py-8 border border-espresso/5 rounded-full text-[10px] font-black uppercase tracking-[0.6em] text-coffee-200 hover:text-espresso transition-colors italic"
+                    className="w-full py-3.5 border border-espresso/10 rounded-xl text-xs font-bold tracking-wider text-coffee-400 hover:text-espresso transition-colors uppercase bg-cream/10"
                    >
-                     Cancel Operation
+                     Close Manifest Controls
                    </button>
                 </div>
               </motion.div>
@@ -303,18 +602,16 @@ export default function DashboardSubscriptions() {
         </AnimatePresence>
 
         {/* Global Guidance Node */}
-        <div className="bg-espresso rounded-[8rem] p-20 md:p-32 text-white relative overflow-hidden group hover:shadow-[0_0_120px_rgba(193,155,118,0.15)] transition-all duration-1000 shadow-premium-2xl border border-white/5">
-          <div className="mesh-gradient absolute inset-0 opacity-[0.05] pointer-events-none" />
-          <div className="absolute -top-64 -left-64 w-[600px] h-[600px] bg-caramel/10 blur-[200px] rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-2000" />
-          <div className="flex flex-col xl:flex-row items-center justify-between gap-24 relative z-10">
-            <div className="max-w-3xl space-y-10 text-center xl:text-left">
-              <span className="text-[12px] font-black uppercase tracking-[1em] text-caramel leading-none italic mb-4 block">Operational_SOP_V2026</span>
-              <h2 className="text-8xl font-display font-black tracking-tightest italic leading-[0.8] uppercase">Modulate Your <br/><span className="not-italic text-coffee-400">Harvest Suite IR.</span></h2>
-              <p className="text-coffee-400 text-2xl font-serif italic leading-relaxed">Requirement: Any variation in sensory components must be committed to the mainframe <span className="text-caramel font-black not-italic font-sans text-xs uppercase tracking-widest">48 Hours</span> prior to the next extraction vector for ritual stability.</p>
+        <div className="bg-espresso rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-premium-lg border border-white/5">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8 relative z-10">
+            <div className="max-w-xl space-y-3 text-center lg:text-left">
+              <span className="text-xs font-semibold tracking-wider text-caramel block uppercase">Operational Info Protocol</span>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight leading-none uppercase">Modulate Your Harvest Suite</h2>
+              <p className="text-coffee-300 text-xs sm:text-sm leading-relaxed">Any variation in components or logistics coordinates must be committed <span className="text-caramel font-semibold text-xs uppercase tracking-wider">48 Hours</span> prior to your next scheduled delivery window.</p>
             </div>
-            <button className="btn-premium px-20 py-10 italic text-xs uppercase shadow-caramel/20 whitespace-nowrap group bg-white text-espresso hover:bg-caramel hover:text-white">
-              Modify Parameters <ArrowRight size={24} className="ml-6 group-hover:translate-x-6 transition-transform duration-1000" />
-            </button>
+            <Link to="/shop" className="btn-premium whitespace-nowrap bg-white text-espresso hover:bg-caramel hover:text-white uppercase tracking-widest text-[10px]">
+              Browse Database Catalog <ArrowRight size={12} className="ml-1.5" />
+            </Link>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
 import { GeminiService } from '../services/gemini';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
+import SEO from '../components/common/SEO';
 
 export default function AiBarista() {
   const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([
@@ -44,6 +45,7 @@ export default function AiBarista() {
 
   return (
     <div className="pt-16 sm:pt-20 h-[100dvh] flex flex-col bg-white overflow-hidden relative">
+      <SEO title="AI Barista" description="Chat with the CoffeeCraze AI Barista for personalized coffee recommendations." />
       <div className="absolute inset-0 bg-coffee-50 opacity-10 pointer-events-none"></div>
       
       <div className="px-4 sm:px-6 md:px-10 py-4 sm:py-6 md:py-10 border-b border-coffee-50 bg-white/90 backdrop-blur-xl sticky top-0 z-20">

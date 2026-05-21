@@ -4,6 +4,7 @@ import { OrderService } from '../../services/firestore';
 import { Order } from '../../types';
 import { formatPrice, cn } from '../../lib/utils';
 import { ShoppingBag, Search, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Filter, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
+import SEO from '../../components/common/SEO';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -91,6 +92,7 @@ export default function MyOrders() {
   return (
     <DashboardLayout>
       <div className="space-y-8 md:space-y-16 relative">
+        <SEO title="My Orders" description="View and track your CoffeeCraze ritual orders." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 md:gap-10 border-b border-white pb-8 md:pb-16">
           <div className="space-y-4">
             <span className="stat-label text-caramel italic">Extraction Archive</span>
@@ -326,8 +328,8 @@ export default function MyOrders() {
                                 <CreditCard size={20} />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-fluid-body font-display font-black text-espresso uppercase tracking-tighter italic">{order.paymentMethod === 'cod' ? 'Deferred Settlement' : 'Encrypted Card'}</p>
-                                <p className="text-[11px] text-coffee-300 font-black uppercase tracking-[0.4em] italic leading-none">{order.paymentMethod === 'cod' ? 'CASH_ON_DELIVERY' : 'STRIPE_GATEWAY_AUTH'}</p>
+                                <p className="text-fluid-body font-display font-black text-espresso uppercase tracking-tighter italic">{order.paymentMethod === 'cash_on_delivery' ? 'Deferred Settlement' : 'Encrypted Card'}</p>
+                                <p className="text-[11px] text-coffee-300 font-black uppercase tracking-[0.4em] italic leading-none">{order.paymentMethod === 'cash_on_delivery' ? 'CASH_ON_DELIVERY' : 'STRIPE_GATEWAY_AUTH'}</p>
                               </div>
                             </div>
                           </div>
@@ -503,7 +505,7 @@ export default function MyOrders() {
                        <span className="text-[10px] font-black uppercase tracking-widest">Protocol Destination</span>
                     </div>
                     <div>
-                      <p className="text-fluid-body font-display font-black tracking-tight">{selectedOrder.shippingAddress?.fullName || 'Elias Mansour'}</p>
+                      <p className="text-fluid-body font-display font-black tracking-tight">{selectedOrder.shippingAddress?.name || 'Elias Mansour'}</p>
                       <p className="text-sm opacity-60 font-medium italic mt-1">{selectedOrder.shippingAddress?.address || 'Beirut Waterfront, District 4'}</p>
                       <p className="text-[10px] font-black text-coffee-400 group-hover:text-coffee-500 uppercase tracking-widest mt-4">Standard Zone 1</p>
                     </div>

@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const setupBackend = () => {
-  const baseDir = new URL('.', import.meta.url).pathname.slice(0, -1);
+  const baseDir = path.dirname(fileURLToPath(import.meta.url));
   
   const dirs = [
     'src/config',

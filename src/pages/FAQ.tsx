@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
+import SEO from '../components/common/SEO';
 
 const FAQS = [
   { q: "Where do you source your beans?", a: "We source directly from sustainable farms in Ethiopia, Colombia, and the mountains of Lebanon." },
@@ -16,6 +17,7 @@ export default function FAQ() {
 
   return (
     <div className="pt-20 sm:pt-30 md:pt-40 pb-20 sm:pb-30 md:pb-40 min-h-screen bg-cream relative overflow-hidden">
+      <SEO title="FAQ" description="Frequently asked questions about CoffeeCraze subscriptions, shipping, and sourcing." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container max-w-4xl relative z-10">

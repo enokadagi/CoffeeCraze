@@ -1,286 +1,482 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Coffee, Truck, Star, ArrowRight, Sparkles, 
-  RefreshCcw, ShoppingBag, Clock, ShieldCheck
+  Coffee, Truck, Star, ArrowRight, Sparkles, Bell, Settings,
+  CreditCard, Calendar, Package, AlertCircle, CheckCircle, 
+  TrendingUp, MessageSquare, ShoppingBag, Zap
 } from 'lucide-react';
+import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { formatPrice, cn } from '../../lib/utils';
-import { Link } from 'react-router-dom';
+import { cn } from '../../lib/utils';
+import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Order, Subscription, SubscriptionStatus } from '../../types';
+import { Order, Subscription, SubscriptionStatus, PaymentStatus, Delivery, DeliveryStatus } from '../../types';
+import { formatUSD, formatLBP, formatDualFromLBP } from '../../utils/exchange';
+import MetricCard from '../../components/dashboard/MetricCard';
+import SubscriptionCard from '../../components/dashboard/SubscriptionCard';
+import DeliveryCard from '../../components/dashboard/DeliveryCard';
+import OrderHistory from '../../components/dashboard/OrderHistory';
 
 export default function DashboardOverview() {
   const { user, profile } = useAuth();
-  const [nextDelivery, setNextDelivery] = useState<Subscription | null>(null);
-  const [recentOrder, setRecentOrder] = useState<Order | null>(null);
+  // NOTE: The file contained a duplicated/stray JSX block after the component ended,
+  // which caused TS2657/TS1128 parser failures. This component ends cleanly below.
+
+  const navigate = useNavigate();
+  
+  // Data states
+  const [activeSubscriptions, setActiveSubscriptions] = useState<Subscription[]>([]);
+  const [upcomingDeliveries, setUpcomingDeliveries] = useState<Delivery[]>([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState({
+    totalSpent: 0,
+    activeSubscriptions: 0,
+    nextDeliveryDays: 0,
+    loyaltyPoints: 0,
+  });
+  
   const [loading, setLoading] = useState(true);
 
+  // Fetch all dashboard data
   useEffect(() => {
     if (user) {
-      const fetchData = async () => {
-        try {
-          // Fetch next delivery (active subscription)
-          const subsQ = query(
-            collection(db, 'subscriptions'),
-            where('userId', '==', user.uid),
-            where('status', '==', SubscriptionStatus.ACTIVE),
-            orderBy('nextDelivery', 'asc'),
-            limit(1)
-          );
-          const subsSnap = await getDocs(subsQ);
-          if (!subsSnap.empty) {
-            setNextDelivery({ id: subsSnap.docs[0].id, ...subsSnap.docs[0].data() } as Subscription);
-          }
-
-          // Fetch recent order
-          const ordersQ = query(
-            collection(db, 'orders'),
-            where('userId', '==', user.uid),
-            orderBy('createdAt', 'desc'),
-            limit(1)
-          );
-          const ordersSnap = await getDocs(ordersQ);
-          if (!ordersSnap.empty) {
-            setRecentOrder({ id: ordersSnap.docs[0].id, ...ordersSnap.docs[0].data() } as Order);
-          }
-        } catch (error) {
-          console.error("Error fetching overview data:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
+      fetchDashboardData();
     }
   }, [user]);
 
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch active subscriptions
+      const subsQ = query(
+        collection(db, 'subscriptions'),
+        where('userId', '==', user!.uid),
+        where('status', '==', SubscriptionStatus.ACTIVE),
+        orderBy('nextDelivery', 'asc')
+      );
+      const subsSnap = await getDocs(subsQ);
+      const subs = subsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription));
+      setActiveSubscriptions(subs);
+
+      // Fetch upcoming deliveries (next 7 days)
+      const now = new Date();
+      const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const startStr = now.toISOString().split('T')[0];
+      const endStr = sevenDaysLater.toISOString().split('T')[0];
+
+      const delivQ = query(
+        collection(db, 'deliveries'),
+        where('userId', '==', user!.uid),
+        where('scheduledDate', '>=', startStr),
+        where('scheduledDate', '<=', endStr),
+        orderBy('scheduledDate', 'asc')
+      );
+      const delivSnap = await getDocs(delivQ);
+      const deliveries = delivSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Delivery));
+      setUpcomingDeliveries(deliveries);
+
+      // Fetch recent orders
+      const ordersQ = query(
+        collection(db, 'orders'),
+        where('userId', '==', user!.uid),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+      const ordersSnap = await getDocs(ordersQ);
+      const orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      setRecentOrders(orders);
+
+      // Calculate stats
+      const nextDelivery = subs.length > 0 
+        ? Math.ceil((new Date(subs[0].nextDelivery).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      setStats({
+        totalSpent: orders.reduce((sum, o) => sum + (o.totalLbp || o.total), 0),
+        activeSubscriptions: subs.length,
+        nextDeliveryDays: nextDelivery,
+        loyaltyPoints: profile?.loyaltyPoints || 0,
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setLoading(false);
+    }
+  };
+
+  const handlePauseSubscription = (subscriptionId: string) => {
+    // TODO: Implement pause logic
+    console.log('Pause subscription:', subscriptionId);
+  };
+
+  const handleResumeSubscription = (subscriptionId: string) => {
+    // TODO: Implement resume logic
+    console.log('Resume subscription:', subscriptionId);
+  };
+
+  const handleManageSubscription = (subscriptionId: string) => {
+    navigate(`/dashboard/subscriptions/${subscriptionId}`);
+  };
+
+  const handleEditSubscription = (subscriptionId: string) => {
+    navigate(`/dashboard/subscriptions/${subscriptionId}/edit`);
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-8 md:space-y-16 relative">
-        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 md:gap-10 border-b border-espresso/5 pb-8 md:pb-16">
-          <div className="space-y-4">
-            <span className="stat-label text-caramel">Node Status: Active</span>
-            <h1 className="text-fluid-hero font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Command <br/><span className="not-italic text-coffee-400">Center.</span></h1>
-            <p className="text-fluid-body text-coffee-400 font-serif italic">Welcome back, <span className="text-espresso font-black not-italic uppercase">{profile?.displayName?.split(' ')[0] || 'Operator'}</span>. System ready.</p>
+      <div className="space-y-8 md:space-y-12">
+        <SEO 
+          title="Dashboard" 
+          description="Manage your subscriptions, orders, deliveries, and account settings." 
+        />
+
+        {/* Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-espresso/5 pb-8"
+        >
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-caramel">Welcome Back</p>
+            <h1 className="text-4xl md:text-5xl font-display font-black text-espresso italic leading-tight">
+              Your <span className="text-coffee-400">Command</span> <br/>Center
+            </h1>
+            <p className="text-sm text-coffee-400 max-w-md">
+              Manage your subscriptions, track deliveries, and stay updated with your coffee ritual.
+            </p>
           </div>
 
-          <div className="flex items-center gap-8">
-            <div className="px-6 md:px-10 py-4 md:py-6 bg-white shadow-premium rounded-[2.5rem] flex items-center gap-4 md:gap-6 border border-white group hover:shadow-premium-xl transition-all duration-1000">
-              <div className="w-12 h-12 bg-espresso text-caramel-gold rounded-2xl flex items-center justify-center shadow-premium group-hover:rotate-12 transition-transform duration-700">
-                <Star size={18} className="fill-current" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-300 italic mb-1">Ritual Credits</p>
-                <p className="text-fluid-title font-display font-black text-espresso italic tracking-tighter">{profile?.loyaltyPoints || 0} <span className="text-xs uppercase not-italic text-coffee-300 ml-1">pts</span></p>
-              </div>
-            </div>
+          {/* Quick Actions */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/dashboard/notifications')}
+              className="p-3 hover:bg-espresso/5 rounded-xl transition-colors relative"
+            >
+              <Bell size={20} className="text-espresso" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/settings')}
+              className="p-3 hover:bg-espresso/5 rounded-xl transition-colors"
+            >
+              <Settings size={20} className="text-espresso" />
+            </button>
           </div>
-        </header>
+        </motion.div>
 
         {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-12">
-            <div className="lg:col-span-2 h-[450px] bg-white animate-pulse rounded-[5rem] border border-espresso/5 shadow-inner" />
-            <div className="h-[450px] bg-white animate-pulse rounded-[5rem] border border-espresso/5 shadow-inner" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-32 bg-white animate-pulse rounded-2xl border border-espresso/5" />
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-12">
-            {/* Primary Command: Next Delivery */}
-            <div className="lg:col-span-2 space-y-6 md:space-y-12">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-                className="bg-espresso p-6 md:p-12 lg:p-16 rounded-[6rem] text-white relative overflow-hidden shadow-premium-2xl group border border-white/5"
-              >
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-caramel blur-[180px] opacity-[0.15] -translate-y-1/2 translate-x-1/2 rounded-full pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-mocha blur-[150px] opacity-[0.1] translate-y-1/2 -translate-x-1/2 rounded-full pointer-events-none"></div>
-                
-                <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-8 md:gap-16">
-                  <div className="space-y-8 md:space-y-14">
-                    <div className="inline-flex items-center gap-4 md:gap-6 px-4 md:px-6 py-2 md:py-3 bg-white/5 border border-white/10 rounded-full group-hover:bg-white/10 transition-colors duration-700">
-                      <Truck className="text-caramel" size={18} />
-                      <span className="text-[11px] font-black uppercase tracking-[0.5em] text-coffee-300 italic">Extraction Logistics Active</span>
-                    </div>
-                    
-                    {nextDelivery ? (
-                      <div className="space-y-6 md:space-y-8">
-                        <h2 className="text-fluid-hero font-display font-black leading-[0.85] tracking-tightest italic">
-                          Next Release <br/>
-                          <span className="not-italic text-caramel-gold uppercase text-fluid-heading block mt-4 tracking-normal">
-                            {new Date(nextDelivery.nextDelivery).toLocaleDateString('en-US', { day: 'numeric', month: 'long' })}
-                          </span>
-                        </h2>
-                        <p className="text-fluid-body text-coffee-400 font-serif italic max-w-xl leading-relaxed">"Your high-altitude sensory ritual is being harvested. Distribution vector: Beirut Central Hub."</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6 md:space-y-8">
-                        <h2 className="text-fluid-hero font-display font-black leading-[0.85] tracking-tightest italic">
-                          Supply Line <br/>
-                          <span className="not-italic text-coffee-500 uppercase text-fluid-heading block mt-4 tracking-normal">Inactive</span>
-                        </h2>
-                        <p className="text-fluid-body text-coffee-400 font-serif italic max-w-xl leading-relaxed">Your extraction cycle is currently dormant. Initialize local automation to persist sensory quality.</p>
-                      </div>
-                    )}
+          <>
+            {/* Key Metrics */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            >
+              <MetricCard
+                label="Active Plans"
+                value={stats.activeSubscriptions}
+                icon={<Coffee size={20} className="text-espresso" />}
+                color="primary"
+              />
+              <MetricCard
+                label="Next Delivery"
+                value={stats.nextDeliveryDays > 0 ? `${stats.nextDeliveryDays}d` : 'Soon'}
+                icon={<Truck size={20} className="text-green-600" />}
+                color="success"
+              />
+              <MetricCard
+                label="Total Spent"
+                value={formatLBP(stats.totalSpent)}
+                icon={<CreditCard size={20} className="text-amber-600" />}
+                color="warning"
+              />
+              <MetricCard
+                label="Loyalty Points"
+                value={stats.loyaltyPoints}
+                icon={<Star size={20} className="text-caramel" />}
+                color="primary"
+              />
+            </motion.div>
 
-                    <div className="flex flex-wrap gap-4 md:gap-8">
-                      {nextDelivery ? (
-                        <Link to="/dashboard/subscriptions" className="btn-premium px-8 md:px-12 py-5 md:py-7 italic group text-xs border border-white/20">
-                          Manage Protocol <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
-                        </Link>
-                      ) : (
-                        <Link to="/subscriptions" className="btn-premium px-8 md:px-12 py-5 md:py-7 italic group text-xs border border-white/20">
-                          Initiate Ritual <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 hidden xl:flex">
-                     <div className="w-64 h-64 bg-white/5 rounded-[4rem] border border-white/10 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-all duration-[1.5s] group-hover:border-caramel/30 shadow-inner">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(193,155,118,0.1),transparent)]" />
-                        <div className="text-white opacity-20 group-hover:opacity-40 transition-opacity duration-1000 group-hover:scale-110">
-                          <Coffee size={120} strokeWidth={0.5} />
-                        </div>
-                        <div className="absolute bottom-10 left-10 right-10 h-1 bg-white/5 rounded-full overflow-hidden">
-                           <motion.div 
-                             initial={{ width: 0 }}
-                             animate={{ width: '75%' }}
-                             transition={{ duration: 3, delay: 0.5 }}
-                             className="h-full bg-caramel"
-                           />
-                        </div>
-                     </div>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Advanced Controls */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
-                <div className="p-6 md:p-10 lg:p-12 bg-white shadow-premium rounded-[5rem] border border-white hover:shadow-premium-2xl transition-all duration-1000 cursor-pointer overflow-hidden relative group">
-                  <div className="mesh-gradient absolute inset-0 opacity-10 pointer-events-none translate-y-full group-hover:translate-y-0 transition-transform duration-1000" />
-                  <div className="w-14 h-14 md:w-20 md:h-20 bg-espresso text-caramel rounded-3xl flex items-center justify-center shadow-premium mb-6 md:mb-10 transition-all duration-700 group-hover:rotate-6 group-hover:scale-110 relative z-10 border border-white/10">
-                    <RefreshCcw size={24} strokeWidth={1} />
-                  </div>
-                  <div className="space-y-4 relative z-10">
-                    <h3 className="text-fluid-heading font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Rapid <br/><span className="not-italic text-coffee-400">Re-Extraction.</span></h3>
-                    <p className="text-fluid-body text-coffee-400 font-serif italic leading-relaxed">Instantly synchronize your system with the primary harvest node.</p>
-                  </div>
-                  <div className="pt-6 md:pt-10 relative z-10">
-                    <Link to="/shop" className="text-[11px] font-black uppercase tracking-[0.5em] text-espresso flex items-center gap-4 hover:gap-8 transition-all duration-700 italic group-hover:text-caramel decoration-caramel underline underline-offset-8">
-                      DATABASE_CATALOG <ArrowRight size={16} />
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="p-6 md:p-10 lg:p-12 bg-white shadow-premium rounded-[5rem] border border-white hover:shadow-premium-2xl transition-all duration-1000 cursor-pointer overflow-hidden relative group">
-                  <div className="mesh-gradient absolute inset-0 opacity-10 pointer-events-none -translate-y-full group-hover:translate-y-0 transition-transform duration-1000" />
-                  <div className="w-14 h-14 md:w-20 md:h-20 bg-espresso text-caramel rounded-3xl flex items-center justify-center shadow-premium mb-6 md:mb-10 transition-all duration-700 group-hover:-rotate-6 group-hover:scale-110 relative z-10 border border-white/10">
-                    <Sparkles size={24} strokeWidth={1} />
-                  </div>
-                  <div className="space-y-4 relative z-10">
-                    <h3 className="text-fluid-heading font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Neural <br/><span className="not-italic text-coffee-400">Assessment.</span></h3>
-                    <p className="text-fluid-body text-coffee-400 font-serif italic leading-relaxed">Refine your sensory coordinates with our proprietary AI engine.</p>
-                  </div>
-                  <div className="pt-6 md:pt-10 relative z-10">
-                    <Link to="/ai-barista" className="text-[11px] font-black uppercase tracking-[0.5em] text-espresso flex items-center gap-4 hover:gap-8 transition-all duration-700 italic group-hover:text-caramel decoration-caramel underline underline-offset-8">
-                      START_SESSION <ArrowRight size={16} />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Neural Insights Panel */}
-            <div className="space-y-6 md:space-y-12">
-              <div className="p-6 md:p-10 lg:p-12 bg-white shadow-premium-xl rounded-[5rem] border border-white space-y-6 md:space-y-12 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-caramel/5 blur-[60px] rounded-full pointer-events-none" />
-                <div className="flex items-center justify-between relative z-10">
-                  <span className="stat-label text-caramel">Live Feed</span>
-                  <Link to="/dashboard/orders" className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-400 hover:text-espresso transition-colors italic">Logs Archive</Link>
-                </div>
-
-                {recentOrder ? (
-                  <div className="space-y-6 md:space-y-12 relative z-10">
-                    <div className="flex items-center gap-4 md:gap-8">
-                      <div className="w-14 h-14 md:w-20 md:h-20 bg-cream rounded-[2.5rem] flex items-center justify-center text-caramel shrink-0 shadow-premium transition-transform duration-1000 group-hover:rotate-12 border border-white">
-                        <ShoppingBag size={24} />
-                      </div>
-                      <div>
-                        <p className="text-fluid-body font-black text-espresso uppercase tracking-tightest italic leading-none mb-2">Protocol #{recentOrder.id.slice(-8)}</p>
-                        <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic leading-none">{new Date(recentOrder.createdAt).toLocaleDateString()}_LOG</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.4em] text-coffee-200 italic">
-                        <span className={cn(recentOrder.status !== 'cancelled' ? "text-caramel" : "")}>IDNT</span>
-                        <span className={cn(['confirmed', 'shipped', 'delivered'].includes(recentOrder.status) ? "text-caramel" : "")}>CONF</span>
-                        <span className={cn(['shipped', 'delivered'].includes(recentOrder.status) ? "text-caramel" : "")}>DSPCH</span>
-                        <span className={cn(recentOrder.status === 'delivered' ? "text-caramel" : "")}>COMPL</span>
-                      </div>
-                      <div className="h-2 w-full bg-cream rounded-full overflow-hidden shadow-inner ring-4 ring-cream/50">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ 
-                            width: recentOrder.status === 'pending' ? '25%' : 
-                                   recentOrder.status === 'confirmed' ? '50%' : 
-                                   recentOrder.status === 'shipped' ? '75%' : 
-                                   recentOrder.status === 'cancelled' ? '0%' : '100%' 
-                          }}
-                          transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }}
-                          className="h-full bg-espresso"
-                        />
-                      </div>
-                      <p className="text-[11px] font-black text-coffee-500 italic uppercase tracking-widest text-center pt-2">System Status: {recentOrder.status}_PROTOCOL</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-12 md:py-20 text-center space-y-8 opacity-20 relative z-10">
-                     <Clock className="mx-auto text-coffee-200" size={48} strokeWidth={0.5} />
-                     <p className="text-fluid-body font-serif italic text-coffee-400 uppercase tracking-widest">Null Feedback detected.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Referral Node */}
-              <div className="p-6 md:p-10 lg:p-12 bg-espresso text-white rounded-[5rem] shadow-premium-2xl relative overflow-hidden group border border-white/5">
-                <div className="absolute inset-x-0 bottom-0 top-1/2 bg-[linear-gradient(to_top,rgba(193,155,118,0.1),transparent)] pointer-events-none" />
-                <div className="relative z-10 space-y-6 md:space-y-10">
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-                    className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center text-caramel shadow-premium mb-6 group-hover:scale-110 transition-transform duration-1000"
+            {/* Primary Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Main Column */}
+              <div className="lg:col-span-2 space-y-8">
+                {/* Next Delivery Section */}
+                {activeSubscriptions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-gradient-to-br from-espresso to-espresso/90 rounded-3xl p-8 text-white overflow-hidden relative shadow-lg border border-white/10"
                   >
-                    <Star size={24} className="fill-current" />
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-caramel/10 blur-[100px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2" />
+                    
+                    <div className="relative z-10 space-y-6">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full">
+                        <Truck size={14} className="text-caramel" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Next Delivery</span>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-coffee-300 mb-2">Scheduled for</p>
+                          <p className="text-3xl md:text-4xl font-display font-black italic">
+                            {new Date(activeSubscriptions[0].nextDelivery).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                        <p className="text-sm text-coffee-300 max-w-xl">
+                          Your {activeSubscriptions[0].plan?.frequency} delivery of{' '}
+                          <span className="font-bold text-white">
+                            {activeSubscriptions[0].plan?.items?.length} items
+                          </span>{' '}
+                          to {activeSubscriptions[0].deliveryAddress?.city || 'your address'}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 pt-4">
+                        <Link
+                          to={`/dashboard/subscriptions/${activeSubscriptions[0].id}`}
+                          className="px-6 py-3 bg-white text-espresso rounded-lg font-bold text-sm hover:bg-caramel hover:text-white transition-all duration-300"
+                        >
+                          Manage
+                        </Link>
+                        <button
+                          onClick={() => navigate('/subscriptions')}
+                          className="px-6 py-3 border border-white/20 text-white rounded-lg font-bold text-sm hover:bg-white/10 transition-all duration-300"
+                        >
+                          View Plans
+                        </button>
+                      </div>
+                    </div>
                   </motion.div>
-                  
-                  <div className="space-y-6">
-                    <h4 className="text-fluid-heading font-display font-black text-white leading-[0.85] tracking-tightest italic">Expand <br/>The Node <br/><span className="not-italic text-caramel-gold uppercase">Circle.</span></h4>
-                    <p className="text-fluid-body text-coffee-400 leading-relaxed font-serif italic">Refer an operator and bridge LBP 250k into your personal extraction credit ledger.</p>
+                )}
+
+                {/* Active Subscriptions */}
+                {activeSubscriptions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-display font-black text-espresso italic">Active Plans</h2>
+                        <p className="text-sm text-coffee-400">Manage your subscription plans</p>
+                      </div>
+                      <Link
+                        to="/dashboard/subscriptions"
+                        className="text-xs font-bold text-caramel hover:text-espresso transition-colors"
+                      >
+                        View All →
+                      </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {activeSubscriptions.slice(0, 2).map(sub => (
+                        <SubscriptionCard
+                          key={sub.id}
+                          subscription={sub}
+                          onManage={handleManageSubscription}
+                          onEdit={handleEditSubscription}
+                          onPause={handlePauseSubscription}
+                          onResume={handleResumeSubscription}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Upcoming Deliveries */}
+                {upcomingDeliveries.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-display font-black text-espresso italic">Upcoming Deliveries</h2>
+                        <p className="text-sm text-coffee-400">Track your shipments</p>
+                      </div>
+                      <Link
+                        to="/dashboard/deliveries"
+                        className="text-xs font-bold text-caramel hover:text-espresso transition-colors"
+                      >
+                        View All →
+                      </Link>
+                    </div>
+
+                    <div className="space-y-4">
+                      {upcomingDeliveries.slice(0, 3).map(delivery => (
+                        <DeliveryCard
+                          key={delivery.id}
+                          delivery={delivery}
+                          onClick={() => navigate(`/dashboard/deliveries/${delivery.id}`)}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Order History */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-xl font-display font-black text-espresso italic">Recent Orders</h2>
+                      <p className="text-sm text-coffee-400">Your order history</p>
+                    </div>
+                    <Link
+                      to="/dashboard/orders"
+                      className="text-xs font-bold text-caramel hover:text-espresso transition-colors"
+                    >
+                      View All →
+                    </Link>
                   </div>
 
-                  <button className="w-full py-4 md:py-6 bg-white text-espresso rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] hover:bg-caramel hover:text-white transition-all duration-700 shadow-xl italic group-hover:-translate-y-2 border border-transparent">
-                    Inaugurate Friend
+                  <div className="bg-white border border-espresso/5 rounded-2xl p-6">
+                    <OrderHistory orders={recentOrders} loading={false} />
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Sidebar */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-6"
+              >
+                {/* Payment Status */}
+                <div className="bg-white border border-espresso/5 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-espresso/10 rounded-lg">
+                      <CreditCard size={20} className="text-espresso" />
+                    </div>
+                    <h3 className="font-bold text-espresso">Payment Status</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">Next Payment</p>
+                      <p className="text-lg font-bold text-espresso">
+                        No payments due
+                      </p>
+                    </div>
+                    <button className="w-full py-2 bg-espresso text-white rounded-lg text-sm font-bold hover:bg-espresso/90 transition-colors">
+                      View Invoices
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-white border border-espresso/5 rounded-2xl p-6 space-y-3">
+                  <h3 className="font-bold text-espresso mb-4">Quick Actions</h3>
+                  <Link
+                    to="/shop"
+                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
+                  >
+                    <ShoppingBag size={18} className="text-caramel" />
+                    <span className="text-sm font-semibold text-espresso">Shop</span>
+                  </Link>
+                  <Link
+                    to="/custom-plan-builder"
+                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
+                  >
+                    <Zap size={18} className="text-caramel" />
+                    <span className="text-sm font-semibold text-espresso">Create Plan</span>
+                  </Link>
+                  <Link
+                    to="/ai-barista"
+                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
+                  >
+                    <Sparkles size={18} className="text-caramel" />
+                    <span className="text-sm font-semibold text-espresso">AI Recommendations</span>
+                  </Link>
+                  <Link
+                    to="/dashboard/settings"
+                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
+                  >
+                    <Settings size={18} className="text-caramel" />
+                    <span className="text-sm font-semibold text-espresso">Settings</span>
+                  </Link>
+                </div>
+
+                {/* Support Card */}
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare size={20} className="text-amber-600" />
+                    <h3 className="font-bold text-amber-900">Need Help?</h3>
+                  </div>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    Have questions about your subscription or delivery? Our support team is ready to help.
+                  </p>
+                  <button className="w-full py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 transition-colors">
+                    Contact Support
                   </button>
                 </div>
-              </div>
 
-              {/* Protocol Security */}
-              <div className="p-6 md:p-10 lg:p-12 bg-white shadow-premium rounded-[4rem] border border-white flex items-start gap-4 md:gap-10 group hover:shadow-premium-xl transition-all duration-1000">
-                 <div className="w-12 h-12 md:w-16 md:h-16 bg-espresso text-caramel rounded-3xl flex items-center justify-center shadow-premium shrink-0 group-hover:rotate-12 transition-transform duration-700">
-                    <ShieldCheck size={24} />
-                 </div>
-                 <div className="space-y-2">
-                    <h4 className="text-xs font-black text-espresso uppercase tracking-[0.3em] font-display italic">Protocol Integrity</h4>
-                    <p className="text-[10px] text-coffee-400 font-serif italic leading-relaxed">End-to-End Extraction Security Active. System Version: 5.1.0-ELITE.</p>
-                 </div>
-              </div>
+                {/* Loyalty Info */}
+                <div className="bg-gradient-to-br from-caramel/10 to-caramel/5 border border-caramel/20 rounded-2xl p-6 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Star size={20} className="text-caramel fill-caramel" />
+                    <h3 className="font-bold text-espresso">Loyalty Points</h3>
+                  </div>
+                  <div>
+                    <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">Available Points</p>
+                    <p className="text-2xl font-bold text-espresso">{stats.loyaltyPoints}</p>
+                  </div>
+                  <p className="text-xs text-coffee-400 italic">
+                    Earn points on every purchase. Redeem for discounts and free items.
+                  </p>
+                </div>
+              </motion.div>
             </div>
-          </div>
+
+            {/* Empty States */}
+            {activeSubscriptions.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-br from-espresso/5 to-caramel/5 border-2 border-dashed border-espresso/20 rounded-3xl p-12 text-center"
+              >
+                <Coffee size={48} className="mx-auto text-espresso/30 mb-6" />
+                <h2 className="text-2xl font-display font-black text-espresso mb-3 italic">
+                  No Active Subscriptions
+                </h2>
+                <p className="text-coffee-400 mb-6 max-w-md mx-auto">
+                  Start your coffee ritual today by choosing from our premium subscription plans.
+                </p>
+                <Link
+                  to="/subscriptions"
+                  className="inline-block px-8 py-4 bg-espresso text-white rounded-xl font-bold hover:bg-espresso/90 transition-colors"
+                >
+                  Browse Plans
+                </Link>
+              </motion.div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>
   );
 }
+                      

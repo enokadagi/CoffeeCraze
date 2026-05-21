@@ -45,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               displayName: finalDisplayName,
               role: UserRole.CUSTOMER,
               loyaltyPoints: 0,
+              totalSpent: 0,
               createdAt: new Date().toISOString(),
               onboarded: false,
             };

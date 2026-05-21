@@ -6,7 +6,9 @@ import { useWishlist } from '../context/WishlistContext';
 import { Product } from '../types';
 import { collection, getDocs, query, where, documentId } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { toast } from 'sonner';
 import ProductCard from '../components/shop/ProductCard';
+import SEO from '../components/common/SEO';
 
 export default function Wishlist() {
   const { wishlistIds } = useWishlist();
@@ -33,6 +35,7 @@ export default function Wishlist() {
         setProducts(firestoreProducts);
       } catch (err) {
         console.error("Error fetching wishlist products:", err);
+        toast.error("Failed to load your wishlist. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -43,6 +46,7 @@ export default function Wishlist() {
 
   return (
     <div className="pt-24 sm:pt-40 md:pt-56 pb-16 sm:pb-24 md:pb-40 grainy-overlay min-h-screen relative overflow-hidden bg-cream">
+      <SEO title="Wishlist" description="Your saved coffee selections and favorite ritual products." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">

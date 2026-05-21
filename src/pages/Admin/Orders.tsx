@@ -5,6 +5,7 @@ import { Order } from '../../types';
 import { formatPrice, cn } from '../../lib/utils';
 import { ShoppingBag, ChevronRight, Truck, Package, CheckCircle, Clock, Search, Filter, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const StatusBadge = ({ status }: { status: Order['status'] }) => {
@@ -64,6 +65,7 @@ export default function AdminOrders() {
   return (
     <DashboardLayout>
       <div className="space-y-16 relative">
+        <SEO title="Orders" description="Manage and fulfill CoffeeCraze customer orders." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-50 pb-16">
           <div className="space-y-4">
             <span className="stat-label text-gold-500 italic">Fulfillment Matrix</span>

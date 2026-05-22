@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash, ArrowRight, Search } from 'lucide-react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -114,6 +114,13 @@ export default function AdminPlans() {
           toast.error('Image upload failed');
         }
       }
+      if (payload.productIds?.length) {
+        await Promise.all(
+          payload.productIds.map((productId: string) =>
+            updateDoc(doc(db, 'products', productId), { planId: ref.id })
+          )
+        );
+      }
       setPlans(prev => [{ id: ref.id, ...payload }, ...prev]);
       setForm({ name: '', price: 0, description: '', features: '', productIds: [], frequency: 'monthly', isFeatured: false });
       setSelectedFile(null);
@@ -183,6 +190,22 @@ export default function AdminPlans() {
         }
       }
       await updateDoc(doc(db, 'plans', planId), payload);
+
+      const previousProductIds = (editingPlan?.productIds || []) as string[];
+      const currentProductIds = payload.productIds || [];
+
+      const removedProductIds = previousProductIds.filter((id: string) => !currentProductIds.includes(id));
+      const addedProductIds = currentProductIds.filter((id: string) => !previousProductIds.includes(id));
+
+      await Promise.all([
+        ...addedProductIds.map((productId: string) =>
+          updateDoc(doc(db, 'products', productId), { planId })
+        ),
+        ...removedProductIds.map((productId: string) =>
+          updateDoc(doc(db, 'products', productId), { planId: deleteField() })
+        ),
+      ]);
+
       setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...payload } : p));
       setIsEditing(false);
       setEditingPlan(null);
@@ -267,10 +290,10 @@ export default function AdminPlans() {
             <div className="w-full max-w-full sm:max-w-2xl p-4 sm:p-6 bg-white rounded-2xl shadow-premium relative">
               <h2 className="text-xl font-display font-bold mb-4">{isEditing ? 'Edit Plan' : 'Create Plan'}</h2>
               <div className="space-y-4">
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Name" className="w-full p-3 border rounded" />
-                <input value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="Price (LBP)" className="w-full p-3 border rounded" />
-                <input value={form.features} onChange={e => setForm(f => ({ ...f, features: e.target.value }))} placeholder="Features (comma separated)" className="w-full p-3 border rounded" />
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" className="w-full p-3 border rounded" />
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Name" className="form-control" />
+                <input value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="Price (LBP)" className="form-control" />
+                <input value={form.features} onChange={e => setForm(f => ({ ...f, features: e.target.value }))} placeholder="Features (comma separated)" className="form-control" />
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" className="form-textarea" />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -279,7 +302,7 @@ export default function AdminPlans() {
                       id="plan-frequency"
                       value={form.frequency}
                       onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-full border border-coffee-100 bg-white text-sm focus:border-caramel focus:outline-none transition"
+                      className="form-select"
                     >
                       <option value="weekly">Weekly</option>
                       <option value="biweekly">Bi-Weekly</option>
@@ -344,7 +367,7 @@ export default function AdminPlans() {
                       id="plan-image"
                       type="file"
                       accept="image/*"
-                      className="w-full"
+                      className="w-full text-espresso"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         setSelectedFile(file);

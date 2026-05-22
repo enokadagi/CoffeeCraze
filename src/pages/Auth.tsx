@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
-import { AuthService } from '../services/auth';
 import { toast } from 'sonner';
 import ImageWithFallback from '../components/common/ImageWithFallback';
 import { User, Mail, Lock, Coffee, ArrowRight } from 'lucide-react';
@@ -56,7 +55,10 @@ export default function Auth() {
         await signInWithEmailAndPassword(auth, email, password);
         toast.success("Access granted. Protocol initiated.");
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        if (displayName.trim()) {
+          await updateProfile(userCredential.user, { displayName: displayName.trim() });
+        }
         toast.success("Account manifested. Welcome to the Collective.");
       }
       navigate('/');

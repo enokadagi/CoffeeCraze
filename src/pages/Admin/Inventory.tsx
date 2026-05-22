@@ -84,9 +84,18 @@ export default function AdminInventory() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to remove this ritual?")) return;
     try {
+      const product = products.find(p => p.id === id);
+      if (product?.planId) {
+        await updateDoc(doc(db, 'plans', product.planId), {
+          productIds: arrayRemove(id),
+        });
+      }
       await deleteDoc(doc(db, 'products', id));
       toast.success("Ritual removed from catalog");
       setProducts(products.filter(p => p.id !== id));
+      if (product?.planId) {
+        await fetchPlans();
+      }
     } catch (err) {
       toast.error("Failed to delete product");
     }
@@ -130,11 +139,33 @@ export default function AdminInventory() {
 
     const rows = text.trim().split(/\r?\n/).filter(Boolean);
     if (rows.length < 2) throw new Error('CSV must have a header row and at least one product row.');
-    const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+    const headers = rows[0].split(/,(?=(?:[^"]*"[^"]*")*$)/).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const normalizeKey = (key: string) => key.replace(/[^a-z0-9]/g, '').toLowerCase();
+    const mapField = (key: string) => {
+      const normalized = normalizeKey(key);
+      if (normalized.includes('name')) return 'name';
+      if (normalized.includes('description')) return 'description';
+      if (normalized.includes('fulldescription')) return 'fullDescription';
+      if (normalized.includes('category')) return 'category';
+      if (normalized.includes('sku')) return 'sku';
+      if (normalized.includes('priceusd')) return 'priceUsd';
+      if (normalized.includes('pricelbp') || normalized === 'price') return 'priceLbp';
+      if (normalized.includes('wholesalepriceusd')) return 'wholesalePriceUsd';
+      if (normalized.includes('wholesalepricelbp')) return 'wholesalePriceLbp';
+      if (normalized.includes('stock')) return 'stock';
+      if (normalized.includes('planid')) return 'planId';
+      if (normalized.includes('tags')) return 'tags';
+      if (normalized.includes('images')) return 'images';
+      if (normalized.includes('subscriptioneligible')) return 'isSubscriptionEligible';
+      if (normalized.includes('rating')) return 'rating';
+      if (normalized.includes('reviewcount')) return 'reviewCount';
+      return key;
+    };
+
     return rows.slice(1).map(row => {
-      const values = row.split(',').map(v => v.trim());
+      const values = row.split(/,(?=(?:[^"]*"[^"]*")*$)/).map(v => v.trim().replace(/^"|"$/g, ''));
       const entry = headers.reduce((acc, header, index) => {
-        acc[header] = values[index] ?? '';
+        acc[mapField(header)] = values[index] ?? '';
         return acc;
       }, {} as any);
       return {

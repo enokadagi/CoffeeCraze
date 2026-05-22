@@ -50,13 +50,13 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-espresso/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] w-full max-w-full sm:max-w-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-espresso/90 backdrop-blur-sm" onClick={onClose} />
+      <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] w-full max-w-full sm:max-w-2xl relative z-10 max-h-[90vh] overflow-y-auto border border-espresso/10 shadow-premium">
         <div className="p-4 sm:p-6 md:p-8 border-b border-espresso/10 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-xl">
           <h2 className="text-2xl sm:text-3xl font-display font-black uppercase italic tracking-tightest text-espresso">
             {product ? 'Modify Ritual' : 'Commit New Ritual'}
           </h2>
-          <button aria-label="Close modal" onClick={onClose} className="p-3 bg-cream rounded-full hover:bg-caramel hover:text-white transition-colors">
+          <button aria-label="Close modal" onClick={onClose} className="p-3 bg-espresso text-cream rounded-full hover:bg-espresso/90 hover:text-caramel transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -69,7 +69,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 required
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-control"
               />
             </div>
             
@@ -81,7 +81,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 rows={3}
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic focus:border-caramel outline-none transition-colors"
+                className="form-textarea"
               />
             </div>
 
@@ -92,7 +92,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 rows={3}
                 value={formData.fullDescription}
                 onChange={e => setFormData({...formData, fullDescription: e.target.value})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic focus:border-caramel outline-none transition-colors"
+                className="form-textarea"
               />
             </div>
 
@@ -103,7 +103,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="text"
                 value={(formData.images || []).join(', ')}
                 onChange={e => setFormData({...formData, images: e.target.value.split(',').map(url => url.trim()).filter(Boolean)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic focus:border-caramel outline-none transition-colors"
+                className="form-control"
                 placeholder="https://... , https://..."
               />
             </div>
@@ -116,7 +116,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="number" step="0.01"
                 value={formData.priceUsd}
                 onChange={e => setFormData({...formData, priceUsd: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-control"
               />
             </div>
 
@@ -128,7 +128,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="number"
                 value={formData.priceLbp || formData.price}
                 onChange={e => setFormData({...formData, priceLbp: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-control"
               />
             </div>
 
@@ -139,7 +139,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="number" step="0.01"
                 value={formData.wholesalePriceUsd}
                 onChange={e => setFormData({...formData, wholesalePriceUsd: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-control"
               />
             </div>
 
@@ -150,7 +150,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="number"
                 value={formData.wholesalePriceLbp}
                 onChange={e => setFormData({...formData, wholesalePriceLbp: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-control"
               />
             </div>
 
@@ -162,7 +162,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="number"
                 value={formData.stock}
                 onChange={e => setFormData({...formData, stock: Number(e.target.value)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-control"
               />
             </div>
 
@@ -172,7 +172,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                  id="product-category"
                  value={formData.category}
                  onChange={e => setFormData({...formData, category: e.target.value as any})}
-                 className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                 className="form-select"
                >
                  <option value="beans">Beans</option>
                  <option value="equipment">Equipment</option>
@@ -187,7 +187,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 id="product-plan"
                 value={formData.planId || ''}
                 onChange={e => setFormData({...formData, planId: e.target.value || undefined})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic font-black focus:border-caramel outline-none transition-colors"
+                className="form-select"
               >
                 <option value="">None</option>
                 {plans.map(plan => (
@@ -204,7 +204,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                 type="text"
                 value={Array.isArray(formData.tags) ? formData.tags.join(', ') : formData.tags || ''}
                 onChange={e => setFormData({...formData, tags: e.target.value.split(',').map(tag => tag.trim()).filter(Boolean)})}
-                className="w-full bg-cream border border-espresso/10 rounded-[2rem] px-4 sm:px-5 md:px-6 py-3 sm:py-4 italic focus:border-caramel outline-none transition-colors"
+                className="form-control"
                 placeholder="roast, single-origin, subscription"
               />
             </div>

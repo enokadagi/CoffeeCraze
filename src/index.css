@@ -166,6 +166,18 @@
     @apply content-[''] absolute inset-0 bg-white/[0.06] opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none;
   }
 
+  .form-control {
+    @apply w-full bg-cream border border-espresso/10 rounded-2xl px-4 py-3 text-espresso placeholder:text-coffee-400 focus:border-caramel focus:outline-none transition-colors;
+  }
+
+  .form-select {
+    @apply w-full bg-cream border border-espresso/10 rounded-2xl px-4 py-3 text-espresso focus:border-caramel focus:outline-none transition-colors;
+  }
+
+  .form-textarea {
+    @apply w-full bg-cream border border-espresso/10 rounded-2xl px-4 py-3 text-espresso placeholder:text-coffee-400 focus:border-caramel focus:outline-none transition-colors;
+  }
+
   .btn-outline {
     @apply inline-flex items-center justify-center gap-2.5 px-5 sm:px-7 py-3 border border-cream/20 text-cream rounded-full font-semibold
            text-xs sm:text-sm tracking-wide

@@ -8,7 +8,7 @@ import SEO from '../components/common/SEO';
 
 export default function AiBarista() {
   const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([
-    { role: 'model', content: "Sensory protocol initiated. I am the AI Overseer. Mornings in Beirut are better with a precise extraction. Tell me, what kind of ritual are you seeking today?" }
+    { role: 'model', content: "Welcome to the CoffeeCraze AI Barista. Tell me your preferred roast, brew method, or flavor mood, and I'll craft the perfect coffee ritual for you." }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,32 +44,32 @@ export default function AiBarista() {
   };
 
   return (
-    <div className="pt-16 sm:pt-20 h-[100dvh] flex flex-col bg-white overflow-hidden relative">
+    <div className="pt-16 sm:pt-20 h-screen flex flex-col bg-cream text-black overflow-hidden relative">
       <SEO title="AI Barista" description="Chat with the CoffeeCraze AI Barista for personalized coffee recommendations." />
-      <div className="absolute inset-0 bg-coffee-50 opacity-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-cream to-cream/90 opacity-100 pointer-events-none"></div>
       
-      <div className="px-4 sm:px-6 md:px-10 py-4 sm:py-6 md:py-10 border-b border-coffee-50 bg-white/90 backdrop-blur-xl sticky top-0 z-20">
+      <div className="px-4 sm:px-6 md:px-10 py-4 sm:py-6 md:py-10 border-b border-coffee-200 bg-white/95 sticky top-0 z-20 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4 sm:gap-6">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-coffee-950 rounded-[1.5rem] flex items-center justify-center text-white shadow-premium relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-tr from-coffee-500/30 to-transparent group-hover:scale-110 transition-transform duration-700"></div>
+            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-cream rounded-[1.5rem] flex items-center justify-center text-coffee-950 shadow-premium relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-tr from-caramel/40 to-transparent group-hover:scale-110 transition-transform duration-700"></div>
               <Sparkles size={24} className="relative z-10" />
             </div>
             <div className="space-y-0.5 sm:space-y-1">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-coffee-950 tracking-tighter italic">Overseer <span className="not-italic text-coffee-500">v1.0</span></h1>
-              <p className="text-[10px] font-black text-coffee-400 uppercase tracking-[0.4em] leading-none">Neural Extraction Concierge • Beirut Unit</p>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-[#0e372b] tracking-tighter italic">AI Barista <span className="not-italic text-[#0e372b]">v1.0</span></h1>
+              <p className="text-[10px] font-black text-[#0e372b] uppercase tracking-[0.4em] leading-none">Flavor Concierge • Beirut Lounge</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-4 px-5 py-2.5 bg-[#faf8f5] rounded-full border border-coffee-50 shadow-sm">
+          <div className="hidden sm:flex items-center gap-4 px-5 py-2.5 bg-white/80 rounded-full border border-coffee-100 shadow-sm">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-            <span className="text-[10px] font-black text-coffee-950 uppercase tracking-[0.3em] italic">System Nominal</span>
+            <span className="text-[10px] font-black text-black uppercase tracking-[0.3em] italic">System Nominal</span>
           </div>
         </div>
       </div>
 
       <div 
         ref={scrollRef}
-        className="flex-grow overflow-y-auto overflow-x-hidden pt-8 sm:pt-12 pb-40 sm:pb-48 px-4 sm:px-6 no-scrollbar scroll-smooth"
+        className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden pt-8 sm:pt-12 pb-32 sm:pb-40 md:pb-48 px-4 sm:px-6 no-scrollbar scroll-smooth"
       >
         <div className="max-w-5xl mx-auto space-y-8 sm:space-y-12">
           <AnimatePresence mode="popLayout" initial={false}>
@@ -89,7 +89,7 @@ export default function AiBarista() {
                 <div 
                   className={cn(
                     "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-premium",
-                    msg.role === 'user' ? "bg-coffee-950 text-white" : "bg-white border border-coffee-50 text-coffee-950"
+                    msg.role === 'user' ? "bg-coffee-50 text-black" : "bg-white border border-coffee-50 text-black"
                   )}
                 >
                   {msg.role === 'user' ? <User size={20} /> : <div className="text-base sm:text-xl font-display font-black leading-none italic">dg</div>}
@@ -97,10 +97,10 @@ export default function AiBarista() {
                 <div className={cn(
                   "p-4 sm:p-6 md:p-8 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] text-sm leading-relaxed shadow-premium relative",
                   msg.role === 'user' 
-                    ? "bg-coffee-950 text-white rounded-tr-none" 
-                    : "bg-white border border-coffee-50 text-coffee-900 rounded-tl-none"
+                      ? "bg-coffee-50 text-[#0e372b] rounded-tr-none border border-coffee-200" 
+                      : "bg-white text-[#0e372b] border border-coffee-50 rounded-tl-none"
                 )}>
-                  <div className="markdown-body prose prose-coffee prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:font-black prose-headings:text-coffee-950 prose-headings:tracking-tight prose-headings:italic">
+                  <div className="markdown-body prose prose-sm text-current max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight prose-headings:italic">
                     <ReactMarkdown>
                       {msg.content}
                     </ReactMarkdown>
@@ -144,7 +144,7 @@ export default function AiBarista() {
             </button>
           </form>
           <div className="mt-3 sm:mt-4 text-center">
-            <span className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.6em] italic">Secure Neutral Connection • Beirut v1.0</span>
+            <span className="text-[9px] font-black text-black/70 uppercase tracking-[0.6em] italic">Ask for roast notes, brew style, or flavor pairings.</span>
           </div>
         </div>
       </div>

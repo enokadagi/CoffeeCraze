@@ -4,6 +4,7 @@ import { MessageSquare, X, Send, User, Bot, Loader2 } from 'lucide-react';
 import { GeminiService } from '../../services/gemini';
 import { cn } from '../../lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { toast } from 'sonner';
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,17 +27,19 @@ export default function ChatWidget() {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
     try {
-      const history = messages.map(msg => ({
-        role: msg.role,
+      const history = [...messages, { role: 'user', content: userMessage }].map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
         parts: [{ text: msg.content }]
       }));
       const response = await GeminiService.getBaristaResponse(userMessage, history);
       setMessages(prev => [...prev, { role: 'model', content: response }]);
+      toast.success('Message delivered successfully.');
     } catch (err) {
+      toast.error('Message failed to send. Please try again.');
       setMessages(prev => [...prev, { role: 'model', content: "Apologies, the brew was interrupted. Please try again." }]);
     } finally {
       setIsLoading(false);
@@ -62,7 +65,7 @@ export default function ChatWidget() {
             initial={{ opacity: 0, scale: 0.9, y: 50, x: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 50, x: 20 }}
-            className="fixed bottom-24 right-4 sm:bottom-28 sm:right-8 w-[95vw] sm:w-[90vw] md:w-96 h-[400px] sm:h-[500px] max-h-[80vh] sm:max-h-[70vh] bg-white border border-coffee-100 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] z-50 flex flex-col overflow-hidden"
+            className="fixed bottom-24 right-4 sm:bottom-28 sm:right-8 w-[95vw] sm:w-[90vw] md:w-96 h-[400px] sm:h-[500px] max-h-[80vh] sm:max-h-[70vh] bg-cream border border-coffee-200 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.12)] z-50 flex flex-col overflow-hidden text-[#0e372b]"
           >
             {/* Header */}
             <div className="p-4 sm:p-6 bg-coffee-950 text-white flex items-center justify-between">
@@ -92,11 +95,11 @@ export default function ChatWidget() {
                 >
                   <div className={cn(
                     "p-3 sm:p-4 rounded-2xl text-xs leading-relaxed",
-                    msg.role === 'user' ? "bg-coffee-950 text-white rounded-tr-none" : "bg-coffee-50 text-coffee-950 rounded-tl-none border border-coffee-100"
+                    msg.role === 'user' ? "bg-coffee-50 text-[#0e372b] rounded-tr-none border border-coffee-200" : "bg-white text-[#0e372b] rounded-tl-none border border-coffee-200"
                   )}>
-                  <div className="markdown-body prose prose-coffee prose-xs">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
+                    <div className="markdown-body text-[#0e372b] whitespace-pre-wrap">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -109,19 +112,20 @@ export default function ChatWidget() {
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSend} className="p-3 sm:p-4 border-t border-coffee-50 bg-white">
+            <form onSubmit={handleSend} className="p-3 sm:p-4 border-t border-coffee-800 bg-coffee-950">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Ask a question..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="w-full pl-4 pr-12 py-3 bg-coffee-50 border-none rounded-xl text-xs focus:ring-2 focus:ring-coffee-500 outline-none"
+                  className="w-full pl-4 pr-12 py-3 bg-coffee-900 border-none rounded-xl text-xs text-white placeholder:text-coffee-500 focus:ring-2 focus:ring-coffee-500 outline-none"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-coffee-950 text-white rounded-lg disabled:opacity-50"
+                  aria-label="Send message"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-caramel text-coffee-950 rounded-lg disabled:opacity-50"
                 >
                   <Send size={14} />
                 </button>

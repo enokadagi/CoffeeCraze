@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -8,7 +8,7 @@ import {
 import Seo from '../components/common/SEO';
 import { useAuth } from '../context/AuthContext';
 import { ProductService, SubscriptionService } from '../services/firestore';
-import { Product, CartItem, SubscriptionStatus } from '../types';
+import { Product, CartItem, SubscriptionStatus, PaymentStatus } from '../types';
 import { formatUSD, formatLBP, EXCHANGE_RATE } from '../utils/exchange';
 import { toast } from 'sonner';
 import ImageWithFallback from '../components/common/ImageWithFallback';
@@ -151,29 +151,79 @@ export default function CustomPlanBuilder() {
       const deliveryDate = new Date();
       deliveryDate.setDate(deliveryDate.getDate() + (frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : 30));
 
+      const deliveryAddress = {
+        street: logistics.street,
+        building: logistics.building,
+        floor: logistics.floor,
+        city: logistics.city,
+        email: user.email || '',
+        phone: logistics.phone,
+        address: `${logistics.street}, Bldg ${logistics.building || 'N/A'}, Fl ${logistics.floor || 'N/A'}, ${logistics.city}`,
+      };
+
       await SubscriptionService.create({
         userId: user.uid,
         planId: `custom-duration-${duration}m`,
+        planType: 'custom',
+        planName: `Custom Box (${boxItems.length} items)`,
         status: SubscriptionStatus.ACTIVE,
         nextDelivery: deliveryDate.toISOString(),
         frequency,
         preferredDay: 'Friday',
         preferredTime: 'Morning',
         items,
-        address: {
-          name: profile?.displayName || user.email || 'Customer',
-          email: user.email || '',
-          address: `${logistics.street}, Bldg ${logistics.building}, Fl ${logistics.floor}, ${logistics.city}`,
-          phone: logistics.phone
-        },
+        boxItems: boxItems.map(item => ({
+          productId: item.product.id,
+          name: item.product.name,
+          quantity: item.quantity,
+          grind: item.grind,
+          priceUsd: item.product.priceUsd || (item.product.price / EXCHANGE_RATE),
+        })),
+        address: deliveryAddress,
+        deliveryAddress,
         history: [],
-        paymentStatus: 'pending',
-        // New custom properties
+        paymentStatus: PaymentStatus.PENDING,
+        currentPaymentStatus: PaymentStatus.PENDING,
         durationMonths: duration,
         paymentTiming,
         customNotes: logistics.notes,
         deliveryInstructions: logistics.gateCode ? `Gate Code: ${logistics.gateCode}` : '',
-        prepaidBalance: paymentTiming === 'prepaid' ? calculateGrandTotalUSD() : 0
+        prepaidBalance: paymentTiming === 'prepaid' ? calculateGrandTotalUSD() : 0,
+        billingSummary: {
+          cycleTotalUSD: calculateCycleTotalUSD(),
+          grandTotalUSD: calculateGrandTotalUSD(),
+          cycleCount: frequency === 'weekly' ? duration * 4 : frequency === 'biweekly' ? duration * 2 : duration,
+          discountApplied: paymentTiming === 'prepaid' ? 0.10 : 0,
+        },
+        paymentSchedule: [
+          {
+            type: paymentTiming,
+            amount: calculateGrandTotalUSD(),
+            amountLbp: calculateGrandTotalLBP(),
+            dueDate: deliveryDate.toISOString(),
+            status: PaymentStatus.PENDING,
+            method: 'cash_on_delivery',
+          }
+        ],
+        totalDeliveries: frequency === 'weekly' ? duration * 4 : frequency === 'biweekly' ? duration * 2 : duration,
+        completedDeliveries: 0,
+        deliveryHistory: [],
+        plan: {
+          planId: `custom-duration-${duration}m`,
+          items: boxItems.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            name: item.product.name,
+            price: item.product.priceUsd || (item.product.price / EXCHANGE_RATE),
+          })),
+          frequency,
+          nextDeliveryDate: deliveryDate.toISOString(),
+          customizations: `Grind: ${boxItems.map(item => `${item.product.name}(${item.grind})`).join(', ')} | Payment: ${paymentTiming}`,
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        userEmail: user.email,
+        userDisplayName: profile?.displayName || user.email?.split('@')[0] || 'Customer',
       } as any);
 
       toast.success("Your customized coffee box has been manifested!");
@@ -199,33 +249,33 @@ export default function CustomPlanBuilder() {
         
         {/* Header */}
         <header className="text-center mb-16 space-y-4">
-          <span className="stat-label text-caramel">Dynamic Custom Protocol</span>
-          <h1 className="text-fluid-hero font-display font-black text-espresso italic uppercase leading-none tracking-tightest">
-            Bespoke <span className="not-italic text-coffee-300">Box Builder.</span>
+          <span className="text-caption text-caramel">Custom Coffee Plan</span>
+          <h1 className="text-display font-display font-black text-espresso uppercase leading-none tracking-tightest">
+            Build Your <span className="text-text-muted">Perfect Box.</span>
           </h1>
-          <p className="text-sm font-serif italic text-coffee-400 max-w-xl mx-auto">
-            "Design your own repeating sensory payload, tailored perfectly for your extraction nodes."
+          <p className="text-sm font-serif text-text-muted max-w-xl mx-auto">
+            Create a recurring coffee plan tailored to the way you drink and enjoy coffee.
           </p>
         </header>
 
         {/* Steps Breadcrumb */}
         <div className="flex justify-center items-center gap-4 mb-16">
           {[
-            { num: 1, label: 'SELECT_payload' },
-            { num: 2, label: 'CONFIGURE_intervals' },
-            { num: 3, label: 'LOGISTICS_targets' },
-            { num: 4, label: 'MANIFEST_plan' }
+            { num: 1, label: 'SELECT items' },
+            { num: 2, label: 'SET frequency' },
+            { num: 3, label: 'CHOOSE delivery' },
+            { num: 4, label: 'REVIEW order' }
           ].map((s) => (
             <div key={s.num} className="flex items-center gap-2">
               <div className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all duration-500",
-                step >= s.num ? "bg-espresso text-white shadow-premium" : "bg-white border border-espresso/10 text-coffee-300"
+                step >= s.num ? "bg-espresso text-white shadow-premium" : "bg-white border border-espresso/10 text-text-muted"
               )}>
                 {s.num}
               </div>
               <span className={cn(
                 "text-[10px] uppercase tracking-widest font-black hidden md:block",
-                step === s.num ? "text-espresso" : "text-coffee-300"
+                step === s.num ? "text-espresso" : "text-text-muted"
               )}>{s.label}</span>
               {s.num < 4 && <div className="h-px w-8 bg-espresso/10 hidden md:block" />}
             </div>
@@ -283,14 +333,14 @@ export default function CustomPlanBuilder() {
                               </div>
                               <div className="space-y-1">
                                 <h4 className="font-display font-black text-espresso uppercase text-sm tracking-tight">{prod.name}</h4>
-                                <p className="text-xs text-coffee-400 line-clamp-2 italic font-serif">"{prod.description}"</p>
+                                <p className="text-xs text-text-muted line-clamp-2 italic font-serif">"{prod.description}"</p>
                               </div>
                             </div>
 
                             <div className="flex items-center justify-between pt-4 mt-4 border-t border-espresso/5">
                               <div className="flex flex-col">
                                 <span className="text-xs font-black text-espresso">{formatUSD(prod.priceUsd || (prod.price / EXCHANGE_RATE))}</span>
-                                <span className="text-[10px] text-coffee-300 font-semibold">≈ {formatLBP(prod.priceLbp || prod.price)} LBP</span>
+                                <span className="text-[10px] text-text-muted font-semibold">~ {formatLBP(prod.priceLbp || prod.price)} LBP</span>
                               </div>
                               <button 
                                 onClick={() => handleAddProduct(prod)}
@@ -320,8 +370,8 @@ export default function CustomPlanBuilder() {
                   
                   {/* Frequency Choice */}
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Delivery Interval</label>
-                    <div className="grid grid-cols-3 gap-4">
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Delivery Interval</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {(['weekly', 'biweekly', 'monthly'] as const).map((freq) => (
                         <button
                           key={freq}
@@ -331,7 +381,7 @@ export default function CustomPlanBuilder() {
                             frequency === freq ? "bg-espresso text-white border-espresso" : "bg-white text-espresso border-white/80 hover:bg-white"
                           )}
                         >
-                          <Calendar size={18} className={frequency === freq ? "text-caramel-gold animate-pulse" : "text-coffee-300"} />
+                          <Calendar size={18} className={frequency === freq ? "text-caramel-gold animate-pulse" : "text-text-muted"} />
                           {freq === 'weekly' ? 'Weekly' : freq === 'biweekly' ? 'Bi-Weekly' : 'Monthly'}
                         </button>
                       ))}
@@ -340,8 +390,8 @@ export default function CustomPlanBuilder() {
 
                   {/* Plan Duration */}
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Protocol Duration (Months)</label>
-                    <div className="grid grid-cols-4 gap-4">
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Plan Duration (Months)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {[1, 3, 6, 12].map((dur) => (
                         <button
                           key={dur}
@@ -359,13 +409,13 @@ export default function CustomPlanBuilder() {
 
                   {/* Payment Timing Selection */}
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4 flex items-center gap-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4 flex items-center gap-2">
                       Payment Logistics Timing <Info size={12} className="text-caramel" />
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[
                         { id: 'prepaid', title: 'PREPAID', desc: 'Pay full duration in advance and save 10% on your total allocation.' },
-                        { id: 'monthly', title: 'MONTHLY CYCLE', desc: 'Standard cash or card on delivery at each recurring cycle.' },
+                        { id: 'monthly', title: 'MONTHLY CYCLE', desc: 'Cash on delivery at each recurring cycle.' },
                         { id: 'deferred', title: 'DEFERRED LEDGER', desc: 'Pay deferred final settlement block upon duration completion.' }
                       ].map((t) => (
                         <button
@@ -380,7 +430,7 @@ export default function CustomPlanBuilder() {
                             <span className="text-xs font-black tracking-widest uppercase">{t.title}</span>
                             {paymentTiming === t.id && <div className="w-2 h-2 rounded-full bg-caramel animate-ping" />}
                           </div>
-                          <p className={cn("text-[10px] font-medium leading-relaxed", paymentTiming === t.id ? "text-coffee-300" : "text-coffee-400")}>{t.desc}</p>
+                          <p className={cn("text-[10px] font-medium leading-relaxed", paymentTiming === t.id ? "text-text-muted" : "text-text-muted")}>{t.desc}</p>
                         </button>
                       ))}
                     </div>
@@ -401,7 +451,7 @@ export default function CustomPlanBuilder() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Street Address</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Street Address</label>
                       <input 
                         type="text"
                         value={logistics.street}
@@ -412,7 +462,7 @@ export default function CustomPlanBuilder() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Building Name / Block</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Building Name / Block</label>
                       <input 
                         type="text"
                         value={logistics.building}
@@ -422,7 +472,7 @@ export default function CustomPlanBuilder() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Floor / Apt</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Floor / Apt</label>
                       <input 
                         type="text"
                         value={logistics.floor}
@@ -432,7 +482,7 @@ export default function CustomPlanBuilder() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">City / Region</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">City / Region</label>
                       <input 
                         type="text"
                         value={logistics.city}
@@ -441,7 +491,7 @@ export default function CustomPlanBuilder() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Contact Phone Link</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Contact Phone Link</label>
                       <input 
                         type="tel"
                         value={logistics.phone}
@@ -452,7 +502,7 @@ export default function CustomPlanBuilder() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Gate Access Code (If any)</label>
+                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Gate Access Code (If any)</label>
                       <input 
                         type="text"
                         value={logistics.gateCode}
@@ -464,11 +514,11 @@ export default function CustomPlanBuilder() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-coffee-400 ml-4">Roastery Notes & Custom Instructions</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted ml-4">Roastery Notes & Custom Instructions</label>
                     <textarea 
                       value={logistics.notes}
                       onChange={e => setLogistics({...logistics, notes: e.target.value})}
-                      placeholder="e.g. Please grind the sensory starter for fine espresso, deliver on standard high-altitude schedule only."
+                      placeholder="e.g. Please grind the beans for espresso, deliver between 9am—12pm only."
                       rows={3}
                       className="w-full px-6 py-4 bg-white border border-white rounded-2xl focus:ring-4 focus:ring-caramel/10 outline-none transition-all shadow-premium"
                     />
@@ -518,7 +568,7 @@ export default function CustomPlanBuilder() {
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-xs uppercase font-black tracking-widest text-coffee-400">Payload Overview</h4>
+                    <h4 className="text-xs uppercase font-black tracking-widest text-text-muted">Payload Overview</h4>
                     <div className="space-y-3">
                       {boxItems.map(item => (
                         <div key={item.product.id} className="flex justify-between items-center bg-cream p-4 rounded-xl border border-espresso/5">
@@ -553,14 +603,14 @@ export default function CustomPlanBuilder() {
               {step < 4 ? (
                 <button 
                   onClick={handleNextStep}
-                  className="btn-premium flex items-center gap-2 text-xs py-3.5 px-8"
+                  className="btn btn-primary flex items-center gap-2 text-xs py-3.5 px-8"
                 >
                   Next Step <ArrowRight size={14} />
                 </button>
               ) : (
                 <button 
                   onClick={handleSubmitCustomPlan}
-                  className="btn-premium flex items-center gap-2 text-xs py-4 px-10 bg-caramel text-white hover:bg-espresso"
+                  className="btn btn-primary flex items-center gap-2 text-xs py-4 px-10 text-white hover:bg-espresso"
                 >
                   Manifest Custom Box <Check size={14} />
                 </button>
@@ -587,12 +637,12 @@ export default function CustomPlanBuilder() {
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(193,155,118,0.1),transparent)]" />
                   
                   {boxItems.length === 0 ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-coffee-400 opacity-40">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-muted opacity-40">
                       <Coffee size={40} strokeWidth={1} />
                       <span className="text-[10px] uppercase font-black tracking-widest">box empty</span>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-4 gap-2 items-end max-h-full overflow-y-auto pb-1 scrollbar-thin">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end max-h-full overflow-y-auto pb-1 custom-scrollbar">
                       {boxItems.map((item, idx) => (
                         <motion.div 
                           key={item.product.id}
@@ -619,7 +669,7 @@ export default function CustomPlanBuilder() {
                   {boxItems.map(item => (
                     <div key={item.product.id} className="space-y-2">
                       <div className="flex justify-between items-center text-[11px]">
-                        <span className="truncate max-w-[140px] text-coffee-300 font-medium">{item.product.name}</span>
+                        <span className="truncate max-w-[140px] text-text-muted font-medium">{item.product.name}</span>
                         <div className="flex items-center gap-2 font-mono">
                           <button onClick={() => updateQuantity(item.product.id, -1)} className="hover:text-caramel"><Minus size={10} /></button>
                           <span>{item.quantity}</span>
@@ -645,16 +695,16 @@ export default function CustomPlanBuilder() {
 
             {/* Total Billing Ledger Summary Card */}
             <div className="bg-white border border-white p-6 rounded-3xl shadow-premium space-y-6">
-              <span className="stat-label text-espresso">Billing Coordinates</span>
+              <span className="text-caption text-espresso">Billing Coordinates</span>
               
               <div className="space-y-4">
                 <div className="flex justify-between items-baseline border-b border-espresso/5 pb-3">
-                  <span className="text-xs font-semibold text-coffee-400 uppercase tracking-wider">Cycle Payload (USD)</span>
+                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Cycle Payload (USD)</span>
                   <span className="text-lg font-black text-espresso">{formatUSD(calculateCycleTotalUSD())}</span>
                 </div>
                 <div className="flex justify-between items-baseline border-b border-espresso/5 pb-3">
-                  <span className="text-xs font-semibold text-coffee-400 uppercase tracking-wider">Cycle Payload (LBP)</span>
-                  <span className="text-xs font-black text-coffee-500">≈ {formatLBP(calculateCycleTotalLBP())}</span>
+                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Cycle Payload (LBP)</span>
+                  <span className="text-xs font-black text-text-muted">~ {formatLBP(calculateCycleTotalLBP())}</span>
                 </div>
 
                 {paymentTiming === 'prepaid' && (
@@ -665,12 +715,12 @@ export default function CustomPlanBuilder() {
                 )}
 
                 <div className="pt-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-coffee-300">MANIFESTED DURATION VALUE ({duration}m)</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted">MANIFESTED DURATION VALUE ({duration}m)</p>
                   <div className="flex justify-between items-baseline mt-2">
                     <span className="text-2xl font-black text-espresso">{formatUSD(calculateGrandTotalUSD())}</span>
-                    <span className="text-xs font-bold text-coffee-500">≈ {formatLBP(calculateGrandTotalLBP())}</span>
+                    <span className="text-xs font-bold text-text-muted">~ {formatLBP(calculateGrandTotalLBP())}</span>
                   </div>
-                  <p className="text-[9px] text-coffee-400 italic mt-1 leading-normal font-serif">
+                  <p className="text-[9px] text-text-muted italic mt-1 leading-normal font-serif">
                     * Displays calculated value across {frequency === 'weekly' ? duration * 4 : frequency === 'biweekly' ? duration * 2 : duration} cycles.
                   </p>
                 </div>

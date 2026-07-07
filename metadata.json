@@ -1,6 +1,0 @@
-{
-  "name": "CoffeeCraze",
-  "description": "A premium full-stack coffee subscription and eCommerce platform for coffee enthusiasts, offices, and wholesale buyers.",
-  "requestFramePermissions": ["camera", "microphone", "geolocation"],
-  "majorCapabilities": ["ecommerce", "subscriptions", "ai-assistant", "pwa"]
-}

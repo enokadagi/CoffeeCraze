@@ -45,17 +45,17 @@ export default function Wishlist() {
   }, [wishlistIds]);
 
   return (
-    <div className="pt-24 sm:pt-40 md:pt-56 pb-16 sm:pb-24 md:pb-40 grainy-overlay min-h-screen relative overflow-hidden bg-cream">
+    <div className="pt-24 sm:pt-40 md:pt-56 pb-16 sm:pb-24 md:pb-40 min-h-screen relative overflow-hidden bg-cream">
       <SEO title="Wishlist" description="Your saved coffee selections and favorite ritual products." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
         <header className="mb-16 md:mb-24 lg:mb-32 space-y-8 text-center sm:text-left">
-          <span className="stat-label text-caramel">Saved Coordinates</span>
+          <span className="text-caption text-caramel">Saved Coordinates</span>
           <div className="flex flex-col sm:flex-row items-end justify-between gap-6 sm:gap-8 lg:gap-12 border-b border-espresso/5 pb-10 sm:pb-14 md:pb-20">
-            <h1 className="text-fluid-hero font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Private <br/><span className="not-italic text-coffee-400">Wishlist.</span></h1>
+            <h1 className="text-display font-display font-black text-espresso leading-none tracking-tightest uppercase">Saved <br/><span className="text-caramel">Favorites.</span></h1>
             <div className="text-right hidden sm:block">
-               <span className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.6em] italic block mb-2">{products.length}_UNIT_ARCHIVED</span>
+                <span className="text-[11px] font-black text-text-secondary uppercase tracking-[0.6em] block mb-2">{products.length} items saved</span>
                <div className="h-1 w-32 bg-caramel/20 rounded-full ml-auto overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
@@ -97,14 +97,14 @@ export default function Wishlist() {
             <Heart size={40} strokeWidth={0.5} />
           </div>
           <div className="space-y-6">
-            <h2 className="text-fluid-heading font-display font-black text-espresso italic tracking-tightest leading-none">Archive <br/><span className="not-italic text-coffee-400">Empty.</span></h2>
-            <p className="text-fluid-body text-coffee-400 font-serif italic max-w-sm mx-auto leading-relaxed">No sensory protocols have been flagged for future extraction.</p>
+            <h2 className="text-h1 font-display font-black text-espresso tracking-tightest leading-none">No Favorites <br/><span className="text-caramel">Yet.</span></h2>
+            <p className="text-body text-text-secondary max-w-sm mx-auto leading-relaxed">Save your favorite coffees and accessories here so you can reorder in one easy checkout.</p>
           </div>
           <Link 
             to="/shop" 
-            className="btn-premium px-8 sm:px-12 md:px-16 py-4 sm:py-5 md:py-7 italic group"
+            className="btn btn-primary px-8 sm:px-12 md:px-16 py-4 sm:py-5 md:py-7 group"
           >
-            Explore Databank <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
+            Shop Coffee <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
           </Link>
         </div>
       )}

@@ -1,9 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
-import { Suspense, lazy, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import PwaInstallPrompt from './components/common/PwaInstallPrompt';
+import { useSiteSettings, applySiteSettings } from './hooks/useSiteSettings';
 import Home from './pages/Home';
 // Lazy load all non-critical route pages for smaller initial bundle sizes.
 const Shop = lazy(() => import('./pages/Shop'));
@@ -40,10 +42,16 @@ const AdminCustomers = lazy(() => import('./pages/Admin/Customers'));
 const AdminWholesale = lazy(() => import('./pages/Admin/Wholesale'));
 const AdminSubscriptions = lazy(() => import('./pages/Admin/Subscriptions'));
 const AdminPlans = lazy(() => import('./pages/Admin/Plans'));
+const AdminCMS = lazy(() => import('./pages/Admin/CMS'));
+const BlogDetail = lazy(() => import('./pages/BlogDetail'));
+const AdminBlog = lazy(() => import('./pages/Admin/Blog'));
+const AdminMessages = lazy(() => import('./pages/Admin/Messages'));
+const AdminEmployees = lazy(() => import('./pages/Admin/Employees'));
+const AdminSiteSettings = lazy(() => import('./pages/Admin/SiteSettings'));
 
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-cream">
-    <div className="w-16 h-16 border-4 border-mocha/20 border-t-espresso rounded-full animate-spin shadow-premium" />
+  <div className="min-h-screen flex items-center justify-center bg-transparent">
+    <div className="w-8 h-8 border-2 border-espresso/10 border-t-espresso rounded-full animate-spin" />
   </div>
 );
 import { AuthProvider } from './context/AuthContext';
@@ -53,6 +61,7 @@ import { Toaster } from 'sonner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { UserRole } from './types';
 import PageTransition from './components/layout/PageTransition';
+import ScrollToTop from './components/layout/ScrollToTop';
 
 const LazyPage = ({ children }: { children: ReactNode }) => (
   <Suspense fallback={<PageLoader />}>
@@ -60,17 +69,26 @@ const LazyPage = ({ children }: { children: ReactNode }) => (
   </Suspense>
 );
 
+
 function AppContent() {
   const location = useLocation();
+  const siteSettings = useSiteSettings();
+
+  useEffect(() => {
+    if (siteSettings) applySiteSettings(siteSettings);
+  }, [siteSettings]);
 
   return (
     <div className="flex flex-col min-h-screen font-sans">
+      <ScrollToTop />
       <Toaster position="bottom-right" richColors />
+      <PwaInstallPrompt />
       <Header />
       <a href="#main-content" className="skip-to-content">Skip to main content</a>
       <main id="main-content" className="flex-grow">
         <AnimatePresence mode="wait" initial={false}>
           <Routes location={location} key={location.pathname}>
+
             <Route path="/" element={<PageTransition><Home /></PageTransition>} />
             <Route path="/shop" element={<LazyPage><Shop /></LazyPage>} />
             <Route path="/category/:category" element={<LazyPage><CategoryProducts /></LazyPage>} />
@@ -89,6 +107,7 @@ function AppContent() {
             <Route path="/wishlist" element={<ProtectedRoute><LazyPage><Wishlist /></LazyPage></ProtectedRoute>} />
             <Route path="/wholesale" element={<LazyPage><Wholesale /></LazyPage>} />
             <Route path="/product/:id" element={<LazyPage><ProductDetail /></LazyPage>} />
+            <Route path="/blog/:id" element={<LazyPage><BlogDetail /></LazyPage>} />
             <Route path="/custom-plan-builder" element={<ProtectedRoute><LazyPage><CustomPlanBuilder /></LazyPage></ProtectedRoute>} />
             <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
             
@@ -99,15 +118,20 @@ function AppContent() {
             <Route path="/dashboard/loyalty" element={<ProtectedRoute><LazyPage><LoyaltyRitual /></LazyPage></ProtectedRoute>} />
             <Route path="/dashboard/settings" element={<ProtectedRoute><LazyPage><AccountSettings /></LazyPage></ProtectedRoute>} />
 
-            {/* Admin Routes */}
-            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminDashboard /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminInventory /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminOrders /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminAnalytics /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminCustomers /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/wholesale" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminWholesale /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/subscriptions" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminSubscriptions /></LazyPage></ProtectedRoute>} />
-            <Route path="/admin/plans" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><LazyPage><AdminPlans /></LazyPage></ProtectedRoute>} />
+            {/* Admin Routes — granular RBAC */}
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE, UserRole.ANALYST, UserRole.SUPER_ADMIN]}><LazyPage><AdminDashboard /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminInventory /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminOrders /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.ANALYST, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminAnalytics /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminCustomers /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/wholesale" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.WHOLESALE_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminWholesale /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/subscriptions" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminSubscriptions /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/plans" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminPlans /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/cms" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminCMS /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/blog" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminBlog /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/messages" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminMessages /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/employees" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}><LazyPage><AdminEmployees /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}><LazyPage><AdminSiteSettings /></LazyPage></ProtectedRoute>} />
           </Routes>
         </AnimatePresence>
       </main>

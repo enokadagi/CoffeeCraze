@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+﻿import { motion } from 'motion/react';
 import { Truck, MapPin, Clock, CheckCircle, AlertCircle, Package } from 'lucide-react';
 import { Delivery, DeliveryStatus } from '../../types';
 import { cn } from '../../lib/utils';
@@ -68,7 +68,7 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
             <StatusIcon size={20} />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-1">
               Delivery Status
             </p>
             <p className={cn('font-bold', config.color)}>
@@ -82,9 +82,9 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
       <div className="space-y-3 mb-4 pb-4 border-b border-white/30">
         {/* Scheduled Date */}
         <div className="flex items-center gap-3 text-sm">
-          <Clock size={16} className="text-coffee-300 flex-shrink-0" />
+          <Clock size={16} className="text-text-muted flex-shrink-0" />
           <div>
-            <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">
+            <p className="text-xs text-text-muted uppercase font-semibold mb-1">
               Scheduled Date
             </p>
             <p className="font-bold text-espresso">
@@ -100,9 +100,9 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
 
         {/* Delivery Address */}
         <div className="flex items-start gap-3 text-sm">
-          <MapPin size={16} className="text-coffee-300 flex-shrink-0 mt-1" />
+          <MapPin size={16} className="text-text-muted flex-shrink-0 mt-1" />
           <div>
-            <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">
+            <p className="text-xs text-text-muted uppercase font-semibold mb-1">
               Delivery Location
             </p>
             <p className="font-medium text-espresso text-sm">
@@ -111,7 +111,7 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
               {delivery.address?.floor && `, Fl ${delivery.address.floor}`}
             </p>
             {delivery.address?.instructions && (
-              <p className="text-xs text-coffee-400 italic mt-1">
+              <p className="text-xs text-text-muted italic mt-1">
                 {delivery.address.instructions}
               </p>
             )}
@@ -121,9 +121,9 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
         {/* Driver Info (if assigned) */}
         {delivery.driverName && (
           <div className="flex items-center gap-3 text-sm">
-            <Truck size={16} className="text-coffee-300 flex-shrink-0" />
+            <Truck size={16} className="text-text-muted flex-shrink-0" />
             <div>
-              <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">
+              <p className="text-xs text-text-muted uppercase font-semibold mb-1">
                 Driver
               </p>
               <p className="font-medium text-espresso">
@@ -137,8 +137,8 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
 
       {/* Items Count */}
       <div className="flex items-center gap-2 text-sm">
-        <Package size={16} className="text-coffee-300" />
-        <span className="text-coffee-400">{delivery.items.length} item{delivery.items.length !== 1 ? 's' : ''}</span>
+        <Package size={16} className="text-text-muted" />
+        <span className="text-text-muted">{delivery.items.length} item{delivery.items.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Status Badges */}
@@ -150,7 +150,7 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
         )}
         {isFailed && (
           <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
-            ✕ Delivery Failed
+            ✓ Delivery Failed
           </span>
         )}
         {delivery.attempts > 0 && !isCompleted && (

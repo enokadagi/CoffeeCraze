@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { CartItem } from '../types';
+import { useAuth } from './AuthContext';
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { toast } from 'sonner';
 
 const CART_STORAGE_KEY = 'coffeecraze_cart';
@@ -8,14 +11,16 @@ interface CartContextType {
   items: CartItem[];
   addItem: (item: any, qty?: number) => void;
   removeItem: (id: string) => void;
+  updateQuantity: (id: string, qty: number) => void;
   clearCart: () => void;
   total: number;
   totalUsd: number;
+  itemCount: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-function loadCart(): CartItem[] {
+function loadLocalCart(): CartItem[] {
   try {
     const saved = localStorage.getItem(CART_STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
@@ -24,7 +29,7 @@ function loadCart(): CartItem[] {
   }
 }
 
-function saveCart(items: CartItem[]) {
+function saveLocalCart(items: CartItem[]) {
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   } catch (e) {
@@ -33,11 +38,90 @@ function saveCart(items: CartItem[]) {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(loadCart);
+  const { user } = useAuth();
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [initialized, setInitialized] = useState(false);
+  const isSyncing = useRef(false);
+  const prevUserRef = useRef<string | null>(null);
 
+  // Load cart on mount: local first, then Firestore if user is logged in
   useEffect(() => {
-    saveCart(items);
-  }, [items]);
+    const localCart = loadLocalCart();
+    if (user) {
+      // If user just logged in, merge local cart into Firestore
+      const cartRef = doc(db, 'carts', user.uid);
+      getDoc(cartRef).then((snap) => {
+        if (snap.exists()) {
+          const firestoreCart: CartItem[] = snap.data().items || [];
+          if (localCart.length > 0) {
+            // Merge: Firestore items take priority, add any local items not in FS
+            const merged = [...firestoreCart];
+            for (const localItem of localCart) {
+              const exists = merged.find(
+                (i) => i.productId === localItem.productId && (i.selectedVariant?.id || 'default') === (localItem.selectedVariant?.id || 'default')
+              );
+              if (exists && localItem.quantity > exists.quantity) {
+                exists.quantity = localItem.quantity;
+              } else if (!exists) {
+                merged.push(localItem);
+              }
+            }
+            setItems(merged);
+            saveLocalCart(merged);
+            setDoc(cartRef, { items: merged, updatedAt: serverTimestamp() }, { merge: true }).catch((err) => console.error('Cart merge sync error:', err));
+          } else {
+            setItems(firestoreCart);
+            saveLocalCart(firestoreCart);
+          }
+        } else {
+          // No Firestore cart, use local
+          setItems(localCart);
+          if (localCart.length > 0) {
+            setDoc(cartRef, { items: localCart, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch((err) => console.error('Cart init sync error:', err));
+          }
+        }
+        setInitialized(true);
+      }).catch((err) => {
+        console.warn('Cart Firestore read failed, using local cart:', err);
+        setItems(localCart);
+        setInitialized(true);
+      });
+    } else {
+      setItems(localCart);
+      setInitialized(true);
+    }
+    prevUserRef.current = user?.uid || null;
+  }, [user?.uid]);
+
+  // Listen to Firestore cart changes in real time when logged in
+  useEffect(() => {
+    if (!user || !initialized) return;
+    const cartRef = doc(db, 'carts', user.uid);
+    const unsub = onSnapshot(cartRef, (snap) => {
+      if (isSyncing.current) return;
+      if (snap.exists()) {
+        const firestoreItems: CartItem[] = snap.data().items || [];
+        setItems(firestoreItems);
+        saveLocalCart(firestoreItems);
+      }
+    }, (err) => console.error('Cart Firestore listener error:', err));
+    return unsub;
+  }, [user?.uid, initialized]);
+
+  // Sync to Firestore and localStorage whenever items change
+  useEffect(() => {
+    if (!initialized) return;
+    saveLocalCart(items);
+    if (user) {
+      isSyncing.current = true;
+      const cartRef = doc(db, 'carts', user.uid);
+      setDoc(cartRef, { items, updatedAt: serverTimestamp() }, { merge: true })
+        .catch((err) => console.error('Cart sync error:', err))
+        .finally(() => {
+          isSyncing.current = false;
+        });
+    }
+  }, [items, user?.uid, initialized]);
 
   const addItem = (product: any, qty = 1) => {
     if (product.stock !== undefined && product.stock <= 0) {
@@ -50,7 +134,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     setItems((prev) => {
       const existing = prev.find((i) =>
-        i.id === product.id &&
+        i.productId === product.id &&
         i.selectedVariant?.id === product.selectedVariant?.id
       );
       if (existing) {
@@ -60,16 +144,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           return prev;
         }
         return prev.map((i) =>
-          (i.id === product.id && i.selectedVariant?.id === product.selectedVariant?.id)
+          (i.productId === product.id && i.selectedVariant?.id === product.selectedVariant?.id)
             ? { ...i, quantity: newQty }
             : i
         );
       }
-      const newCartItem = {
-        ...product,
+      const newCartItem: CartItem = {
+        id: product.id,
         productId: product.productId || product.id,
+        name: product.name,
+        price: product.price,
+        priceUsd: product.priceUsd,
+        priceLbp: product.priceLbp,
         image: product.image || product.images?.[0] || '',
-        quantity: qty
+        images: product.images,
+        category: product.category,
+        sku: product.sku,
+        description: product.description,
+        quantity: qty,
+        stock: product.stock,
+        isSubscriptionEligible: product.isSubscriptionEligible,
+        selectedVariant: product.selectedVariant,
       };
       return [...prev, newCartItem];
     });
@@ -77,19 +172,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    setItems((prev) => prev.filter((i) => i.productId !== id));
+    toast.info("Item removed from cart.");
+  };
+
+  const updateQuantity = (id: string, qty: number) => {
+    if (qty <= 0) {
+      removeItem(id);
+      return;
+    }
+    setItems((prev) =>
+      prev.map((i) => (i.productId === id ? { ...i, quantity: qty } : i))
+    );
   };
 
   const clearCart = () => {
     setItems([]);
-    localStorage.removeItem(CART_STORAGE_KEY);
+    saveLocalCart([]);
+    if (user) {
+      const cartRef = doc(db, 'carts', user.uid);
+      setDoc(cartRef, { items: [], updatedAt: serverTimestamp() }, { merge: true }).catch((err) => console.error('Cart clear error:', err));
+    }
   };
 
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalUsd = items.reduce((sum, item) => sum + ((item.priceUsd || 0) * item.quantity), 0);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, total, totalUsd }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, totalUsd, itemCount }}>
       {children}
     </CartContext.Provider>
   );

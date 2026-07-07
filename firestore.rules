@@ -1,76 +1,238 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Global Safety Net
+    // Global deny — explicit allows only
     match /{document=**} { allow read, write: if false; }
 
-    // --- Helper Functions ---
+    // --- Helpers ---
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function isAdmin() { return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    function getUserRole() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    // Strict admin: only super_admin and admin roles
+    function isAdmin() {
+      return isSignedIn() && getUserRole() in ['super_admin', 'admin'];
+    }
+
+    // Any back-office staff role (all non-customer, non-wholesale)
+    function isStaff() {
+      return isSignedIn() && getUserRole() in [
+        'super_admin', 'admin', 'product_manager',
+        'wholesale_manager', 'customer_service', 'analyst'
+      ];
+    }
+
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
 
-    // --- Entity Validations ---
     function isValidUser(data) {
-      return data.uid is string && data.uid.size() <= 128 &&
-             data.email is string && data.email.size() <= 256 &&
-             data.displayName is string && data.displayName.size() <= 100 &&
-             data.role in ['admin', 'wholesale', 'customer'];
+      return data.uid is string && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 256
+        && data.displayName is string && data.displayName.size() <= 100
+        && data.role in [
+          'super_admin', 'admin', 'product_manager',
+          'wholesale_manager', 'customer_service', 'analyst',
+          'wholesale', 'customer'
+        ];
     }
 
     function isValidOrder(data) {
-      return data.userId == request.auth.uid &&
-             data.items is list && data.items.size() > 0 &&
-             data.total is number && data.total >= 0 &&
-             data.status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+      return data.userId == request.auth.uid
+        && data.items is list && data.items.size() > 0
+        && data.total is number && data.total >= 0
+        && data.status in ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
+        && data.paymentMethod == 'cash_on_delivery';
     }
 
-    // --- Collection Matches ---
+    function isValidContactMessage(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 256
+        && data.message is string && data.message.size() > 0 && data.message.size() <= 5000
+        && data.status == 'unread';
+    }
 
+    function isValidWholesaleInquiry(data) {
+      return data.userId == request.auth.uid
+        && data.businessName is string && data.businessName.size() > 0 && data.businessName.size() <= 200
+        && data.location is string && data.location.size() > 0 && data.location.size() <= 200
+        && data.status == 'pending';
+    }
+
+    function isValidFaq(data) {
+      return data.question is string && data.question.size() > 0
+        && data.answer is string && data.answer.size() > 0
+        && data.order is number;
+    }
+
+    function isBlogEngagementUpdate() {
+      return incoming().diff(existing()).affectedKeys()
+        .hasOnly(['likes', 'dislikes', 'likedBy', 'dislikedBy', 'comments']);
+    }
+
+    function isOwnerSubscriptionUpdate() {
+      return isOwner(existing().userId)
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'nextDelivery', 'frequency', 'items', 'address',
+          'preferredTime', 'preferredTimeSlot', 'preferredDay',
+          'customNotes', 'gateCode', 'durationMonths'
+        ]);
+    }
+
+    function isOwnerProfileUpdate() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'displayName', 'onboarded',
+        'phone', 'address', 'addresses', 'defaultAddressId',
+        'profileImage', 'preferences'
+      ]);
+    }
+
+    // --- Users ---
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      allow get: if isOwner(userId) || isStaff();
+      allow list: if isStaff();
       allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && incoming().role == 'customer';
-      allow update: if (isOwner(userId) || isAdmin()) && (
-        // Action: Profile Update
-        (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'onboarded', 'referralCode', 'loyaltyPoints', 'phone', 'address'])) ||
-        // Action: Admin Role Update
-        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'loyaltyPoints']))
-      );
+      allow update: if (isOwner(userId) && isOwnerProfileUpdate()) || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'loyaltyPoints']));
+      allow delete: if isAdmin();
     }
 
+    // --- Products (public read) ---
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isStaff();
     }
 
+    // --- Subscription plans (public read) ---
+    match /plans/{planId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    // --- CMS (public read visible only) ---
+    match /cms_content/{docId} {
+      allow get: if resource.data.visible == true || isStaff();
+      allow list: if isStaff() || (resource.data.visible == true);
+      allow create, update, delete: if isStaff();
+    }
+
+    // --- Blog (public read published; engagement updates allowed) ---
+    match /blog_posts/{postId} {
+      allow get: if resource.data.status == 'published' || isStaff();
+      allow list: if isStaff() || resource.data.status == 'published';
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || (resource.data.status == 'published' && isBlogEngagementUpdate());
+    }
+
+    // --- FAQs (public read visible only) ---
+    match /faqs/{faqId} {
+      allow get: if resource.data.visible == true || isStaff();
+      allow list: if isStaff() || (resource.data.visible == true);
+      allow create: if isStaff() && isValidFaq(incoming());
+      allow update: if isStaff();
+      allow delete: if isStaff();
+    }
+
+    // --- Contact messages ---
+    match /contact_messages/{messageId} {
+      allow create: if isValidContactMessage(incoming());
+      allow get, list, update, delete: if isStaff();
+    }
+
+    // --- Reviews ---
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isVerified()
+        && incoming().userId == request.auth.uid
+        && incoming().productId is string
+        && incoming().rating is number && incoming().rating >= 1 && incoming().rating <= 5;
+      allow update, delete: if isStaff();
+    }
+
+    // --- Wishlist ---
     match /wishlist/{userId} {
       allow get, write: if isOwner(userId);
     }
 
+    // --- Orders ---
     match /orders/{orderId} {
-      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isStaff());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
       allow create: if isVerified() && isValidOrder(incoming()) && incoming().status == 'pending';
-      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId']);
+      allow update: if isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus']);
+      allow delete: if isStaff();
     }
 
+    // --- Subscriptions ---
     match /subscriptions/{subId} {
-      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isStaff());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
       allow create: if isVerified() && incoming().userId == request.auth.uid;
-      allow update: if isSignedIn() && (isOwner(existing().userId) || isAdmin()) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'nextDelivery', 'frequency', 'items']);
+      allow update: if isStaff() || isOwnerSubscriptionUpdate();
+      allow delete: if isStaff();
     }
 
-    match /wholesale_accounts/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isVerified() && isOwner(userId);
-      allow update: if isAdmin();
+    // --- Deliveries ---
+    match /deliveries/{deliveryId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isStaff());
+      allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isStaff();
+    }
+
+    // --- Payments ---
+    match /payments/{paymentId} {
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isStaff());
+      allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isVerified() && incoming().userId == request.auth.uid;
+      allow update, delete: if isStaff();
+    }
+
+    // --- Payment ledgers ---
+    match /paymentLedgers/{ledgerId} {
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isStaff());
+      allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isVerified() && incoming().userId == request.auth.uid;
+      allow update, delete: if isStaff();
+    }
+
+    // --- Site Settings ---
+    match /site_settings/{docId} {
+      allow get: if true;
+      allow list: if isStaff();
+      allow create, update: if isStaff();
+    }
+
+    // --- Carts (user-owned) ---
+    match /carts/{userId} {
+      allow get, create, update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Audit Logs ---
+    match /audit_logs/{logId} {
+      allow create: if isStaff();
+      allow get, list: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // --- Wholesale inquiries ---
+    match /wholesale_accounts/{accountId} {
+      allow get: if isStaff() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow list: if isStaff();
+      allow create: if isVerified() && isValidWholesaleInquiry(incoming());
+      allow update, delete: if isStaff();
+    }
+
+    // --- Offers (AI-generated, admin approved) ---
+    match /offers/{offerId} {
+      allow read: if isStaff() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
     }
   }
 }

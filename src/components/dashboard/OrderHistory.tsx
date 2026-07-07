@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+﻿import { motion } from 'motion/react';
 import { ChevronRight, Package, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Order } from '../../types';
 import { cn } from '../../lib/utils';
@@ -37,7 +37,7 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
     return (
       <div className="text-center py-12 px-6">
         <Package size={48} className="mx-auto text-coffee-200 mb-4" />
-        <p className="text-coffee-400 text-sm italic">No orders yet</p>
+        <p className="text-text-muted text-sm italic">No orders yet</p>
       </div>
     );
   }
@@ -74,7 +74,7 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
                         {config.label}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-coffee-400">
+                    <div className="flex items-center gap-3 text-xs text-text-muted">
                       <span>{order.items.length} items</span>
                       <span>•</span>
                       <span>{new Date(order.createdAt).toLocaleDateString()}</span>
@@ -91,7 +91,7 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
                   </p>
                 </div>
 
-                <ChevronRight size={18} className="text-coffee-300 group-hover:text-espresso transition-colors flex-shrink-0" />
+                <ChevronRight size={18} className="text-text-muted group-hover:text-espresso transition-colors flex-shrink-0" />
               </div>
             </Link>
           </motion.div>

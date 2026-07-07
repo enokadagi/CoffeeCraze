@@ -1,12 +1,10 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Pause, Play, Edit2, Calendar, Truck, CreditCard, 
-  ChevronRight, MoreVertical, X, AlertCircle
+import {
+  Pause, Play, Edit2, MoreVertical, AlertCircle, ChevronRight
 } from 'lucide-react';
 import { Subscription } from '../../types';
 import { cn } from '../../lib/utils';
-import { formatLBP, formatUSD } from '../../utils/exchange';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -28,13 +26,13 @@ export default function SubscriptionCard({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-700 border-green-200';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'paused':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'cancelled':
-        return 'bg-red-100 text-red-700 border-red-200';
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -43,93 +41,77 @@ export default function SubscriptionCard({
       case 'paid':
         return '✓';
       case 'pending':
-        return '⏱';
+        return '⏳';
       case 'failed':
-        return '✕';
+        return '✓';
       default:
         return '?';
     }
   };
 
-  const isUpcoming = new Date(subscription.nextDelivery) > new Date();
+  const planName = subscription.plan?.items?.[0]?.name?.replace(/_/g, ' ') || 'Custom Plan';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative bg-white rounded-2xl border border-espresso/5 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group"
+      className="relative bg-white border border-espresso/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:border-caramel/25 transition-all duration-300 group h-full flex flex-col"
     >
-      {/* Status Badge */}
       <div className={cn(
-        'absolute top-0 right-0 px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-bl-xl border-b border-l',
+        'absolute top-0 right-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-bl-xl border-b border-l',
         getStatusColor(subscription.status)
       )}>
         {subscription.status}
       </div>
 
-      {/* Content */}
-      <div className="p-6 pt-12">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6 pb-6 border-b border-espresso/5">
-          <div>
-            <h3 className="text-lg font-display font-bold text-espresso italic mb-1">
-              {subscription.plan?.items?.[0]?.name || 'Custom Plan'}
+      <div className="p-5 sm:p-6 pt-10 flex flex-col flex-1">
+        <div className="flex items-start justify-between gap-3 mb-5 pb-5 border-b border-espresso/8">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base sm:text-lg font-display font-bold text-espresso mb-1 truncate">
+              {planName}
             </h3>
-            <p className="text-xs text-coffee-300 uppercase tracking-widest font-semibold">
-              {subscription.plan?.frequency?.toUpperCase()} DELIVERY
+            <p className="text-[10px] sm:text-xs text-text-secondary uppercase tracking-widest font-semibold">
+              {subscription.plan?.frequency?.toUpperCase() || subscription.frequency?.toUpperCase()} delivery
             </p>
           </div>
 
-          {/* Menu Button */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="p-2 hover:bg-espresso/5 rounded-lg transition-colors"
+              className="p-2 hover:bg-espresso/5 rounded-lg transition-colors text-espresso"
+              aria-label="Subscription options"
             >
-              <MoreVertical size={18} className="text-coffee-400" />
+              <MoreVertical size={18} />
             </button>
 
-            {/* Dropdown Menu */}
             <AnimatePresence>
               {showMenu && (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-espresso/5 z-50 overflow-hidden"
+                  className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-espresso/10 z-50 overflow-hidden"
                 >
                   <button
-                    onClick={() => {
-                      onEdit(subscription.id);
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-4 py-3 text-left text-sm hover:bg-espresso/5 flex items-center gap-3 transition-colors"
+                    onClick={() => { onEdit(subscription.id); setShowMenu(false); }}
+                    className="w-full px-4 py-3 text-left text-sm text-espresso hover:bg-espresso/5 flex items-center gap-3 transition-colors"
                   >
-                    <Edit2 size={16} />
-                    Edit Plan
+                    <Edit2 size={16} /> Edit Plan
                   </button>
                   {subscription.status === 'active' && (
                     <button
-                      onClick={() => {
-                        onPause(subscription.id);
-                        setShowMenu(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-espresso/5 flex items-center gap-3 transition-colors border-t border-espresso/5"
+                      onClick={() => { onPause(subscription.id); setShowMenu(false); }}
+                      className="w-full px-4 py-3 text-left text-sm text-espresso hover:bg-espresso/5 flex items-center gap-3 transition-colors border-t border-espresso/8"
                     >
-                      <Pause size={16} />
-                      Pause Subscription
+                      <Pause size={16} /> Pause
                     </button>
                   )}
                   {subscription.status === 'paused' && (
                     <button
-                      onClick={() => {
-                        onResume(subscription.id);
-                        setShowMenu(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-espresso/5 flex items-center gap-3 transition-colors border-t border-espresso/5"
+                      onClick={() => { onResume(subscription.id); setShowMenu(false); }}
+                      className="w-full px-4 py-3 text-left text-sm text-espresso hover:bg-espresso/5 flex items-center gap-3 transition-colors border-t border-espresso/8"
                     >
-                      <Play size={16} />
-                      Resume Subscription
+                      <Play size={16} /> Resume
                     </button>
                   )}
                 </motion.div>
@@ -138,73 +120,56 @@ export default function SubscriptionCard({
           </div>
         </div>
 
-        {/* Metrics */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center">
-            <p className="text-xs text-coffee-300 uppercase tracking-widest font-semibold mb-1">
-              Next Delivery
-            </p>
-            <p className="text-sm font-bold text-espresso">
-              {new Date(subscription.nextDelivery).toLocaleDateString()}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-coffee-300 uppercase tracking-widest font-semibold mb-1">
-              Payment Status
-            </p>
-            <div className="inline-flex items-center gap-1">
-              <span className="text-lg">{getPaymentStatusIcon(subscription.currentPaymentStatus)}</span>
-              <span className="text-xs font-bold capitalize">{subscription.currentPaymentStatus}</span>
-            </div>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-coffee-300 uppercase tracking-widest font-semibold mb-1">
-              Deliveries
-            </p>
-            <p className="text-sm font-bold text-espresso">
-              {subscription.completedDeliveries}/{subscription.totalDeliveries}
-            </p>
-          </div>
-        </div>
-
-        {/* Items Preview */}
-        <div className="mb-6 pb-6 border-b border-espresso/5">
-          <p className="text-xs text-coffee-300 uppercase tracking-widest font-semibold mb-3">
-            This Month
-          </p>
-          <div className="space-y-2">
-            {subscription.plan?.items?.slice(0, 2).map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm">
-                <span className="text-coffee-400">{item.name}</span>
-                <span className="font-semibold text-espresso">×{item.quantity}</span>
-              </div>
-            ))}
-            {subscription.plan?.items && subscription.plan.items.length > 2 && (
-              <p className="text-xs text-coffee-300 italic">
-                +{subscription.plan.items.length - 2} more
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
+          {[
+            { label: 'Next Delivery', value: new Date(subscription.nextDelivery).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) },
+            { label: 'Payment', value: `${getPaymentStatusIcon(subscription.currentPaymentStatus)} ${subscription.currentPaymentStatus}` },
+            { label: 'Deliveries', value: `${subscription.completedDeliveries ?? 0}/${subscription.totalDeliveries ?? '---'}` },
+          ].map((item) => (
+            <div key={item.label} className="text-center p-2 sm:p-3 rounded-xl bg-cream/40 border border-espresso/5">
+              <p className="text-[9px] sm:text-[10px] text-text-secondary uppercase tracking-wider font-semibold mb-1">
+                {item.label}
               </p>
-            )}
-          </div>
+              <p className="text-xs sm:text-sm font-bold text-espresso capitalize truncate">
+                {item.value}
+              </p>
+            </div>
+          ))}
         </div>
 
-        {/* Payment Due Alert */}
-        {subscription.currentPaymentStatus === 'failed' && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-            <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="text-xs text-red-700">
-              <p className="font-bold mb-1">Payment Issue</p>
-              <p className="text-red-600">Please update your payment method</p>
+        {subscription.plan?.items && subscription.plan.items.length > 0 && (
+          <div className="mb-5 pb-5 border-b border-espresso/8 flex-1">
+            <p className="text-[10px] text-text-secondary uppercase tracking-widest font-semibold mb-2">This cycle</p>
+            <div className="space-y-1.5">
+              {subscription.plan.items.slice(0, 2).map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-sm gap-2">
+                  <span className="text-text-secondary truncate">{item.name?.replace(/_/g, ' ')}</span>
+                  <span className="font-semibold text-espresso shrink-0">×{item.quantity}</span>
+                </div>
+              ))}
+              {subscription.plan.items.length > 2 && (
+                <p className="text-xs text-text-muted">+{subscription.plan.items.length - 2} more items</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Action Button */}
+        {subscription.currentPaymentStatus === 'failed' && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-red-800">
+              <p className="font-bold mb-0.5">Payment issue</p>
+              <p>Please update your payment method.</p>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={() => onManage(subscription.id)}
-          className="w-full py-3 px-4 bg-espresso text-white rounded-lg font-semibold text-sm hover:bg-espresso/90 transition-colors flex items-center justify-center gap-2 group"
+          className="w-full py-3 px-4 bg-espresso text-white rounded-xl font-semibold text-sm hover:bg-caramel hover:text-espresso transition-colors flex items-center justify-center gap-2 mt-auto"
         >
           Manage Plan
-          <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
     </motion.div>

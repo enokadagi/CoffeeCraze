@@ -1,52 +1,73 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash, ArrowRight, Search } from 'lucide-react';
+﻿import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash, ArrowRight, Search, Save, X, Image as ImageIcon, Star, Eye, EyeOff } from 'lucide-react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, deleteField } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
+import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { toast } from 'sonner';
+import { cn } from '../../lib/utils';
+import { motion } from 'motion/react';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+
+interface PlanForm {
+  name: string;
+  price: number;
+  priceUsd: number;
+  description: string;
+  features: string;
+  productIds: string[];
+  frequency: string;
+  isFeatured: boolean;
+}
+
+const emptyForm: PlanForm = {
+  name: '',
+  price: 0,
+  priceUsd: 0,
+  description: '',
+  features: '',
+  productIds: [],
+  frequency: 'monthly',
+  isFeatured: false,
+};
 
 export default function AdminPlans() {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', price: 0, description: '', features: '', productIds: [] as string[], frequency: 'monthly', isFeatured: false });
+  const [form, setForm] = useState<PlanForm>({ ...emptyForm });
   const [products, setProducts] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [productSearch, setProductSearch] = useState('');
-  const [planImageError, setPlanImageError] = useState('');
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
-    const fetchPlans = async () => {
-      setLoading(true);
-      try {
-        const snap = await getDocs(collection(db, 'plans'));
-        setPlans(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        console.error(err);
-        toast.error('Failed to fetch plans');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlans();
-    // fetch products for linking
-    (async () => {
-      try {
-        const prodSnap = await getDocs(collection(db, 'products'));
-        setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (e) {
-        console.error('Failed to fetch products:', e);
-      }
-    })();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [plansSnap, prodSnap] = await Promise.all([
+        getDocs(collection(db, 'plans')),
+        getDocs(collection(db, 'products')),
+      ]);
+      setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const uploadImage = (file: File, planId: string) => {
     return new Promise<string>((resolve, reject) => {
@@ -54,29 +75,22 @@ export default function AdminPlans() {
       const sRef = storageRef(storage, storagePath);
       const uploadTask = uploadBytesResumable(sRef, file);
       setUploading(true);
-      uploadTask.on('state_changed', (snapshot) => {
-        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        setUploadProgress(progress);
-      }, (err) => {
-        setUploading(false);
-        setUploadProgress(0);
-        reject(err);
-      }, async () => {
-        try {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          setUploading(false);
-          setUploadProgress(0);
-          resolve(url);
-        } catch (e) {
-          setUploading(false);
-          setUploadProgress(0);
-          reject(e);
+      uploadTask.on('state_changed',
+        (snapshot) => setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
+        (err) => { setUploading(false); setUploadProgress(0); reject(err); },
+        async () => {
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            setUploading(false);
+            setUploadProgress(0);
+            resolve(url);
+          } catch (e) { setUploading(false); setUploadProgress(0); reject(e); }
         }
-      });
+      );
     });
   };
 
-  const validatePlan = () => {
+  const validate = () => {
     if (!form.name.trim()) return 'Name is required';
     if (!form.price || Number(form.price) <= 0) return 'Price must be greater than zero';
     if (!form.description.trim()) return 'Description is required';
@@ -85,17 +99,21 @@ export default function AdminPlans() {
     return '';
   };
 
-  const handleCreate = async (file?: File | null) => {
-    const error = validatePlan();
-    if (error) {
-      setValidationError(error);
-      toast.error(error);
-      return;
-    }
+  const resetForm = () => {
+    setForm({ ...emptyForm });
+    setSelectedFile(null);
+    setImagePreview('');
+    setValidationError('');
+  };
+
+  const handleCreate = async () => {
+    const error = validate();
+    if (error) { setValidationError(error); toast.error(error); return; }
     try {
       const payload: any = {
         name: form.name,
         price: Number(form.price),
+        priceUsd: Number(form.priceUsd || 0),
         description: form.description,
         features: form.features.split(',').map(s => s.trim()),
         productIds: form.productIds || [],
@@ -104,45 +122,57 @@ export default function AdminPlans() {
         createdAt: new Date().toISOString()
       };
       const ref = await addDoc(collection(db, 'plans'), payload);
-      if (file) {
+      if (selectedFile) {
         try {
-          const url = await uploadImage(file, ref.id);
+          const url = await uploadImage(selectedFile, ref.id);
           await updateDoc(doc(db, 'plans', ref.id), { image: url });
-          payload.image = url;
-        } catch (e) {
-          console.error('Image upload failed', e);
-          toast.error('Image upload failed');
-        }
+        } catch (e) { toast.error('Image upload failed'); }
       }
-      if (payload.productIds?.length) {
-        await Promise.all(
-          payload.productIds.map((productId: string) =>
-            updateDoc(doc(db, 'products', productId), { planId: ref.id })
-          )
-        );
-      }
-      setPlans(prev => [{ id: ref.id, ...payload }, ...prev]);
-      setForm({ name: '', price: 0, description: '', features: '', productIds: [], frequency: 'monthly', isFeatured: false });
-      setSelectedFile(null);
-      setImagePreview('');
-      setValidationError('');
-      setIsCreating(false);
       toast.success('Plan created');
-    } catch (err) {
-      console.error(err);
-      toast.error('Create failed');
-    }
+      resetForm();
+      setShowModal(false);
+      fetchData();
+    } catch (err) { toast.error('Create failed'); }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleUpdate = async () => {
+    if (!editingPlan) return;
+    const error = validate();
+    if (error) { setValidationError(error); toast.error(error); return; }
+    try {
+      const payload: any = {
+        name: form.name,
+        price: Number(form.price),
+        priceUsd: Number(form.priceUsd || 0),
+        description: form.description,
+        features: form.features.split(',').map(s => s.trim()),
+        productIds: form.productIds || [],
+        frequency: form.frequency,
+        isFeatured: form.isFeatured,
+      };
+      if (selectedFile) {
+        try { payload.image = await uploadImage(selectedFile, editingPlan.id); }
+        catch (e) { toast.error('Image upload failed'); }
+      }
+      await updateDoc(doc(db, 'plans', editingPlan.id), payload);
+      toast.success('Plan updated');
+      resetForm();
+      setShowModal(false);
+      setEditingPlan(null);
+      fetchData();
+    } catch (err) { toast.error('Update failed'); }
+  };
+
+  const handleDelete = (id: string) => setDeletePlanId(id);
+
+  const executeDeletePlan = async () => {
+    const id = deletePlanId!;
+    setDeletePlanId(null);
     try {
       await deleteDoc(doc(db, 'plans', id));
-      setPlans(prev => prev.filter(p => p.id !== id));
-      toast.success('Plan removed');
-    } catch (err) {
-      console.error(err);
-      toast.error('Delete failed');
-    }
+      toast.success('Plan deleted');
+      fetchData();
+    } catch (err) { toast.error('Delete failed'); }
   };
 
   const openEdit = (plan: any) => {
@@ -150,273 +180,262 @@ export default function AdminPlans() {
     setForm({
       name: plan.name || '',
       price: plan.price || 0,
+      priceUsd: plan.priceUsd || 0,
       description: plan.description || '',
       features: (plan.features || []).join(', '),
       productIds: plan.productIds || [],
       frequency: plan.frequency || 'monthly',
-      isFeatured: plan.isFeatured || false
+      isFeatured: plan.isFeatured || false,
     });
     setSelectedFile(null);
     setImagePreview('');
     setValidationError('');
-    setPlanImageError('');
-    setIsEditing(true);
+    setShowModal(true);
   };
 
-  const handleUpdate = async (planId: string, file?: File | null) => {
-    const error = validatePlan();
-    if (error) {
-      setValidationError(error);
-      toast.error(error);
-      return;
-    }
+  const openCreate = () => {
+    setEditingPlan(null);
+    resetForm();
+    setShowModal(true);
+  };
+
+  const toggleFeatured = async (plan: any) => {
     try {
-      const payload: any = {
-        name: form.name,
-        price: Number(form.price),
-        description: form.description,
-        features: form.features.split(',').map((s:any) => s.trim()),
-        productIds: form.productIds || [],
-        frequency: form.frequency,
-        isFeatured: form.isFeatured
-      };
-      if (file) {
-        try {
-          const url = await uploadImage(file, planId);
-          payload.image = url;
-        } catch (e) {
-          console.error('Image upload failed', e);
-          toast.error('Image upload failed');
-        }
-      }
-      await updateDoc(doc(db, 'plans', planId), payload);
-
-      const previousProductIds = (editingPlan?.productIds || []) as string[];
-      const currentProductIds = payload.productIds || [];
-
-      const removedProductIds = previousProductIds.filter((id: string) => !currentProductIds.includes(id));
-      const addedProductIds = currentProductIds.filter((id: string) => !previousProductIds.includes(id));
-
-      await Promise.all([
-        ...addedProductIds.map((productId: string) =>
-          updateDoc(doc(db, 'products', productId), { planId })
-        ),
-        ...removedProductIds.map((productId: string) =>
-          updateDoc(doc(db, 'products', productId), { planId: deleteField() })
-        ),
-      ]);
-
-      setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...payload } : p));
-      setIsEditing(false);
-      setEditingPlan(null);
-      setSelectedFile(null);
-      setImagePreview('');
-      setValidationError('');
-      toast.success('Plan updated');
-    } catch (err) {
-      console.error(err);
-      toast.error('Update failed');
-    }
+      await updateDoc(doc(db, 'plans', plan.id), { isFeatured: !plan.isFeatured });
+      fetchData();
+      toast.success(plan.isFeatured ? 'Unfeatured' : 'Featured');
+    } catch (err) { toast.error('Failed'); }
   };
 
   const filteredProducts = useMemo(() => {
-    const query = productSearch.toLowerCase().trim();
-    if (!query) return products;
-    return products.filter((product) =>
-      product.name.toLowerCase().includes(query) ||
-      product.sku?.toLowerCase().includes(query) ||
-      product.category?.toLowerCase().includes(query)
+    const q = productSearch.toLowerCase().trim();
+    if (!q) return products;
+    return products.filter((p: any) =>
+      p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q)
     );
   }, [productSearch, products]);
 
   return (
     <DashboardLayout>
-      <SEO title="Plan Management" description="Create and manage subscription plans." />
+      <SEO title="Plan Management" description="Create and manage subscription plans" />
       <div className="space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6">
+        <header className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 border-b border-espresso/5 pb-8">
           <div>
-            <h1 className="text-fluid-heading font-display font-bold">Plan Management</h1>
-            <p className="text-fluid-body text-coffee-500">Create, edit, and manage subscription plans and pricing.</p>
+            <h1 className="text-h1 font-display font-bold text-espresso">Plan Management</h1>
+            <p className="text-sm text-text-muted">Create, edit, and manage subscription plans and pricing</p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-coffee-300" />
-              <input
-                id="plan-product-search"
-                aria-label="Search products to assign"
-                value={productSearch}
-                onChange={e => setProductSearch(e.target.value)}
-                placeholder="Search products to assign..."
-                className="w-full sm:w-80 pl-12 pr-4 py-3 rounded-full border border-coffee-100 bg-cream text-sm text-coffee-700 focus:border-caramel focus:outline-none transition"
-              />
-            </div>
-            <button onClick={() => { setIsCreating(true); setValidationError(''); setPlanImageError(''); setSelectedFile(null); setImagePreview(''); }} className="btn-premium inline-flex items-center gap-2"><Plus size={16} /> New Plan</button>
-          </div>
+          <button onClick={openCreate} className="btn btn-primary">
+            <Plus size={16} /> New Plan
+          </button>
         </header>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             Array(6).fill(0).map((_, i) => (
-              <div key={i} className="h-40 bg-cream rounded-2xl animate-pulse" />
+              <div key={i} className="h-48 bg-white animate-pulse rounded-2xl border border-espresso/5" />
             ))
+          ) : plans.length === 0 ? (
+            <div className="col-span-full text-center py-20 bg-white rounded-2xl border border-espresso/5">
+              <p className="text-text-muted">No plans yet. Create your first plan.</p>
+            </div>
           ) : (
             plans.map(plan => (
-              <div key={plan.id} className="p-6 bg-white rounded-2xl border border-coffee-50 shadow-premium">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-display font-bold text-lg">{plan.name}</h3>
-                    <p className="text-sm text-coffee-500 mt-2">{plan.description}</p>
+              <motion.div
+                key={plan.id}
+                layout
+                className="bg-white rounded-2xl border border-espresso/5 shadow-premium overflow-hidden group hover:shadow-premium-lg transition-all"
+              >
+                {plan.image && (
+                  <div className="h-40 overflow-hidden">
+                    <ImageWithFallback src={plan.image} alt={plan.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="text-fluid-title font-black">{(plan.price/1000).toLocaleString()}K</div>
-                    <div className="flex gap-2">
-                      <button aria-label="Edit plan" onClick={() => openEdit(plan)} className="btn-outline"><Edit size={14} /></button>
-                      <button aria-label="Delete plan" onClick={() => handleDelete(plan.id)} className="btn-ghost"><Trash size={14} /></button>
+                )}
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-display font-bold text-lg text-espresso truncate">{plan.name}</h3>
+                        {plan.isFeatured && <Star size={14} className="text-caramel fill-caramel shrink-0" />}
+                      </div>
+                      <p className="text-sm text-text-muted line-clamp-2 mt-1">{plan.description}</p>
                     </div>
                   </div>
+
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-2xl font-black text-espresso">
+                        {plan.priceUsd ? `$${plan.priceUsd}` : `${(plan.price / 1000).toLocaleString()}K`}
+                      </p>
+                      <p className="text-[11px] text-text-muted uppercase tracking-wider">{plan.frequency}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-espresso/5 rounded-full text-[11px] font-bold text-text-muted">
+                      {(plan.productIds || []).length} products
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-text-muted flex-wrap">
+                    <ArrowRight size={12} className="shrink-0" />
+                    <span className="truncate">{(plan.features || []).join('  -  ')}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-espresso/5">
+                    <button onClick={() => openEdit(plan)} className="flex-1 py-2 text-xs font-bold text-espresso bg-espresso/5 rounded-lg hover:bg-espresso/10 transition-colors">
+                      <Edit size={14} className="inline mr-1" /> Edit
+                    </button>
+                    <button onClick={() => toggleFeatured(plan)} className="p-2 hover:bg-espresso/5 rounded-lg transition-colors">
+                      {plan.isFeatured ? <EyeOff size={14} className="text-caramel" /> : <Eye size={14} className="text-text-muted" />}
+                    </button>
+                    <button onClick={() => handleDelete(plan.id)} className="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash size={14} className="text-red-400" />
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-4 flex items-center gap-2 text-xs text-coffee-500">
-                  <ArrowRight size={12} />
-                  <span>{plan.features?.join(' • ')}</span>
-                </div>
-                <div className="mt-3 text-[12px] text-coffee-500">Products assigned: <span className="font-black">{(plan.productIds || []).length}</span></div>
-              </div>
+              </motion.div>
             ))
           )}
-        </section>
+        </div>
 
-        {(isCreating || isEditing) && (
-          <div className="fixed inset-0 bg-espresso/60 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="w-full max-w-full sm:max-w-2xl p-4 sm:p-6 bg-white rounded-2xl shadow-premium relative">
-              <h2 className="text-xl font-display font-bold mb-4">{isEditing ? 'Edit Plan' : 'Create Plan'}</h2>
-              <div className="space-y-4">
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Name" className="form-control" />
-                <input value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="Price (LBP)" className="form-control" />
-                <input value={form.features} onChange={e => setForm(f => ({ ...f, features: e.target.value }))} placeholder="Features (comma separated)" className="form-control" />
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" className="form-textarea" />
+        {/* Create/Edit Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-espresso/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-2xl bg-white rounded-3xl p-8 shadow-premium-xl max-h-[90vh] overflow-y-auto space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-espresso">{editingPlan ? 'Edit Plan' : 'Create Plan'}</h2>
+                <button onClick={() => { setShowModal(false); resetForm(); setEditingPlan(null); }} className="p-2 hover:bg-espresso/5 rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="plan-frequency" className="block text-sm font-medium mb-2">Plan Frequency</label>
-                    <select
-                      id="plan-frequency"
-                      value={form.frequency}
-                      onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}
-                      className="form-select"
-                    >
-                      <option value="weekly">Weekly</option>
-                      <option value="biweekly">Bi-Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="inline-flex items-center gap-3 mt-7">
-                      <input
-                        type="checkbox"
-                        checked={form.isFeatured}
-                        onChange={e => setForm(f => ({ ...f, isFeatured: e.target.checked }))}
-                        className="w-5 h-5 accent-caramel"
-                      />
-                      <span className="text-sm font-medium text-coffee-500">Featured Plan</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label htmlFor="product-search" className="block text-sm font-medium mb-2">Assign Products</label>
-                    <div className="mb-3">
-                      <input
-                        id="product-search"
-                        aria-label="Search products for plan assignment"
-                        type="text"
-                        value={productSearch}
-                        onChange={e => setProductSearch(e.target.value)}
-                        placeholder="Search products..."
-                        className="w-full px-4 py-3 rounded-full border border-coffee-100 bg-white text-sm focus:border-caramel focus:outline-none transition"
-                      />
-                    </div>
-                    <div className="max-h-52 overflow-y-auto border rounded-3xl p-3 bg-cream space-y-2">
-                      {filteredProducts.length === 0 ? (
-                        <p className="text-xs text-coffee-400 italic">No products match your search.</p>
-                      ) : filteredProducts.map(p => (
-                        <label key={p.id} className="flex items-center gap-3 p-3 rounded-3xl transition-colors hover:bg-white/80 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={(form.productIds || []).includes(p.id)}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setForm(f => ({
-                                ...f,
-                                productIds: checked
-                                  ? Array.from(new Set([...(f.productIds||[]), p.id]))
-                                  : (f.productIds||[]).filter(id => id !== p.id),
-                              }));
-                            }}
-                            className="w-4 h-4 accent-caramel"
-                          />
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm text-coffee-950 truncate">{p.name}</p>
-                            <p className="text-[11px] text-coffee-500 truncate">{p.category} · {p.sku}</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+              {validationError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-700">{validationError}</p>
+                </div>
+              )}
 
-                  <div>
-                    <label htmlFor="plan-image" className="block text-sm font-medium mb-2">Plan Image</label>
-                    <input
-                      id="plan-image"
-                      type="file"
-                      accept="image/*"
-                      className="w-full text-espresso"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        setSelectedFile(file);
-                        setPlanImageError('');
-                        if (file) {
-                          if (!file.type.startsWith('image/')) {
-                            setPlanImageError('Invalid file type');
-                            setSelectedFile(null);
-                            setImagePreview('');
-                            return;
-                          }
-                          const url = URL.createObjectURL(file);
-                          setImagePreview(url);
-                        } else {
-                          setImagePreview('');
-                        }
-                      }}
-                    />
-                    <p className="text-[12px] text-coffee-500 mt-2">Optional image for plan cards.</p>
-                    {planImageError && <p className="text-xs text-red-500 mt-2">{planImageError}</p>}
-                    {(imagePreview || (isEditing && editingPlan?.image)) && (
-                      <div className="mt-4 rounded-3xl overflow-hidden border border-coffee-100 bg-white">
-                        <img src={imagePreview || editingPlan?.image} alt="Plan preview" className="w-full h-40 object-cover" />
-                      </div>
-                    )}
-                    {uploading && (
-                      <div className="mt-3 bg-coffee-50 rounded-full overflow-hidden">
-                        <div className="h-2 bg-caramel transition-all" style={{ width: `${uploadProgress}%` }} />
-                      </div>
-                    )}
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Name</label>
+                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Plan Name" className="form-control" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Frequency</label>
+                  <select value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} className="form-select">
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
                 </div>
               </div>
-              {validationError && <div className="text-sm text-red-500 italic">{validationError}</div>}
-              <div className="mt-6 flex flex-col sm:flex-row items-center gap-4 justify-between">
-                <button onClick={() => { setIsCreating(false); setIsEditing(false); setEditingPlan(null); setSelectedFile(null); setImagePreview(''); setValidationError(''); }} className="btn-outline w-full sm:w-auto">Cancel</button>
-                <button onClick={async () => {
-                  if (isEditing && editingPlan) {
-                    await handleUpdate(editingPlan.id, selectedFile || null);
-                  } else {
-                    await handleCreate(selectedFile || null);
-                  }
-                }} className="btn-premium w-full sm:w-auto">{isEditing ? 'Save Changes' : 'Create'}</button>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Price (LBP)</label>
+                  <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} className="form-control" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Price (USD)</label>
+                  <input type="number" step="0.01" value={form.priceUsd} onChange={e => setForm(f => ({ ...f, priceUsd: Number(e.target.value) }))} className="form-control" />
+                </div>
               </div>
-              {uploading && <div className="absolute inset-x-6 bottom-6 text-center text-sm">Uploading image...</div>}
-            </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Description</label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="form-textarea" rows={3} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Features (comma separated)</label>
+                <input value={form.features} onChange={e => setForm(f => ({ ...f, features: e.target.value }))} placeholder="Free shipping, Premium beans, etc." className="form-control" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Plan Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setSelectedFile(file);
+                    if (file) {
+                      if (!file.type.startsWith('image/')) { toast.error('Invalid file type'); setSelectedFile(null); return; }
+                      setImagePreview(URL.createObjectURL(file));
+                    } else { setImagePreview(''); }
+                  }}
+                  className="text-sm"
+                />
+                {uploading && (
+                  <div className="h-2 bg-espresso/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-caramel transition-all" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                )}
+                {(imagePreview || (editingPlan?.image)) && (
+                  <ImageWithFallback src={imagePreview || editingPlan?.image} alt="Preview" className="w-full h-40 object-cover rounded-xl border border-espresso/5" />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.isFeatured} onChange={e => setForm(f => ({ ...f, isFeatured: e.target.checked }))} className="w-4 h-4 accent-caramel" />
+                  <span className="text-sm font-semibold text-espresso">Featured Plan</span>
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Assign Products</label>
+                <input
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Search products..."
+                  className="form-control mb-2"
+                />
+                <div className="max-h-48 overflow-y-auto border border-espresso/10 rounded-2xl p-3 space-y-1">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-xs text-text-muted text-center py-4">No products found</p>
+                  ) : filteredProducts.map((p: any) => (
+                    <label key={p.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-espresso/5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={(form.productIds || []).includes(p.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setForm(f => ({ ...f, productIds: [...(f.productIds || []), p.id] }));
+                          } else {
+                            setForm(f => ({ ...f, productIds: (f.productIds || []).filter(id => id !== p.id) }));
+                          }
+                        }}
+                        className="w-4 h-4 accent-caramel"
+                      />
+                      <span className="text-sm font-semibold text-espresso">{p.name}</span>
+                      <span className="text-xs text-text-muted ml-auto">{p.category}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-espresso/5">
+                <button onClick={() => { setShowModal(false); resetForm(); setEditingPlan(null); }} className="btn-outline flex-1">Cancel</button>
+                <button onClick={editingPlan ? handleUpdate : handleCreate} disabled={uploading} className="btn btn-primary flex-1">
+                  <Save size={16} /> {editingPlan ? 'Save Changes' : 'Create Plan'}
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deletePlanId !== null}
+        title="Delete Plan"
+        message="Delete this plan?"
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={executeDeletePlan}
+        onCancel={() => setDeletePlanId(null)}
+      />
     </DashboardLayout>
   );
 }

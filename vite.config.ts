@@ -1,18 +1,43 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig, loadEnv, type PluginOption} from 'vite';
+
+// Production-only plugin: replaces dev-only modules with no-ops
+// to prevent accidental exposure in the client bundle.
+function excludeDevOnly(...paths: string[]): PluginOption {
+  const resolved = new Set(paths.map((p) => path.resolve(__dirname, p)));
+  return {
+    name: 'exclude-dev-only',
+    enforce: 'post',
+    resolveId(source, importer) {
+      if (!importer) return null;
+      const resolvedId = path.resolve(path.dirname(importer), source);
+      if (resolved.has(resolvedId)) return '\0excluded:' + resolvedId;
+      return null;
+    },
+    load(id) {
+      if (id.startsWith('\0excluded:')) return 'export default {};';
+      return null;
+    },
+  };
+}
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  const isProd = mode === 'production';
   return {
-    plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+    plugins: [react(), tailwindcss(), isProd && excludeDevOnly('src/utils/dbSeeder.ts')].filter(Boolean),
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+      css: true,
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
       },
     },
     build: {

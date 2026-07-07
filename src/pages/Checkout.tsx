@@ -24,7 +24,7 @@ import {
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, total, clearCart } = useCart();
-  const { user, profile } = useAuth();
+  const { user, profile, isEmailVerified } = useAuth();
 
   const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Scheduling, 4: Review
   const [loading, setLoading] = useState(false);
@@ -81,8 +81,6 @@ export default function Checkout() {
 
   const paymentMethods = [
     { id: 'cash_on_delivery', label: 'Cash on Delivery', icon: '💵' },
-    { id: 'card', label: 'Credit/Debit Card', icon: '💳' },
-    { id: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
   ];
 
   const subscriptionDurations = [
@@ -116,6 +114,11 @@ export default function Checkout() {
 
     if (!user) {
       toast.error('Please login to complete your order');
+      return;
+    }
+
+    if (!isEmailVerified) {
+      toast.error('Please verify your email before placing an order. Go to your Profile to resend the verification email.');
       return;
     }
 
@@ -163,7 +166,7 @@ export default function Checkout() {
       total: grandTotalLbp,
       totalLbp: grandTotalLbp,
       totalUsd: Number(grandTotalUsd.toFixed(2)),
-      paymentMethod: formData.paymentMethod as 'cash_on_delivery' | 'card' | 'bank_transfer',
+      paymentMethod: 'cash_on_delivery' as const,
       paymentStatus: PaymentStatus.PENDING,
       paymentTiming: formData.paymentTiming,
       shippingAddress,
@@ -208,7 +211,7 @@ export default function Checkout() {
             Back
           </button>
           <h1 className="text-5xl font-display font-black text-espresso italic mb-2">Checkout</h1>
-          <p className="text-coffee-400">Complete your order in a few steps</p>
+          <p className="text-text-secondary">Complete your order in a few steps</p>
         </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -221,7 +224,7 @@ export default function Checkout() {
                       'w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all',
                       step >= s
                         ? 'bg-espresso text-white'
-                        : 'bg-white border-2 border-espresso/20 text-coffee-400'
+                        : 'bg-white border-2 border-espresso/20 text-text-muted'
                     )}
                   >
                     {step > s ? <CheckCircle2 size={20} /> : s}
@@ -238,11 +241,14 @@ export default function Checkout() {
               ))}
             </div>
 
-            <div className="grid grid-cols-4 gap-4 text-center text-xs font-bold uppercase tracking-widest">
-              <span className={step >= 1 ? 'text-espresso' : 'text-coffee-300'}>Shipping</span>
-              <span className={step >= 2 ? 'text-espresso' : 'text-coffee-300'}>Payment</span>
-              <span className={step >= 3 ? 'text-espresso' : 'text-coffee-300'}>Scheduling</span>
-              <span className={step >= 4 ? 'text-espresso' : 'text-coffee-300'}>Review</span>
+            <div className="flex items-center justify-between gap-2 text-center text-[10px] sm:text-xs font-bold uppercase tracking-widest">
+              <span className={cn("flex-1", step >= 1 ? 'text-espresso' : 'text-text-muted')}>Ship</span>
+              <span className="text-coffee-200">→</span>
+              <span className={cn("flex-1", step >= 2 ? 'text-espresso' : 'text-text-muted')}>Pay</span>
+              <span className="text-coffee-200">→</span>
+              <span className={cn("flex-1", step >= 3 ? 'text-espresso' : 'text-text-muted')}>Sched</span>
+              <span className="text-coffee-200">→</span>
+              <span className={cn("flex-1", step >= 4 ? 'text-espresso' : 'text-text-muted')}>Review</span>
             </div>
 
             <AnimatePresence mode="wait">
@@ -258,7 +264,7 @@ export default function Checkout() {
                     <MapPin size={24} /> Shipping Address
                   </h2>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="checkout-first-name" className="sr-only">
                         First Name
@@ -269,7 +275,7 @@ export default function Checkout() {
                         placeholder="First Name"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="col-span-1 px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                        className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                         required
                       />
                     </div>
@@ -283,7 +289,7 @@ export default function Checkout() {
                         placeholder="Last Name"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        className="col-span-1 px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                        className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                         required
                       />
                     </div>
@@ -315,27 +321,27 @@ export default function Checkout() {
                     required
                   />
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <input
                       type="text"
                       placeholder="Building"
                       value={formData.building}
                       onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                      className="px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                      className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                     />
                     <input
                       type="text"
                       placeholder="Floor"
                       value={formData.floor}
                       onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                      className="px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                      className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                     />
                     <input
                       type="text"
                       placeholder="City"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
+                      className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                     />
                   </div>
 
@@ -469,7 +475,7 @@ export default function Checkout() {
                   </h2>
 
                   <div>
-                    <label htmlFor="checkout-delivery-date" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-2">
+                    <label htmlFor="checkout-delivery-date" className="text-xs font-bold uppercase tracking-widest text-text-muted block mb-2">
                       Delivery Date
                     </label>
                     <input
@@ -484,7 +490,7 @@ export default function Checkout() {
                   </div>
 
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-text-muted block mb-3">
                       Preferred Time Window
                     </p>
                     <div className="space-y-2">
@@ -509,7 +515,7 @@ export default function Checkout() {
                   </div>
 
                   <div>
-                    <label htmlFor="checkout-instructions" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-2">
+                    <label htmlFor="checkout-instructions" className="text-xs font-bold uppercase tracking-widest text-text-muted block mb-2">
                       Special Instructions (optional)
                     </label>
                     <textarea
@@ -536,19 +542,19 @@ export default function Checkout() {
 
                   <div className="space-y-4">
                     <div className="border-b border-espresso/10 pb-4">
-                      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">Shipping To</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Shipping To</p>
                       <p className="font-semibold text-espresso">
                         {formData.firstName} {formData.lastName}
                       </p>
-                      <p className="text-sm text-coffee-400">
+                      <p className="text-sm text-text-muted">
                         {formData.street}, {formData.building && `Bldg ${formData.building}`}
                         {formData.floor && `, Floor ${formData.floor}`}, {formData.city}
                       </p>
-                      <p className="text-sm text-coffee-400">{formData.phone}</p>
+                      <p className="text-sm text-text-muted">{formData.phone}</p>
                     </div>
 
                     <div className="border-b border-espresso/10 pb-4">
-                      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">
+                      <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">
                         Delivery Date & Time
                       </p>
                       <p className="font-semibold text-espresso">
@@ -557,7 +563,7 @@ export default function Checkout() {
                     </div>
 
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">Payment</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Payment</p>
                       <p className="font-semibold text-espresso">
                         {paymentMethods.find((m) => m.id === formData.paymentMethod)?.label} • {formData.paymentTiming}
                       </p>
@@ -609,7 +615,7 @@ export default function Checkout() {
                   >
                     <div>
                       <p className="font-semibold text-espresso">{item.name}</p>
-                      <p className="text-xs text-coffee-400">×{item.quantity}</p>
+                      <p className="text-xs text-text-muted">×{item.quantity}</p>
                     </div>
                     <p className="font-bold text-espresso">{item.price ? item.price : ''}</p>
                   </div>
@@ -618,23 +624,23 @@ export default function Checkout() {
 
               <div className="space-y-3 border-t border-espresso/10 pt-6">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-coffee-400">Subtotal (LBP)</span>
+                  <span className="text-text-muted">Subtotal (LBP)</span>
                   <span className="font-semibold text-espresso">{Math.max(0, total)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-coffee-400">Total (USD)</span>
+                  <span className="text-text-muted">Total (USD)</span>
                   <span className="font-semibold text-espresso">${grandTotalUsd.toFixed(2)}</span>
                 </div>
                 <div className="bg-espresso/5 border border-espresso/10 rounded-lg p-4 flex items-center justify-between">
                   <span className="font-bold text-espresso">Final Total</span>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-espresso italic">${grandTotalUsd.toFixed(2)}</p>
-                    <p className="text-xs text-coffee-400">~ {Math.round(grandTotalLbp)} LBP</p>
+                    <p className="text-xs text-text-muted">~ {Math.round(grandTotalLbp)} LBP</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-coffee-400 justify-center">
+              <div className="flex items-center gap-2 text-xs text-text-muted justify-center">
                 <ShieldCheck size={16} /> Secure Checkout
               </div>
             </div>

@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { User, Mail, Phone, MapPin, Camera, Save, Shield } from 'lucide-react';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../lib/firebase';
+import { User, Mail, Phone, MapPin, Camera, Save, Shield, RefreshCw, Bell, BellOff } from 'lucide-react';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
+import ImageWithFallback from '../../components/common/ImageWithFallback';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { cn } from '../../lib/utils';
+import { NotificationService, type NotificationPreferences, DEFAULT_NOTIFICATION_PREFS } from '../../services/notification';
 
 export default function AccountSettings() {
-  const { profile } = useAuth();
+  const { user, profile, updateProfileImage } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFS);
+  const [savingNotifs, setSavingNotifs] = useState(false);
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
@@ -31,6 +39,7 @@ export default function AccountSettings() {
         floor: (profile as any).floor || '',
         city: (profile as any).city || 'Beirut'
       });
+      NotificationService.getPreferences(profile.uid).then(setNotificationPrefs);
     }
   }, [profile]);
 
@@ -46,10 +55,6 @@ export default function AccountSettings() {
         displayName: formData.displayName,
         phone: formData.phone,
         address: compositeAddress,
-        street: formData.street,
-        building: formData.building,
-        floor: formData.floor,
-        city: formData.city
       });
       toast.success("Profile coordinates synced with CC Mainframe");
     } catch (err) {
@@ -59,14 +64,73 @@ export default function AccountSettings() {
     }
   };
 
+  const toggleNotification = async (key: keyof NotificationPreferences) => {
+    if (!profile) return;
+    const newPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
+    setNotificationPrefs(newPrefs);
+    setSavingNotifs(true);
+    try {
+      if (key === 'pushEnabled' && newPrefs.pushEnabled) {
+        const granted = await NotificationService.requestPermission();
+        if (!granted) {
+          setNotificationPrefs({ ...newPrefs, pushEnabled: false });
+          setSavingNotifs(false);
+          return;
+        }
+      }
+      await NotificationService.savePreferences(profile.uid, newPrefs);
+    } catch {
+      setNotificationPrefs(notificationPrefs);
+      toast.error('Failed to update notification preferences');
+    } finally {
+      setSavingNotifs(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const storagePath = `profiles/${user.uid}/${Date.now()}-${file.name}`;
+      const sRef = storageRef(storage, storagePath);
+      const uploadTask = uploadBytesResumable(sRef, file);
+
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on('state_changed', null, reject, async () => {
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            await updateProfileImage(url);
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+
+      toast.success('Profile image updated');
+    } catch (err) {
+      console.error('Upload failed:', err);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-12">
         <SEO title="Account Settings" description="Update your CoffeeCraze profile, contact info, and delivery preferences." />
         <header className="space-y-3">
-          <span className="stat-label text-caramel">System Parameters</span>
-          <h1 className="text-4xl md:text-5xl font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Account <br/><span className="not-italic text-coffee-400">Archive.</span></h1>
-          <p className="text-base text-coffee-400 font-serif italic max-w-2xl leading-relaxed">Refine your sensory identity and logistics coordinates within the CC mainframe.</p>
+          <span className="text-caption text-caramel">System Parameters</span>
+          <h1 className="text-4xl md:text-5xl font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Account <br/><span className="not-italic text-text-muted">Archive.</span></h1>
+          <p className="text-base text-text-muted font-serif italic max-w-2xl leading-relaxed">Refine your sensory identity and logistics coordinates within the CC mainframe.</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -76,12 +140,34 @@ export default function AccountSettings() {
               <div className="absolute top-0 right-0 w-36 h-36 bg-caramel/5 blur-[40px] rounded-full pointer-events-none" />
               
               <div className="relative inline-block mx-auto">
-                <div className="w-32 h-32 rounded-2xl bg-cream flex items-center justify-center text-4xl font-display font-black text-espresso/10 border border-white group-hover:scale-102 transition-transform duration-500 shadow-inner overflow-hidden">
-                  {profile?.displayName?.[0] || 'U'}
+                <div className={cn(
+                  "w-32 h-32 rounded-2xl bg-cream flex items-center justify-center text-4xl font-display font-black border border-white group-hover:scale-102 transition-transform duration-500 shadow-inner overflow-hidden",
+                  profile?.profileImage ? "" : "text-espresso/10"
+                )}>
+                  {profile?.profileImage ? (
+                    <ImageWithFallback src={profile.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    profile?.displayName?.[0] || 'U'
+                  )}
                 </div>
-                <button className="absolute -bottom-3 -right-3 w-10 h-10 bg-espresso text-caramel rounded-xl border-4 border-white shadow-premium flex items-center justify-center hover:scale-105 transition-all duration-500">
-                  <Camera size={16} strokeWidth={1.5} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="absolute -bottom-3 -right-3 w-10 h-10 bg-espresso text-caramel rounded-xl border-4 border-white shadow-premium flex items-center justify-center hover:scale-105 transition-all duration-500"
+                >
+                  {uploadingImage ? (
+                    <RefreshCw size={16} className="animate-spin" />
+                  ) : (
+                    <Camera size={16} strokeWidth={1.5} />
+                  )}
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
               </div>
 
               <div className="space-y-1">
@@ -91,11 +177,11 @@ export default function AccountSettings() {
 
               <div className="pt-6 border-t border-espresso/5 grid grid-cols-2 gap-4">
                 <div className="text-center group/stat">
-                   <p className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] mb-1 group-hover/stat:text-espresso transition-colors italic">Neural Credits</p>
+                   <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] mb-1 group-hover/stat:text-espresso transition-colors italic">Neural Credits</p>
                    <p className="text-2xl font-display font-black text-espresso italic tracking-tighter">{profile?.loyaltyPoints || 0}</p>
                 </div>
                 <div className="text-center group/stat">
-                   <p className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] mb-1 group-hover/stat:text-espresso transition-colors italic">Clearance</p>
+                   <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] mb-1 group-hover/stat:text-espresso transition-colors italic">Clearance</p>
                    <p className="text-xl font-display font-black text-espresso italic tracking-tighter uppercase">{profile?.role || 'Customer'}</p>
                 </div>
               </div>
@@ -108,7 +194,7 @@ export default function AccountSettings() {
               </div>
               <div className="space-y-0.5 relative z-10">
                 <p className="text-lg font-display font-black tracking-tight leading-none italic">Security Protocol</p>
-                <p className="text-[9px] text-coffee-400 font-semibold tracking-widest uppercase">Verified active clearance</p>
+                <p className="text-[9px] text-text-muted font-semibold tracking-widest uppercase">Verified active clearance</p>
               </div>
             </div>
           </div>
@@ -119,7 +205,7 @@ export default function AccountSettings() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">Display Name</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">Display Name</label>
                 <div className="relative group">
                   <User className="absolute left-6 top-1/2 -translate-y-1/2 text-caramel transition-transform" size={16} />
                   <input 
@@ -133,7 +219,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">Email Address</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">Email Address</label>
                 <div className="relative">
                   <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-coffee-200" size={16} />
                   <input 
@@ -146,7 +232,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">Phone Number</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">Phone Number</label>
                 <div className="relative group">
                   <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-caramel transition-transform" size={16} />
                   <input 
@@ -161,7 +247,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">City / Region</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">City / Region</label>
                 <div className="relative group">
                   <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-caramel transition-transform" size={16} />
                   <input 
@@ -175,7 +261,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2 col-span-2">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">Street address</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">Street address</label>
                 <input 
                   type="text" 
                   required
@@ -187,7 +273,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">Building Name / Block</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">Building Name / Block</label>
                 <input 
                   type="text" 
                   required
@@ -199,7 +285,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2 col-span-2 md:col-span-1">
-                <label className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.3em] italic ml-4">Floor / Apartment</label>
+                <label className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] italic ml-4">Floor / Apartment</label>
                 <input 
                   type="text" 
                   required
@@ -215,12 +301,54 @@ export default function AccountSettings() {
               <button 
                 type="submit"
                 disabled={loading}
-                className="btn-premium px-10 py-5 italic group text-xs uppercase tracking-widest rounded-full"
+                className="btn btn-primary px-10 py-5 italic group text-xs uppercase tracking-widest rounded-full"
               >
                 {loading ? "TRANSMITTING..." : <><Save size={16} /> Save Changes</>}
               </button>
             </div>
           </form>
+
+          {/* Notification Preferences */}
+          <div className="lg:col-span-8 lg:col-start-5 bg-white shadow-premium border border-white rounded-3xl p-6 sm:p-10 space-y-8 relative overflow-hidden">
+            <div className="absolute bottom-0 right-0 w-72 h-72 bg-cream blur-[80px] opacity-30 translate-y-1/2 translate-x-1/2 rounded-full pointer-events-none" />
+            
+            <div className="relative z-10 space-y-2">
+              <span className="text-caption text-caramel">Alert Signals</span>
+              <h2 className="text-3xl font-display font-black text-espresso leading-none tracking-tightest italic uppercase">Notification <br/><span className="not-italic text-text-muted">Preferences.</span></h2>
+            </div>
+
+            <div className="relative z-10 space-y-6">
+              {[
+                { key: 'pushEnabled' as const, label: 'Push Notifications', desc: 'Receive browser notifications for order and subscription updates.' },
+                { key: 'orderUpdates' as const, label: 'Order Updates', desc: 'Get notified when your order status changes or a new delivery is scheduled.' },
+                { key: 'subscriptionReminders' as const, label: 'Subscription Reminders', desc: 'Reminders for upcoming deliveries, pauses, or subscription renewals.' },
+                { key: 'promotions' as const, label: 'Promotions & Offers', desc: 'Be the first to know about new roasts, seasonal blends, and exclusive deals.' },
+              ].map(({ key, label, desc }) => (
+                <div key={key} className="flex items-center justify-between py-4 border-b border-espresso/5 last:border-b-0">
+                  <div className="space-y-0.5 pr-4">
+                    <p className="text-sm font-bold text-espresso">{label}</p>
+                    <p className="text-xs text-text-muted">{desc}</p>
+                  </div>
+                  <button
+                    onClick={() => toggleNotification(key)}
+                    disabled={savingNotifs}
+                    className={cn(
+                      "relative w-12 h-7 rounded-full transition-all duration-300 shrink-0",
+                      notificationPrefs[key] ? 'bg-caramel' : 'bg-coffee-200',
+                      savingNotifs && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    <span className={cn(
+                      "absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-300 flex items-center justify-center",
+                      notificationPrefs[key] ? 'translate-x-5' : 'translate-x-0'
+                    )}>
+                      {notificationPrefs[key] ? <Bell size={12} className="text-caramel" /> : <BellOff size={12} className="text-coffee-200" />}
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

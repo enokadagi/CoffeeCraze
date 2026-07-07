@@ -32,28 +32,28 @@ export default function OrderSuccess() {
         </motion.div>
 
         <div className="space-y-4 mb-10 sm:mb-12">
-          <span className="stat-label text-green-500">Transmission Complete</span>
-          <h1 className="text-fluid-heading font-display font-black text-coffee-950 tracking-tightest italic">Your Ritual is <br/><span className="not-italic text-coffee-400">Confirmed!</span></h1>
-          <p className="text-fluid-body text-coffee-400 font-medium italic max-w-md mx-auto leading-relaxed">"Order #{id} has been placed. We're getting your beans ready for roasting."</p>
+          <span className="text-caption text-green-500">Order Confirmed</span>
+          <h1 className="text-h1 font-display font-black text-text tracking-tightest italic">Your Ritual is <br/><span className="not-italic text-text-muted">Confirmed!</span></h1>
+          <p className="text-body text-text-secondary font-medium italic max-w-md mx-auto leading-relaxed">Order #{id} has been placed. We're getting your beans ready for roasting.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8 w-full max-w-2xl mb-10 sm:mb-12">
-          <div className="p-6 sm:p-8 bg-white border border-coffee-100 rounded-[1.5rem] sm:rounded-[2rem] space-y-4 shadow-premium hover:shadow-premium-lg transition-all duration-700">
-            <div className="w-10 sm:w-12 h-10 sm:h-12 bg-coffee-50 text-coffee-500 rounded-xl flex items-center justify-center">
+          <div className="p-6 sm:p-8 bg-white border border-border rounded-[1.5rem] sm:rounded-[2rem] space-y-4 shadow-premium hover:shadow-premium-lg transition-all duration-700">
+            <div className="w-10 sm:w-12 h-10 sm:h-12 bg-cream text-text-muted rounded-xl flex items-center justify-center">
               <Package size={20} />
             </div>
             <div className="text-left">
-              <h3 className="text-fluid-subtitle font-display font-black text-coffee-950 tracking-tight">Preparation</h3>
-              <p className="text-fluid-small text-coffee-500 leading-relaxed">Our master roasters are selecting the best batches for your order.</p>
+              <h3 className="text-h3 font-display font-black text-text tracking-tight">Preparation</h3>
+              <p className="text-small text-text-muted leading-relaxed">Our master roasters are selecting the best batches for your order.</p>
             </div>
           </div>
-          <div className="p-6 sm:p-8 bg-white border border-coffee-100 rounded-[1.5rem] sm:rounded-[2rem] space-y-4 shadow-premium hover:shadow-premium-lg transition-all duration-700">
-            <div className="w-10 sm:w-12 h-10 sm:h-12 bg-coffee-50 text-coffee-500 rounded-xl flex items-center justify-center">
+          <div className="p-6 sm:p-8 bg-white border border-border rounded-[1.5rem] sm:rounded-[2rem] space-y-4 shadow-premium hover:shadow-premium-lg transition-all duration-700">
+            <div className="w-10 sm:w-12 h-10 sm:h-12 bg-cream text-text-muted rounded-xl flex items-center justify-center">
               <ShoppingBag size={20} />
             </div>
             <div className="text-left">
-              <h3 className="text-fluid-subtitle font-display font-black text-coffee-950 tracking-tight">Delivery</h3>
-              <p className="text-fluid-small text-coffee-500 leading-relaxed">Expect your delivery within 24-48 hours. Stay ritualized.</p>
+              <h3 className="text-h3 font-display font-black text-text tracking-tight">Delivery</h3>
+              <p className="text-small text-text-muted leading-relaxed">Expect your delivery within 24-48 hours. Stay ritualized.</p>
             </div>
           </div>
         </div>
@@ -61,7 +61,7 @@ export default function OrderSuccess() {
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <Link 
             to="/dashboard/orders" 
-            className="btn-premium px-8 sm:px-10 py-4 sm:py-5"
+            className="btn btn-primary px-8 sm:px-10 py-4 sm:py-5"
           >
             Track My Order <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
           </Link>

@@ -282,11 +282,9 @@ export class PaymentService {
   }
 
   /**
-   * Generate invoice PDF URL (placeholder)
+   * Generate invoice PDF URL (requires third-party PDF service integration)
    */
   static async generateInvoice(paymentId: string): Promise<string> {
-    // This would integrate with a service like Firebase Cloud Functions
-    // or a third-party PDF generation service
-    return `https://invoices.example.com/${paymentId}.pdf`;
+    throw new Error('Invoice generation not yet configured. Integrate a PDF service (e.g. Cloud Functions + PDFKit) before going live.');
   }
 }

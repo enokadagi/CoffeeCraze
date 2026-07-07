@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+﻿import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import Seo from '../components/common/SEO';
 
@@ -16,12 +16,12 @@ export default function SubscriptionConfirmation() {
               <CheckCircle size={36} className="text-white" />
             </div>
           </div>
-          <h1 className="text-fluid-heading font-display font-black text-espresso mb-4">Subscription Initialized</h1>
-          <p className="text-fluid-body text-coffee-500 mb-6">
-            Thank you — your ritual subscription {planName ? `for ${planName}` : ''} is active. You will receive an email with details and the first delivery schedule.
+          <h1 className="text-h1 font-display font-black text-espresso mb-4">Subscription Initialized</h1>
+          <p className="text-body text-text-secondary mb-6">
+            Thank you --- your ritual subscription {planName ? `for ${planName}` : ''} is active. You will receive an email with details and the first delivery schedule.
           </p>
           <div className="flex items-center justify-center gap-4">
-            <Link to="/dashboard/subscriptions" className="btn-premium px-8 py-3">Manage Subscription</Link>
+            <Link to="/dashboard/subscriptions" className="btn btn-primary px-8 py-3">Manage Subscription</Link>
             <Link to="/shop" className="btn-outline px-8 py-3">Continue Shopping</Link>
           </div>
         </div>

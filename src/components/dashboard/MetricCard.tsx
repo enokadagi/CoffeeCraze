@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+﻿import { ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 
@@ -15,17 +15,17 @@ interface MetricCardProps {
 }
 
 const colorClasses = {
-  primary: 'bg-gradient-to-br from-espresso/5 to-espresso/2 border-espresso/10 text-espresso',
-  success: 'bg-gradient-to-br from-green-50 to-green-25 border-green-200 text-green-700',
-  warning: 'bg-gradient-to-br from-amber-50 to-amber-25 border-amber-200 text-amber-700',
-  danger: 'bg-gradient-to-br from-red-50 to-red-25 border-red-200 text-red-700',
+  primary: 'bg-white border-espresso/10 text-espresso hover:border-caramel/30',
+  success: 'bg-white border-green-200 text-green-800 hover:border-green-300',
+  warning: 'bg-white border-amber-200 text-amber-900 hover:border-amber-300',
+  danger: 'bg-white border-red-200 text-red-800 hover:border-red-300',
 };
 
 const iconBgClasses = {
-  primary: 'bg-espresso/10',
-  success: 'bg-green-100',
-  warning: 'bg-amber-100',
-  danger: 'bg-red-100',
+  primary: 'bg-espresso/10 text-espresso',
+  success: 'bg-green-100 text-green-700',
+  warning: 'bg-amber-100 text-amber-700',
+  danger: 'bg-red-100 text-red-700',
 };
 
 export default function MetricCard({
@@ -38,21 +38,21 @@ export default function MetricCard({
 }: MetricCardProps) {
   return (
     <motion.div
-      whileHover={{ y: -4 }}
+      whileHover={{ y: -3 }}
       onClick={onClick}
       className={cn(
-        'p-6 rounded-2xl border transition-all duration-300',
+        'p-4 sm:p-5 md:p-6 rounded-2xl border shadow-sm transition-all duration-300 min-h-[120px] sm:min-h-[132px]',
         colorClasses[color],
-        onClick && 'cursor-pointer hover:shadow-lg'
+        onClick && 'cursor-pointer hover:shadow-md'
       )}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className={cn('p-3 rounded-xl', iconBgClasses[color])}>
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className={cn('p-2.5 sm:p-3 rounded-xl shrink-0', iconBgClasses[color])}>
           {icon}
         </div>
         {trend && (
           <div className={cn(
-            'text-xs font-bold px-2 py-1 rounded-full',
+            'text-xs font-bold px-2 py-1 rounded-full shrink-0',
             trend.direction === 'up'
               ? 'bg-green-100 text-green-700'
               : 'bg-red-100 text-red-700'
@@ -61,10 +61,10 @@ export default function MetricCard({
           </div>
         )}
       </div>
-      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-2">
+      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-text-secondary mb-1.5">
         {label}
       </p>
-      <p className="text-3xl font-display font-black italic tracking-tight">
+      <p className="text-xl sm:text-2xl md:text-3xl font-display font-black tracking-tight text-espresso break-words">
         {value}
       </p>
     </motion.div>

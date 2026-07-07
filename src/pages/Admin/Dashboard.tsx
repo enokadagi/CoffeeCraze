@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   Users, ShoppingBag, Coffee, TrendingUp, AlertTriangle,
   Package, Truck, DollarSign, CalendarDays, Settings,
-  BarChart3, PieChart, Activity, Clock
+  BarChart3, PieChart, Activity, Clock, MessageSquare
 } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
@@ -12,9 +12,11 @@ import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'fi
 import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { UserRole, Order, Subscription, SubscriptionStatus, DeliveryStatus } from '../../types';
+import { UserRole, hasRole, Order, Subscription, SubscriptionStatus, DeliveryStatus } from '../../types';
 import { formatUSD, formatLBP } from '../../utils/exchange';
-import { BarChart, Bar, LineChart, Line, Tooltip, ResponsiveContainer, XAxis, YAxis, Legend } from 'recharts';
+import AdminWeeklyRevenueChart from '../../components/admin/AdminWeeklyRevenueChart';
+// dbSeeder import removed --- client-side data seeding is a security risk. Use admin-only scripts.
+import { toast } from 'sonner';
 
 interface AdminStats {
   totalCustomers: number;
@@ -27,6 +29,8 @@ interface AdminStats {
   weeklyRevenue: { name: string; revenue: number }[];
   totalRevenueLBP: number;
   totalRevenueUSD: number;
+  totalRevThisWeek: number;
+  totalRevLastWeek: number;
 }
 
 export default function AdminDashboard() {
@@ -44,19 +48,23 @@ export default function AdminDashboard() {
     weeklyRevenue: [],
     totalRevenueLBP: 0,
     totalRevenueUSD: 0,
+    totalRevThisWeek: 0,
+    totalRevLastWeek: 0,
   });
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'overview' | 'operations' | 'analytics'>('overview');
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
-  // Protection
+  const STAFF_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE, UserRole.ANALYST];
+
   useEffect(() => {
-    if (profile && profile.role !== UserRole.ADMIN) {
+    if (profile && !hasRole(profile.role, STAFF_ROLES)) {
       navigate('/');
     }
   }, [profile, navigate]);
 
   useEffect(() => {
-    if (profile?.role === UserRole.ADMIN) {
+    if (profile && hasRole(profile.role, STAFF_ROLES)) {
       fetchAdminData();
     }
   }, [profile]);
@@ -64,13 +72,15 @@ export default function AdminDashboard() {
   const fetchAdminData = async () => {
     try {
       // Fetch collections
-      const [productsSnap, ordersSnap, customersSnap, subsSnap, wholesaleSnap] = await Promise.all([
+      const [productsSnap, ordersSnap, customersSnap, subsSnap, wholesaleSnap, messagesSnap] = await Promise.all([
         getDocs(collection(db, 'products')),
         getDocs(collection(db, 'orders')),
         getDocs(query(collection(db, 'users'), where('role', '!=', UserRole.ADMIN))),
         getDocs(collection(db, 'subscriptions')),
-        getDocs(query(collection(db, 'wholesaleAccounts'), where('status', '==', 'pending')))
+        getDocs(query(collection(db, 'wholesale_accounts'), where('status', '==', 'pending'))),
+        getDocs(query(collection(db, 'contact_messages'), where('status', '==', 'unread')))
       ]);
+      setUnreadMessages(messagesSnap.size);
 
       // Products analysis
       const productsList = productsSnap.docs.map(doc => doc.data());
@@ -95,21 +105,24 @@ export default function AdminDashboard() {
 
       const pendingOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
       const revenueLBP = allOrders.reduce((acc, o) => acc + (o.totalLbp || o.total || 0), 0);
-      const revenueUSD = revenueLBP / 89500; // Approximate exchange rate
+      const exchangeRate = 89500;
+      const revenueUSD = revenueLBP / exchangeRate;
 
-      // Weekly revenue calculation
+      // Compute last 7 days of actual revenue
+      const today = new Date();
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const dayRevenue = [0, 0, 0, 0, 0, 0, 0];
-      allOrders.forEach(order => {
-        const d = new Date(order.createdAt);
-        const day = d.getDay();
-        dayRevenue[day] += order.totalLbp || order.total || 0;
-      });
+      const weeklyData = dayNames.map((name) => ({ name, revenue: 0 }));
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayOrders = allOrders.filter(o => o.createdAt && o.createdAt.startsWith(dateStr));
+        const revenue = dayOrders.reduce((acc, o) => acc + (o.totalLbp || o.total || 0), 0);
+        weeklyData[date.getDay()] = { name: dayNames[date.getDay()], revenue: revenue / 1000000 };
+      }
 
-      const weeklyData = dayNames.map((name, idx) => ({
-        name,
-        revenue: dayRevenue[idx] / 1000000 // Convert to millions for display
-      }));
+      const totalRevThisWeek = weeklyData.reduce((sum, d) => sum + d.revenue, 0);
+      const totalRevLastWeek = 0;
 
       setStats({
         totalCustomers: customersSnap.size,
@@ -122,6 +135,8 @@ export default function AdminDashboard() {
         weeklyRevenue: weeklyData,
         totalRevenueLBP: revenueLBP,
         totalRevenueUSD: revenueUSD,
+        totalRevThisWeek,
+        totalRevLastWeek,
       });
 
       setLoading(false);
@@ -156,7 +171,7 @@ export default function AdminDashboard() {
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-2">Admin Control Center</p>
             <h1 className="text-4xl md:text-5xl font-display font-black text-espresso italic">Operations Hub</h1>
-            <p className="text-sm text-coffee-400 mt-2">Platform management & analytics</p>
+            <p className="text-sm text-text-secondary mt-2">Platform management & analytics</p>
           </div>
         </div>
 
@@ -170,7 +185,7 @@ export default function AdminDashboard() {
                 'px-6 py-3 font-bold text-sm uppercase tracking-widest border-b-2 transition-all',
                 tab === t
                   ? 'border-espresso text-espresso'
-                  : 'border-transparent text-coffee-400 hover:text-espresso'
+                  : 'border-transparent text-text-secondary hover:text-espresso'
               )}
             >
               {t === 'overview' ? 'Overview' : t === 'operations' ? 'Operations' : 'Analytics'}
@@ -219,13 +234,13 @@ export default function AdminDashboard() {
                 <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-4">Total Revenue</p>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs text-coffee-400 mb-1">LBP</p>
+                    <p className="text-xs text-text-muted mb-1">LBP</p>
                     <p className="text-3xl font-bold text-espresso font-display italic">
                       {formatLBP(stats.totalRevenueLBP)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-coffee-400 mb-1">USD</p>
+                    <p className="text-xs text-text-muted mb-1">USD</p>
                     <p className="text-2xl font-bold text-caramel font-display italic">
                       ${stats.totalRevenueUSD.toFixed(2)}
                     </p>
@@ -237,11 +252,11 @@ export default function AdminDashboard() {
                 <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-4">Platform Stats</p>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-coffee-400">Total Products</span>
+                    <span className="text-text-muted">Total Products</span>
                     <span className="font-bold text-espresso">{stats.totalProducts}</span>
                   </div>
                   <div className="flex items-center justify-between pb-3 border-b border-espresso/5">
-                    <span className="text-coffee-400">Total Subscriptions</span>
+                    <span className="text-text-muted">Total Subscriptions</span>
                     <span className="font-bold text-espresso">{stats.totalSubscriptions}</span>
                   </div>
                   <button
@@ -261,7 +276,7 @@ export default function AdminDashboard() {
                 <ActionButton
                   icon={<Package size={20} />}
                   label="Manage Products"
-                  onClick={() => navigate('/admin/products')}
+                  onClick={() => navigate('/admin/inventory')}
                 />
                 <ActionButton
                   icon={<Coffee size={20} />}
@@ -279,14 +294,19 @@ export default function AdminDashboard() {
                   onClick={() => navigate('/admin/orders')}
                 />
                 <ActionButton
-                  icon={<DollarSign size={20} />}
-                  label="Payment Tracking"
-                  onClick={() => navigate('/admin/payments')}
+                  icon={<Settings size={20} />}
+                  label="Content CMS"
+                  onClick={() => navigate('/admin/cms')}
                 />
                 <ActionButton
                   icon={<Truck size={20} />}
-                  label="Delivery Management"
-                  onClick={() => navigate('/admin/deliveries')}
+                  label="Wholesale Hub"
+                  onClick={() => navigate('/admin/wholesale')}
+                />
+                <ActionButton
+                  icon={<MessageSquare size={20} />}
+                  label={`Inbox (${unreadMessages} Unread)`}
+                  onClick={() => navigate('/admin/messages')}
                 />
               </div>
             </div>
@@ -303,31 +323,21 @@ export default function AdminDashboard() {
             <div className="bg-white border border-espresso/5 rounded-2xl p-8 shadow-sm">
               <h3 className="font-bold text-espresso text-lg mb-6 italic">Operational Tasks</h3>
               <div className="space-y-3">
-                <TaskItem
-                  title="Pending Subscription Approvals"
-                  count={5}
-                  priority="high"
-                />
-                <TaskItem
-                  title="Failed Deliveries to Retry"
-                  count={2}
-                  priority="medium"
-                />
-                <TaskItem
-                  title="Overdue Payments"
-                  count={stats.overdueLedger}
-                  priority="high"
-                />
-                <TaskItem
-                  title="Low Stock Alerts"
-                  count={stats.lowStockItems}
-                  priority={stats.lowStockItems > 5 ? 'high' : 'medium'}
-                />
-                <TaskItem
-                  title="Open Support Tickets"
-                  count={3}
-                  priority="medium"
-                />
+                {stats.pendingOrders > 0 && (
+                  <TaskItem title="Pending Orders" count={stats.pendingOrders} priority="high" />
+                )}
+                {stats.lowStockItems > 0 && (
+                  <TaskItem title="Low Stock Alerts" count={stats.lowStockItems} priority={stats.lowStockItems > 5 ? 'high' : 'medium'} />
+                )}
+                {unreadMessages > 0 && (
+                  <TaskItem title="Unread Customer Messages" count={unreadMessages} priority={unreadMessages > 0 ? 'high' : 'low'} />
+                )}
+                {stats.overdueLedger > 0 && (
+                  <TaskItem title="Overdue Payments" count={stats.overdueLedger} priority="high" />
+                )}
+                {stats.pendingOrders === 0 && stats.lowStockItems === 0 && unreadMessages === 0 && stats.overdueLedger === 0 && (
+                  <p className="text-text-muted italic py-8 text-center">All clear — no pending tasks.</p>
+                )}
               </div>
             </div>
           </motion.div>
@@ -342,14 +352,7 @@ export default function AdminDashboard() {
           >
             <div className="bg-white border border-espresso/5 rounded-2xl p-8 shadow-sm">
               <h3 className="font-bold text-espresso text-lg mb-6 italic">Weekly Revenue</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats.weeklyRevenue}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="revenue" fill="#1a0f0a" name="Revenue (Millions LBP)" />
-                </BarChart>
-              </ResponsiveContainer>
+              <AdminWeeklyRevenueChart data={stats.weeklyRevenue} />
             </div>
           </motion.div>
         )}
@@ -396,12 +399,12 @@ function MetricBox({
               ? 'bg-green-100 text-green-700'
               : 'bg-red-100 text-red-700'
           )}>
-            {trend === 'up' ? '↑' : '↓'} 12%
+            {trend === 'up' ? '↑' : '↓'}
           </span>
         )}
       </div>
-      <p className="text-xs font-bold uppercase tracking-widest text-coffee-400 mb-1">{label}</p>
-      <p className="text-3xl font-bold text-espresso italic">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1">{label}</p>
+      <p className="text-2xl sm:text-3xl font-bold text-espresso">{value}</p>
     </motion.div>
   );
 }
@@ -418,7 +421,7 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 p-4 bg-white border border-espresso/5 rounded-xl hover:bg-espresso/5 hover:border-espresso/20 transition-all duration-300 text-left"
+      className="flex items-center gap-3 p-4 bg-white border border-espresso/10 rounded-xl hover:bg-caramel/10 hover:border-caramel/30 hover:shadow-sm transition-all duration-300 text-left"
     >
       <div className="p-2 bg-espresso/10 rounded-lg text-espresso">{icon}</div>
       <span className="font-bold text-sm text-espresso">{label}</span>

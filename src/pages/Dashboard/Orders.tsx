@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { OrderService } from '../../services/firestore';
 import { Order } from '../../types';
 import { formatPrice, cn } from '../../lib/utils';
 import { ShoppingBag, Search, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Filter, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
 import SEO from '../../components/common/SEO';
+import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import ReferralSystem from '../../components/dashboard/ReferralSystem';
+import OrderTrackingTimeline from '../../components/dashboard/OrderTrackingTimeline';
 
 const StatusIcon = ({ status }: { status: Order['status'] }) => {
   switch (status) {
@@ -95,9 +97,9 @@ export default function MyOrders() {
         <SEO title="My Orders" description="View and track your CoffeeCraze ritual orders." />
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 md:gap-10 border-b border-white pb-8 md:pb-16">
           <div className="space-y-4">
-            <span className="stat-label text-caramel italic">Extraction Archive</span>
-            <h1 className="text-fluid-hero font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-coffee-400">Vault.</span></h1>
-            <p className="text-fluid-body text-coffee-400 font-serif italic">Total of <span className="text-espresso font-black not-italic uppercase">{orders.length}</span> recorded protocols in your sensory ledger.</p>
+            <span className="text-caption text-caramel italic">Extraction Archive</span>
+            <h1 className="text-display font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-text-muted">Vault.</span></h1>
+            <p className="text-body text-text-muted font-serif italic">Total of <span className="text-espresso font-black not-italic uppercase">{orders.length}</span> recorded protocols in your sensory ledger.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-8">
@@ -106,8 +108,8 @@ export default function MyOrders() {
                 <ShoppingBag size={18} className="fill-current" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-300 italic mb-1">Total Extraction Cycle</p>
-                <p className="text-fluid-title font-display font-black text-espresso italic tracking-tighter">LBP {formatPrice(orders.reduce((acc, o) => acc + o.total, 0)).split('LBP')[1]}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-text-muted italic mb-1">Total Extraction Cycle</p>
+                <p className="text-h2 font-display font-black text-espresso italic tracking-tighter">LBP {formatPrice(orders.reduce((acc, o) => acc + o.total, 0)).split('LBP')[1]}</p>
               </div>
             </div>
           </div>
@@ -124,7 +126,7 @@ export default function MyOrders() {
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 flex-grow relative z-10">
               <div className="flex-grow space-y-4">
-                <label className="text-[11px] font-black uppercase tracking-[0.5em] text-coffee-300 italic block ml-6">DATE_PARAMETER_RANGE</label>
+                <label className="text-[11px] font-black uppercase tracking-[0.5em] text-text-muted italic block ml-6">DATE_PARAMETER_RANGE</label>
                 <div className="flex items-center gap-4 md:gap-6 bg-cream/60 backdrop-blur-md border border-white rounded-[2rem] px-6 md:px-8 py-4 md:py-5 shadow-inner ring-1 ring-white">
                   <Calendar size={18} className="text-caramel" />
                   <div className="flex items-center gap-4 w-full">
@@ -155,7 +157,7 @@ export default function MyOrders() {
                   onClick={() => toggleSort('createdAt')}
                   className={cn(
                     "px-6 md:px-10 py-4 md:py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 transition-all duration-700 italic border",
-                    sortField === 'createdAt' ? "bg-espresso text-caramel-gold border-espresso shadow-premium-lg scale-105" : "bg-white border-coffee-100 text-coffee-400 hover:border-caramel hover:text-caramel"
+                    sortField === 'createdAt' ? "bg-espresso text-caramel-gold border-espresso shadow-premium-lg scale-105" : "bg-white border-border text-text-muted hover:border-caramel hover:text-caramel"
                   )}
                 >
                   Chronology {sortField === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -165,7 +167,7 @@ export default function MyOrders() {
                   onClick={() => toggleSort('total')}
                   className={cn(
                     "px-6 md:px-10 py-4 md:py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 transition-all duration-700 italic border",
-                    sortField === 'total' ? "bg-espresso text-caramel-gold border-espresso shadow-premium-lg scale-105" : "bg-white border-coffee-100 text-coffee-400 hover:border-caramel hover:text-caramel"
+                    sortField === 'total' ? "bg-espresso text-caramel-gold border-espresso shadow-premium-lg scale-105" : "bg-white border-border text-text-muted hover:border-caramel hover:text-caramel"
                   )}
                 >
                   Valuation {sortField === 'total' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -201,13 +203,13 @@ export default function MyOrders() {
                     </div>
                     <div className="space-y-4">
                        <div className="flex items-center gap-4">
-                          <span className="text-[10px] font-black text-coffee-300 uppercase tracking-[0.4em] italic leading-none">ID://</span>
-                          <span className="text-fluid-body font-display font-black text-espresso uppercase tracking-tighter italic">#{order.id.slice(-12).toUpperCase()}</span>
+                          <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic leading-none">ID://</span>
+                          <span className="text-body font-display font-black text-espresso uppercase tracking-tighter italic">#{order.id.slice(-12).toUpperCase()}</span>
                        </div>
-                       <h3 className="text-fluid-title font-display font-black text-espresso tracking-tightest italic">
+                       <h3 className="text-h2 font-display font-black text-espresso tracking-tightest italic">
                          {order.items.length} {order.items.length === 1 ? 'Ritual Core' : 'Sensory Primitives'}
                        </h3>
-                       <p className="text-fluid-body font-serif italic">
+                       <p className="text-body font-serif italic">
                          Extracted on {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                        </p>
                     </div>
@@ -236,7 +238,7 @@ export default function MyOrders() {
                           )}
                         />
                       </div>
-                      <p className="text-[11px] font-black text-coffee-400 uppercase tracking-widest italic flex items-center gap-3">
+                      <p className="text-[11px] font-black text-text-muted uppercase tracking-widest italic flex items-center gap-3">
                         {order.status === 'delivered' ? 'Protocol Secured.' : 'Logistic Vector: Active Cycle'}
                         <span className="w-1.5 h-1.5 rounded-full bg-caramel animate-pulse" />
                       </p>
@@ -245,8 +247,8 @@ export default function MyOrders() {
 
                   <div className="flex items-center justify-between lg:justify-end gap-4 md:gap-16">
                     <div className="text-left xl:text-right">
-                      <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] mb-2 italic">Ledger Value</p>
-                      <p className="text-fluid-title font-display font-black text-espresso italic tracking-tightest">{formatPrice(order.total)}</p>
+                      <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] mb-2 italic">Ledger Value</p>
+                      <p className="text-h2 font-display font-black text-espresso italic tracking-tightest">{formatPrice(order.total)}</p>
                     </div>
 
                     <div className="flex items-center gap-6">
@@ -268,7 +270,7 @@ export default function MyOrders() {
                           setExpandedOrderId(expandedOrderId === order.id ? null : order.id);
                         }}
                         className={cn(
-                          "w-12 h-12 md:w-16 md:h-16 bg-white border border-coffee-100 text-espresso rounded-[1.5rem] flex items-center justify-center hover:bg-cream transition-all duration-500 hover:shadow-premium active:scale-90",
+                          "w-12 h-12 md:w-16 md:h-16 bg-white border border-border text-espresso rounded-[1.5rem] flex items-center justify-center hover:bg-cream transition-all duration-500 hover:shadow-premium active:scale-90",
                           expandedOrderId === order.id && "bg-espresso text-caramel-gold border-espresso shadow-premium-lg"
                         )}
                       >
@@ -313,8 +315,8 @@ export default function MyOrders() {
                                 <MapPin size={20} />
                               </div>
                               <div className="space-y-2">
-                                <p className="text-fluid-body font-display font-black text-espresso italic uppercase tracking-tighter">{order.shippingAddress?.fullName}</p>
-                                <p className="text-fluid-body text-coffee-400 font-serif italic leading-relaxed">
+                                <p className="text-body font-display font-black text-espresso italic uppercase tracking-tighter">{order.shippingAddress?.fullName}</p>
+                                <p className="text-body text-text-muted font-serif italic leading-relaxed">
                                   {order.shippingAddress?.address}, {order.shippingAddress?.city}<br/>
                                   {order.shippingAddress?.region}_SECTOR
                                 </p>
@@ -328,8 +330,8 @@ export default function MyOrders() {
                                 <CreditCard size={20} />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-fluid-body font-display font-black text-espresso uppercase tracking-tighter italic">{order.paymentMethod === 'cash_on_delivery' ? 'Deferred Settlement' : 'Encrypted Card'}</p>
-                                <p className="text-[11px] text-coffee-300 font-black uppercase tracking-[0.4em] italic leading-none">{order.paymentMethod === 'cash_on_delivery' ? 'CASH_ON_DELIVERY' : 'STRIPE_GATEWAY_AUTH'}</p>
+                                <p className="text-body font-display font-black text-espresso uppercase tracking-tighter italic">{order.paymentMethod === 'cash_on_delivery' ? 'Deferred Settlement' : 'Encrypted Card'}</p>
+                                <p className="text-[11px] text-text-muted font-black uppercase tracking-[0.4em] italic leading-none">{order.paymentMethod === 'cash_on_delivery' ? 'CASH_ON_DELIVERY' : 'STRIPE_GATEWAY_AUTH'}</p>
                               </div>
                             </div>
                           </div>
@@ -358,17 +360,17 @@ export default function MyOrders() {
                             >
                               <div className="flex items-center gap-4 md:gap-10">
                                 <div className="relative overflow-hidden w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] shrink-0 border border-cream shadow-inner">
-                                  <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
+                                  <ImageWithFallback src={item.images[0]} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
                                   <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[1.5rem]" />
                                 </div>
                                 <div className="space-y-2">
-                                  <p className="text-fluid-body font-display font-black text-espresso italic uppercase leading-none tracking-tight">{item.name}</p>
-                                  <p className="text-[11px] text-coffee-400 font-black uppercase tracking-[0.4em] italic mb-2">QUANTITY_X{item.quantity}</p>
+                                  <p className="text-body font-display font-black text-espresso italic uppercase leading-none tracking-tight">{item.name}</p>
+                                  <p className="text-[11px] text-text-muted font-black uppercase tracking-[0.4em] italic mb-2">QUANTITY_X{item.quantity}</p>
                                   <p className="text-[10px] text-caramel font-black uppercase tracking-[0.3em] font-serif">Valuation: {formatPrice(item.price)}</p>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="text-fluid-title font-display font-black text-espresso italic tracking-tighter">{formatPrice(item.price * item.quantity)}</p>
+                                <p className="text-h2 font-display font-black text-espresso italic tracking-tighter">{formatPrice(item.price * item.quantity)}</p>
                               </div>
                             </motion.div>
                           ))}
@@ -383,14 +385,14 @@ export default function MyOrders() {
 
             {/* Pagination Logistics */}
             <div className="pt-10 md:pt-20 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-10 border-t border-cream px-4 md:px-8">
-              <p className="text-[12px] font-black text-coffee-300 uppercase tracking-[0.5em] italic">
+              <p className="text-[12px] font-black text-text-muted uppercase tracking-[0.5em] italic">
                 Logs {Math.min(filteredAndSortedOrders.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredAndSortedOrders.length, currentPage * itemsPerPage)} // Total {filteredAndSortedOrders.length} Rituals
               </p>
               <div className="flex items-center gap-6">
                 <button 
                   disabled={currentPage === 1}
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(prev => Math.max(1, prev - 1)); }}
-                  className="w-12 h-12 md:w-16 md:h-16 bg-white border border-coffee-100 rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
+                  className="w-12 h-12 md:w-16 md:h-16 bg-white border border-border rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
                 >
                   <ChevronLeft size={20} />
                 </button>
@@ -401,7 +403,7 @@ export default function MyOrders() {
                       onClick={(e) => { e.stopPropagation(); setCurrentPage(i + 1); }}
                       className={cn(
                         "w-10 h-10 md:w-12 md:h-12 rounded-[1rem] text-[12px] font-black transition-all duration-500 italic",
-                        currentPage === i + 1 ? "bg-espresso text-caramel-gold shadow-premium-lg scale-110" : "bg-white border-coffee-50 text-coffee-400 hover:text-caramel hover:border-caramel"
+                        currentPage === i + 1 ? "bg-espresso text-caramel-gold shadow-premium-lg scale-110" : "bg-white border-border-light text-text-muted hover:text-caramel hover:border-caramel"
                       )}
                     >
                       {i + 1}
@@ -411,7 +413,7 @@ export default function MyOrders() {
                 <button 
                   disabled={currentPage === totalPages}
                   onClick={(e) => { e.stopPropagation(); setCurrentPage(prev => Math.min(totalPages, prev + 1)); }}
-                  className="w-12 h-12 md:w-16 md:h-16 bg-white border border-coffee-100 rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
+                  className="w-12 h-12 md:w-16 md:h-16 bg-white border border-border rounded-[1.5rem] flex items-center justify-center text-espresso disabled:opacity-20 hover:bg-caramel hover:text-white transition-all duration-700 shadow-premium active:scale-90"
                 >
                   <ChevronRight size={20} />
                 </button>
@@ -419,16 +421,16 @@ export default function MyOrders() {
             </div>
           </div>
         ) : (
-          <div className="py-20 md:py-48 text-center bg-white border-2 border-coffee-50 border-dashed rounded-[6rem] space-y-12 relative overflow-hidden group">
+          <div className="py-20 md:py-48 text-center bg-white border-2 border-border-light border-dashed rounded-[6rem] space-y-12 relative overflow-hidden group">
             <div className="mesh-gradient absolute inset-0 opacity-5 pointer-events-none" />
-            <div className="w-20 h-20 md:w-32 md:h-32 bg-coffee-50 rounded-[3.5rem] flex items-center justify-center mx-auto text-gold-500 shadow-premium group-hover:rotate-12 transition-transform duration-1000 relative z-10">
+            <div className="w-20 h-20 md:w-32 md:h-32 bg-cream rounded-[3.5rem] flex items-center justify-center mx-auto text-gold-500 shadow-premium group-hover:rotate-12 transition-transform duration-1000 relative z-10">
               <ShoppingBag size={32} strokeWidth={0.5} />
             </div>
             <div className="space-y-6 relative z-10">
-              <h3 className="text-fluid-heading font-display font-black text-coffee-950 italic leading-none uppercase tracking-tightest">Null Logs <br/><span className="not-italic text-coffee-400">Detected.</span></h3>
-              <p className="text-fluid-body text-coffee-400 font-serif italic max-w-md mx-auto">Your sensory journey is awaiting its primary extraction initialization.</p>
+              <h3 className="text-h1 font-display font-black text-text italic leading-none uppercase tracking-tightest">Null Logs <br/><span className="not-italic text-text-muted">Detected.</span></h3>
+              <p className="text-body text-text-muted font-serif italic max-w-md mx-auto">Your sensory journey is awaiting its primary extraction initialization.</p>
             </div>
-            <Link to="/shop" className="btn-premium px-10 md:px-16 py-6 md:py-8 italic uppercase text-[11px] relative z-10 inline-flex">
+            <Link to="/shop" className="btn btn-primary px-10 md:px-16 py-6 md:py-8 italic uppercase text-[11px] relative z-10 inline-flex">
               Initiate Primary Protocol <ArrowRight size={18} className="ml-4" />
             </Link>
           </div>
@@ -460,13 +462,13 @@ export default function MyOrders() {
                 <div className="flex items-start justify-between">
                   <div className="space-y-4 w-full">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-400">Log Protocol</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.4em] text-text-muted">Log Protocol</span>
                       <div className={cn(
                         "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
                         selectedOrder.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
                         selectedOrder.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
                         selectedOrder.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
-                        "bg-coffee-50 text-coffee-600 border-coffee-100"
+                        "bg-cream text-text-secondary border-border"
                       )}>
                         {selectedOrder.status}
                       </div>
@@ -481,33 +483,33 @@ export default function MyOrders() {
                             key={s} 
                             className={cn(
                               "flex-grow h-full rounded-full transition-all duration-1000 delay",
-                              isActive ? "bg-coffee-950" : "bg-coffee-100"
+                              isActive ? "bg-coffee-950" : "bg-cream"
                             )}
                             style={{ transitionDelay: `${i * 150}ms` }}
                           />
                         );
                       })}
                     </div>
-                    <h2 className="text-fluid-heading font-display font-black text-coffee-950 italic leading-none overflow-hidden">
-                      Ritual <span className="not-italic text-coffee-500">Tracking.</span>
+                    <h2 className="text-h1 font-display font-black text-text italic leading-none overflow-hidden">
+                      Ritual <span className="not-italic text-text-muted">Tracking.</span>
                     </h2>
-                    <p className="text-[10px] font-black text-coffee-300 uppercase tracking-widest mt-2 leading-none">Order UUID: {selectedOrder.id}</p>
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-2 leading-none">Order UUID: {selectedOrder.id}</p>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 md:w-14 md:h-14 bg-coffee-50 rounded-2xl flex items-center justify-center text-coffee-400 hover:text-coffee-950 transition-all active:scale-95 ml-8 shrink-0">
+                  <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 md:w-14 md:h-14 bg-cream rounded-2xl flex items-center justify-center text-text-muted hover:text-text transition-all active:scale-95 ml-8 shrink-0">
                     <X size={20} />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="p-6 md:p-10 bg-[#faf8f5] rounded-[3rem] border border-coffee-50 group hover:bg-coffee-950 hover:text-white transition-all duration-700">
+                  <div className="p-6 md:p-10 bg-[#faf8f5] rounded-[3rem] border border-border-light group hover:bg-coffee-950 hover:text-white transition-all duration-700">
                     <div className="flex items-center gap-4 mb-6">
-                       <MapPin className="text-coffee-300 group-hover:text-white" size={20} />
+                       <MapPin className="text-text-muted group-hover:text-white" size={20} />
                        <span className="text-[10px] font-black uppercase tracking-widest">Protocol Destination</span>
                     </div>
                     <div>
-                      <p className="text-fluid-body font-display font-black tracking-tight">{selectedOrder.shippingAddress?.name || 'Elias Mansour'}</p>
+                      <p className="text-body font-display font-black tracking-tight">{selectedOrder.shippingAddress?.name || 'Elias Mansour'}</p>
                       <p className="text-sm opacity-60 font-medium italic mt-1">{selectedOrder.shippingAddress?.address || 'Beirut Waterfront, District 4'}</p>
-                      <p className="text-[10px] font-black text-coffee-400 group-hover:text-coffee-500 uppercase tracking-widest mt-4">Standard Zone 1</p>
+                      <p className="text-[10px] font-black text-text-muted group-hover:text-text-muted uppercase tracking-widest mt-4">Standard Zone 1</p>
                     </div>
                   </div>
 
@@ -517,14 +519,14 @@ export default function MyOrders() {
                     selectedOrder.status === 'shipped' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
                     selectedOrder.status === 'confirmed' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
                     selectedOrder.status === 'cancelled' ? "bg-red-50/50 border-red-100 hover:bg-red-600 hover:text-white" :
-                    "bg-coffee-50 rounded-[3rem] border-coffee-50 hover:bg-coffee-950 hover:text-white"
+                    "bg-cream rounded-[3rem] border-border-light hover:bg-coffee-950 hover:text-white"
                   )}>
                     <div className="flex items-center gap-4 mb-6">
-                       <Truck className="text-coffee-300 group-hover:text-white" size={20} />
+                       <Truck className="text-text-muted group-hover:text-white" size={20} />
                        <span className="text-[10px] font-black uppercase tracking-widest">Logistics Provider</span>
                     </div>
                     <div>
-                      <p className="text-fluid-body font-display font-black tracking-tight">Ritual Fleet Express</p>
+                      <p className="text-body font-display font-black tracking-tight">Ritual Fleet Express</p>
                       <p className="text-sm opacity-60 font-medium italic mt-1 uppercase tracking-tight">Status: {selectedOrder.status}</p>
                       {selectedOrder.trackingId && (
                         <a 
@@ -540,35 +542,8 @@ export default function MyOrders() {
                   </div>
                 </div>
 
-                <div className="space-y-6 md:space-y-10 px-4">
-                  {getTrackingSteps(selectedOrder.status).map((step, i) => (
-                    <div key={i} className="flex gap-8 relative">
-                      {i !== getTrackingSteps(selectedOrder.status).length - 1 && (
-                        <div className={cn(
-                          "absolute left-5 top-10 w-0.5 h-12",
-                          step.status === 'completed' ? 'bg-coffee-950' : 'bg-coffee-100'
-                        )} />
-                      )}
-                      <div className={cn(
-                        "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 relative z-10 transition-all duration-500 shadow-sm",
-                        step.status === 'completed' ? 'bg-coffee-950 text-white' : 
-                        step.status === 'current' ? 'bg-white border-2 border-coffee-950 text-coffee-950 ring-8 ring-coffee-50' : 
-                        'bg-white border border-coffee-100 text-coffee-200'
-                      )}>
-                        {step.status === 'completed' ? <CheckCircle size={18} /> : <span className="text-sm font-black font-display">{i + 1}</span>}
-                      </div>
-                      <div className="py-1">
-                        <h4 className={cn(
-                          "text-fluid-body font-display font-black tracking-tight",
-                          step.status === 'pending' ? 'text-coffee-200' : 'text-coffee-950'
-                        )}>{step.label}</h4>
-                        <p className={cn(
-                          "text-[9px] font-black uppercase tracking-widest mt-1",
-                          step.status === 'pending' ? 'text-coffee-100' : 'text-coffee-400'
-                        )}>{step.date}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="px-2">
+                  <OrderTrackingTimeline order={selectedOrder} />
                 </div>
 
                 <button 

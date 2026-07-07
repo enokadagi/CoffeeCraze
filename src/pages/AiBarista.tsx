@@ -1,151 +1,288 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
-import { GeminiService } from '../services/gemini';
+import { Send, User, Sparkles, Loader2 } from 'lucide-react';
+import { GeminiService, AiContext } from '../services/gemini';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import SEO from '../components/common/SEO';
+import { useAuth } from '../context/AuthContext';
+import { collection, query, where, getDocs, orderBy, limit as fLimit, doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+
+type Message = { role: 'user' | 'model'; content: string };
+
+const SUGGESTIONS = [
+  'Recommend a light roast for mornings',
+  'Best espresso beans for lattes?',
+  'How to brew pour-over coffee?',
+  'What\'s a good gift for a coffee lover?',
+];
 
 export default function AiBarista() {
-  const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([
-    { role: 'model', content: "Welcome to the CoffeeCraze AI Barista. Tell me your preferred roast, brew method, or flavor mood, and I'll craft the perfect coffee ritual for you." }
+  const { user, profile } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: 'model',
+      content:
+        "Welcome to the **CoffeeCraze Concierge** ☕\n\nTell me your preferred roast, brew method, or flavor mood and I'll find the perfect coffee ritual for you.",
+    },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [aiContext, setAiContext] = useState<AiContext | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (!user) return;
+    const loadContext = async () => {
+      const ctx: AiContext = {
+        userName: profile?.displayName || undefined,
+        userEmail: profile?.email || undefined,
+        currentPage: 'AI Barista',
+      };
+      try {
+        const productsSnap = await getDocs(query(collection(db, 'products'), where('isActive', '==', true), fLimit(30)));
+        ctx.products = productsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+        const plansSnap = await getDocs(query(collection(db, 'plans'), fLimit(10)));
+        ctx.plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+        const cartSnap = await getDoc(doc(db, 'carts', user.uid));
+        if (cartSnap.exists()) {
+          const cartData = cartSnap.data();
+          ctx.cartItems = (cartData.items || []).map((i: any) => ({ id: i.id || i.productId, name: i.name, quantity: i.quantity, price: i.price }));
+        }
+        const ordersSnap = await getDocs(query(collection(db, 'orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), fLimit(5)));
+        ctx.recentOrders = ordersSnap.docs.map(d => {
+          const o = d.data() as any;
+          return { id: d.id, status: o.status, total: o.total, createdAt: o.createdAt };
+        });
+      } catch (e) {
+        console.warn('Failed to load AI context:', e);
+      }
+      setAiContext(ctx);
+    };
+    loadContext();
+  }, [user]);
+
+  // Auto-scroll to bottom whenever messages or loading state changes
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isLoading]);
 
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg || isLoading) return;
 
-    const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages((prev) => [...prev, { role: 'user', content: msg }]);
     setIsLoading(true);
 
     try {
-      const history = messages.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
+      const history = messages.map((m) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }],
       }));
-      const response = await GeminiService.getBaristaResponse(userMessage, history);
-      setMessages(prev => [...prev, { role: 'model', content: response }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', content: "Protocol interruption. Sensory data corrupted. Please restate your requirement." }]);
+      const response = await GeminiService.getBaristaResponse(msg, history, aiContext);
+      setMessages((prev) => [...prev, { role: 'model', content: response }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'model', content: 'Sorry, something went wrong. Please try again.' },
+      ]);
     } finally {
       setIsLoading(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
   return (
-    <div className="pt-16 sm:pt-20 h-screen flex flex-col bg-cream text-black overflow-hidden relative">
-      <SEO title="AI Barista" description="Chat with the CoffeeCraze AI Barista for personalized coffee recommendations." />
-      <div className="absolute inset-0 bg-gradient-to-br from-white via-cream to-cream/90 opacity-100 pointer-events-none"></div>
-      
-      <div className="px-4 sm:px-6 md:px-10 py-4 sm:py-6 md:py-10 border-b border-coffee-200 bg-white/95 sticky top-0 z-20 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-cream rounded-[1.5rem] flex items-center justify-center text-coffee-950 shadow-premium relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-tr from-caramel/40 to-transparent group-hover:scale-110 transition-transform duration-700"></div>
-              <Sparkles size={24} className="relative z-10" />
-            </div>
-            <div className="space-y-0.5 sm:space-y-1">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-[#0e372b] tracking-tighter italic">AI Barista <span className="not-italic text-[#0e372b]">v1.0</span></h1>
-              <p className="text-[10px] font-black text-[#0e372b] uppercase tracking-[0.4em] leading-none">Flavor Concierge • Beirut Lounge</p>
-            </div>
+    /*
+     * Layout: fixed viewport height with flex-col so the chat area fills the
+     * remaining space and scrolls independently. The input bar is always visible
+     * at the bottom.
+     */
+    <div
+      className="flex flex-col bg-cream"
+      style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <SEO
+        title="Coffee Concierge"
+        description="Chat with our AI Coffee Concierge for personalised coffee recommendations."
+      />
+
+      {/* --------------- */}
+      <header className="flex-shrink-0 bg-white border-b border-border shadow-sm">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 flex items-center gap-4 h-16 sm:h-20">
+          {/* Icon */}
+          <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-2xl bg-mocha flex items-center justify-center shadow-md">
+            <Sparkles size={18} className="text-caramel" />
           </div>
-          <div className="hidden sm:flex items-center gap-4 px-5 py-2.5 bg-white/80 rounded-full border border-coffee-100 shadow-sm">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-            <span className="text-[10px] font-black text-black uppercase tracking-[0.3em] italic">System Nominal</span>
+
+          {/* Title */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl font-black text-walnut tracking-tight leading-none uppercase truncate">
+              Coffee Concierge
+            </h1>
+            <p className="text-[10px] sm:text-xs font-semibold text-caramel uppercase tracking-widest leading-none mt-1">
+              AI  -  Powered by Gemini
+            </p>
+          </div>
+
+          {/* Status pill */}
+          <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-cream rounded-full border border-border">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-[10px] font-black text-walnut uppercase tracking-widest">
+              Online
+            </span>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div 
+      {/* --------------- */}
+      <div
         ref={scrollRef}
-        className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden pt-8 sm:pt-12 pb-32 sm:pb-40 md:pb-48 px-4 sm:px-6 no-scrollbar scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden"
+        style={{ scrollBehavior: 'smooth' }}
       >
-        <div className="max-w-5xl mx-auto space-y-8 sm:space-y-12">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+
+          {/* Suggestion chips --- only shown when just the welcome message exists */}
+          {messages.length === 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-wrap gap-2 pt-2"
+            >
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleSend(s)}
+                  className="px-4 py-2 bg-white border border-border rounded-full text-xs font-semibold text-mocha hover:bg-mocha hover:text-white hover:border-mocha transition-all duration-300 shadow-sm"
+                >
+                  {s}
+                </button>
+              ))}
+            </motion.div>
+          )}
+
+          {/* Message bubbles */}
           <AnimatePresence mode="popLayout" initial={false}>
             {messages.map((msg, i) => (
               <motion.div
-                layout
-                initial={{ opacity: 0, x: msg.role === 'user' ? 30 : -30, scale: 0.98 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 key={i}
+                layout
+                initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.93 }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                 className={cn(
-                  "flex items-start gap-4 sm:gap-6 max-w-[95%] md:max-w-[85%]",
-                  msg.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
+                  'flex items-end gap-3',
+                  msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 )}
               >
-                <div 
+                {/* Avatar */}
+                <div
                   className={cn(
-                    "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-premium",
-                    msg.role === 'user' ? "bg-coffee-50 text-black" : "bg-white border border-coffee-50 text-black"
+                    'flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-2xl flex items-center justify-center shadow-sm',
+                    msg.role === 'user'
+                      ? 'bg-mocha text-white'
+                      : 'bg-white border border-border text-mocha'
                   )}
                 >
-                  {msg.role === 'user' ? <User size={20} /> : <div className="text-base sm:text-xl font-display font-black leading-none italic">dg</div>}
+                  {msg.role === 'user' ? (
+                    <User size={14} />
+                  ) : (
+                    <Sparkles size={14} />
+                  )}
                 </div>
-                <div className={cn(
-                  "p-4 sm:p-6 md:p-8 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] text-sm leading-relaxed shadow-premium relative",
-                  msg.role === 'user' 
-                      ? "bg-coffee-50 text-[#0e372b] rounded-tr-none border border-coffee-200" 
-                      : "bg-white text-[#0e372b] border border-coffee-50 rounded-tl-none"
-                )}>
-                  <div className="markdown-body prose prose-sm text-current max-w-none prose-p:leading-relaxed prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight prose-headings:italic">
-                    <ReactMarkdown>
-                      {msg.content}
-                    </ReactMarkdown>
+
+                {/* Bubble */}
+                <div
+                  className={cn(
+                    'max-w-[80%] sm:max-w-[72%] px-4 py-3 sm:px-5 sm:py-4 rounded-2xl text-sm sm:text-[15px] leading-relaxed shadow-sm',
+                    msg.role === 'user'
+                      ? 'bg-mocha text-white rounded-br-md'
+                      : 'bg-white border border-border text-walnut rounded-bl-md'
+                  )}
+                >
+                  <div className="prose prose-sm max-w-none [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:my-2 [&_ol]:my-2 [&_strong]:font-bold [&_a]:text-caramel prose-headings:font-bold prose-headings:text-current">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
+
+          {/* Typing indicator */}
           {isLoading && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              className="flex items-center gap-4 sm:gap-6 text-coffee-300"
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-end gap-3"
             >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl bg-white border border-coffee-50 flex items-center justify-center animate-pulse shadow-sm">
-                 <Loader2 size={20} className="animate-spin text-coffee-300" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 rounded-2xl bg-white border border-border flex items-center justify-center shadow-sm">
+                <Loader2 size={14} className="text-caramel animate-spin" />
               </div>
-              <span className="text-[10px] uppercase font-black tracking-[0.4em] italic leading-none">Overseer processing sensory dataset...</span>
+              <div className="px-4 py-3 bg-white border border-border rounded-2xl rounded-bl-md shadow-sm">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2].map((dot) => (
+                    <span
+                      key={dot}
+                      className="w-2 h-2 bg-caramel rounded-full animate-bounce"
+                      style={{ animationDelay: `${dot * 0.15}s` }}
+                    />
+                  ))}
+                </div>
+              </div>
             </motion.div>
           )}
+
+          {/* Bottom spacer so last message is never hidden by the input bar */}
+          <div className="h-2" aria-hidden="true" />
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-t from-white via-white to-transparent absolute bottom-0 left-0 right-0 z-30 pt-12 sm:pt-16 md:pt-20">
-        <div className="max-w-5xl mx-auto relative">
-          <form onSubmit={handleSend} className="relative group">
-            <div className="absolute inset-x-0 bottom-0 top-0 bg-coffee-950/5 blur-3xl opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
-            <input 
-              type="text" 
-              placeholder="Inquire about your sensory allocation protocol..."
+      {/* --------------- */}
+      <div className="flex-shrink-0 bg-white border-t border-border shadow-lg">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+            className="flex items-center gap-2 sm:gap-3"
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Ask about roast, brew style, or flavor…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full pl-6 sm:pl-10 pr-20 sm:pr-24 py-4 sm:py-6 md:py-8 bg-white border border-coffee-100 rounded-[2.5rem] focus:ring-4 focus:ring-coffee-500/10 focus:border-coffee-500 outline-none shadow-premium-lg transition-all duration-500 text-[11px] font-black uppercase tracking-widest relative z-10 focus:bg-[#faf8f5]"
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              className="flex-1 min-w-0 px-4 sm:px-5 py-3 sm:py-3.5 bg-cream border border-border rounded-full text-sm text-walnut placeholder:text-walnut/60 outline-none focus:border-caramel focus:ring-2 focus:ring-caramel/10 transition-all duration-300 disabled:opacity-60"
             />
-            <button 
+            <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-coffee-950 text-white rounded-full hover:bg-coffee-500 disabled:opacity-50 transition-all duration-500 flex items-center justify-center shadow-2xl shadow-coffee-950/30 z-20 active:scale-90"
+              aria-label="Send message"
+              className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 bg-mocha text-cream rounded-full flex items-center justify-center hover:bg-mocha/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md active:scale-90"
             >
-              <Send size={18} />
+              <Send size={16} />
             </button>
           </form>
-          <div className="mt-3 sm:mt-4 text-center">
-            <span className="text-[9px] font-black text-black/70 uppercase tracking-[0.6em] italic">Ask for roast notes, brew style, or flavor pairings.</span>
-          </div>
+          <p className="text-center text-[10px] text-walnut/40 font-medium uppercase tracking-widest mt-2">
+            Powered by Gemini  -  Ask anything about coffee
+          </p>
         </div>
       </div>
     </div>

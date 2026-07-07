@@ -121,7 +121,7 @@ export default function ProductDetail() {
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id || !product) {
-       toast.error("Protocol authentication error. Signal lost.");
+       toast.error("Authentication failed. Please sign in again.");
        return;
     }
     setSubmittingReview(true);
@@ -138,7 +138,7 @@ export default function ProductDetail() {
       const docRef = await addDoc(collection(db, 'reviews'), reviewData);
       const newReviewObj = { id: docRef.id, ...reviewData };
       setReviews(prev => [newReviewObj, ...prev]);
-      toast.success("Engagement protocol logged successfully.");
+      toast.success("Review submitted successfully.");
 
       // Update product rating (naive average for now)
       const newReviewCount = (product.reviewCount || 0) + 1;
@@ -155,7 +155,7 @@ export default function ProductDetail() {
       setNewReview({ rating: 5, comment: '' });
     } catch (err) {
       console.error(err);
-      toast.error("Transmission failed. Retry cycle.");
+      toast.error("Failed to submit review. Please try again.");
     } finally {
       setSubmittingReview(false);
     }
@@ -164,27 +164,27 @@ export default function ProductDetail() {
   if (loading) return (
     <div className="pt-40 pb-40 md:pt-60 md:pb-60 flex flex-col items-center justify-center space-y-8 bg-cream min-h-screen">
       <div className="w-24 h-24 border-4 border-mocha/20 border-t-espresso rounded-full animate-spin shadow-premium"></div>
-      <p className="text-[10px] font-black uppercase tracking-[0.8em] text-coffee-300 italic">Synchronizing Roast Node...</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.8em] text-text-secondary italic">Loading roast details...</p>
     </div>
   );
 
   if (!product) return (
     <div className="pt-40 md:pt-60 text-center min-h-screen bg-cream">
-      <h1 className="text-4xl font-display font-black text-espresso italic">NODE_NOT_FOUND</h1>
+      <h1 className="text-4xl font-display font-black text-espresso italic">Product Not Found</h1>
       <button type="button" onClick={() => navigate('/shop')} className="mt-8 inline-flex items-center justify-center px-8 py-4 bg-espresso text-white rounded-full text-[10px] font-black uppercase tracking-widest italic shadow-premium transition-all hover:bg-caramel">
-        Return to Catalog
+        Return to Shop
       </button>
     </div>
   );
 
   return (
-    <div className="pt-24 pb-24 md:pt-40 md:pb-40 lg:pt-56 lg:pb-56 grainy-overlay min-h-screen bg-cream">
+    <div className="pt-24 pb-24 md:pt-40 md:pb-40 lg:pt-56 lg:pb-56 min-h-screen bg-cream">
       <SEO title={product?.name || 'Product Detail'} description={product?.description || 'View product details for this premium coffee offering.'} />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
-        <button type="button" onClick={() => navigate(-1)} className="group flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 md:mb-24 text-coffee-300 hover:text-espresso transition-all text-[11px] font-black uppercase tracking-[0.6em] italic">
-          <ArrowLeft size={16} strokeWidth={3} className="group-hover:-translate-x-3 transition-transform duration-700" /> Protocol Return
+        <button type="button" onClick={() => navigate(-1)} className="group flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 md:mb-24 text-text-secondary hover:text-espresso transition-all text-[11px] font-black uppercase tracking-[0.6em] italic">
+          <ArrowLeft size={16} strokeWidth={3} className="group-hover:-translate-x-3 transition-transform duration-700" /> Back to Shop
         </button>
 
         {/* Main Grid: Cinematic Layout */}
@@ -212,10 +212,10 @@ export default function ProductDetail() {
                 type="button"
                 onClick={() => toggleWishlist(product)}
                 className={cn(
-                  "absolute top-6 sm:top-8 md:top-12 right-6 sm:right-8 md:right-12 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white/40 backdrop-blur-2xl rounded-full shadow-premium ring-1 ring-white/60 transition-all duration-700 active:scale-90 flex items-center justify-center hover-premium",
+                  "absolute top-6 sm:top-8 md:top-12 right-6 sm:right-8 md:right-12 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white/40 backdrop-blur-2xl rounded-full shadow-premium ring-1 ring-white/60 transition-all duration-700 active:scale-90 flex items-center justify-center hover-lift",
                   isInWishlist(product.id) 
                     ? "text-red-500 bg-white" 
-                    : "text-coffee-400 hover:text-white hover:bg-espresso"
+                    : "text-text-secondary hover:text-white hover:bg-espresso"
                 )}
               >
                 <Heart size={24} className={isInWishlist(product.id) ? "fill-current" : ""} />
@@ -232,7 +232,7 @@ export default function ProductDetail() {
                     if (selectedVariant?.image) setSelectedVariant({...selectedVariant, image: undefined});
                   }}
                   className={cn(
-                    "w-16 h-16 sm:w-20 sm:h-20 md:w-32 md:h-32 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden border-2 transition-all duration-1000 relative group shadow-premium hover-premium",
+                    "w-16 h-16 sm:w-20 sm:h-20 md:w-32 md:h-32 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden border-2 transition-all duration-1000 relative group shadow-premium hover-lift",
                     (currentImage === img) 
                       ? "border-caramel-gold bg-white shadow-premium translate-y-[-12px]" 
                       : "border-transparent opacity-40 grayscale hover:opacity-100 hover:grayscale-0"
@@ -248,14 +248,14 @@ export default function ProductDetail() {
           <div className="lg:col-span-5 space-y-8 sm:space-y-10 md:space-y-20 pt-8 md:pt-12">
             <div className="space-y-6 sm:space-y-8 md:space-y-12">
                <div className="flex items-center justify-between">
-                  <span className="stat-label text-caramel-gold uppercase">{product.category} ARCHIVE</span>
+                  <span className="text-caption text-caramel-gold uppercase">{product.category} COLLECTION</span>
                   <div className="flex items-center gap-3 px-4 md:px-6 py-2 md:py-2.5 bg-white shadow-premium rounded-full">
                      <Star size={14} className="fill-caramel-gold text-caramel-gold" />
                      <span className="text-sm font-black text-espresso tracking-tighter italic">{product.rating.toFixed(1)}</span>
                   </div>
                </div>
                
-               <h1 className="text-fluid-heading font-display font-bold text-espresso leading-[1.05] tracking-tight">
+               <h1 className="text-h1 font-display font-bold text-espresso leading-[1.05] tracking-tight">
                   {product.name}
                 </h1>
 
@@ -269,12 +269,12 @@ export default function ProductDetail() {
                      </span>
                   </div>
                   <div className="flex flex-col md:flex-row items-start md:items-end gap-2 md:gap-4 text-espresso">
-                     <span className="text-fluid-hero font-display font-black tracking-tight leading-none break-words">
+                     <span className="text-display font-display font-black tracking-tight leading-none break-words">
                        {formatPrice(currentPriceLbp)}
                      </span>
                   </div>
                   {currentPriceUsd > 0 && (
-                    <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-3 text-coffee-500 mt-2">
+                    <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-3 text-text-muted mt-2">
                        <span className="text-xl md:text-2xl font-display font-black tracking-tightest italic leading-none">
                          ${currentPriceUsd.toFixed(2)}
                        </span>
@@ -285,11 +285,11 @@ export default function ProductDetail() {
             </div>
 
             <div className="p-4 sm:p-6 md:p-8 lg:p-10 bg-white/60 backdrop-blur-3xl border border-white/60 rounded-[2rem] md:rounded-[3rem] shadow-premium-lg group hover:bg-white transition-colors duration-1000 space-y-6 sm:space-y-8 md:space-y-10">
-               <p className="text-coffee-600 leading-relaxed font-serif italic text-base md:text-lg">"{product.description}"</p>
+               <p className="text-text-secondary leading-relaxed font-serif italic text-base md:text-lg">"{product.description}"</p>
                
                {product.variants && product.variants.length > 0 && (
                  <div className="space-y-4 sm:space-y-6 pt-4 sm:pt-6 border-t border-espresso/5">
-                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-coffee-400 italic">Select Configuration</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-text-muted italic">Select Configuration</h3>
                    <div className="flex flex-wrap gap-3 sm:gap-4">
                      {product.variants.map((v) => (
                        <button
@@ -342,9 +342,9 @@ export default function ProductDetail() {
                        addItem(productToAdd, quantity);
                     }
                     setQuantity(1);
-                    toast.success("Allocation Synchronized.");
+                    toast.success("Added to cart.");
                   }}
-                  className="btn-premium flex-grow w-full md:w-auto py-4 md:py-5 text-sm uppercase tracking-wide"
+                  className="btn btn-primary flex-grow w-full md:w-auto py-4 md:py-5 text-sm uppercase tracking-wide"
                 >
                   <ShoppingCart size={18} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform duration-700" /> 
                   Add {quantity} to Cart
@@ -358,7 +358,7 @@ export default function ProductDetail() {
                   </div>
                   <div className="space-y-1 sm:space-y-2">
                     <p className="text-sm font-black text-espresso uppercase tracking-widest italic">Beirut Logistic Node</p>
-                    <p className="text-[10px] font-black text-coffee-300 uppercase tracking-[0.3em] italic leading-none">Global Latency: Optimal Distribution</p>
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.3em] italic leading-none">Fast, reliable delivery</p>
                   </div>
                 </div>
               </div>
@@ -366,16 +366,16 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Sensory Alignment: RELATED PRODUCTS */}
+        {/* Related Products */}
         {relatedProducts.length > 0 && (
           <section className="mb-16 sm:mb-24 md:mb-32 lg:mb-56 space-y-12 sm:space-y-16 md:space-y-24">
-            <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-8 sm:gap-10 md:gap-16 border-b border-coffee-50 pb-8 sm:pb-12 md:pb-20">
+            <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-8 sm:gap-10 md:gap-16 border-b border-border-light pb-8 sm:pb-12 md:pb-20">
               <div className="space-y-4 sm:space-y-6 md:space-y-8">
-                <span className="stat-label text-caramel-gold uppercase">Neural Sync</span>
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-espresso tracking-tight leading-none">Shared <span className="text-coffee-400">Genotypes.</span></h2>
+                <span className="text-caption text-caramel-gold uppercase">Related Products</span>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-espresso tracking-tight leading-none">Also <span className="text-text-muted">Recommended</span></h2>
               </div>
-              <Link to="/shop" className="group text-[11px] font-black uppercase tracking-[0.6em] text-espresso pb-4 border-b-4 border-coffee-50 hover:border-caramel-gold transition-all duration-700 italic inline-flex items-center gap-6">
-                Full Database Protocol <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
+              <Link to="/shop" className="group text-[11px] font-black uppercase tracking-[0.6em] text-espresso pb-4 border-b-4 border-border-light hover:border-caramel-gold transition-all duration-700 inline-flex items-center gap-6">
+                Browse All Products <ArrowRight size={20} className="group-hover:translate-x-4 transition-transform duration-700" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12">
@@ -386,23 +386,23 @@ export default function ProductDetail() {
           </section>
         )}
 
-        {/* Social Validation Protocol: REVIEWS */}
+        {/* Reviews */}
         <div className="space-y-12 sm:space-y-16 md:space-y-32">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-12 lg:gap-24 p-6 sm:p-8 md:p-12 lg:p-20 bg-espresso text-white rounded-[3rem] lg:rounded-[6rem] relative overflow-hidden shadow-premium-xl">
              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(140,106,77,0.2),transparent)]" />
              <div className="relative z-10 space-y-6 sm:space-y-8 md:space-y-10 max-w-2xl text-center lg:text-left">
-              <span className="stat-label text-caramel-gold uppercase">Global Registry</span>
+              <span className="text-caption text-caramel-gold uppercase">Global Registry</span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold leading-[1.1] tracking-tight">Trusted By <span className="text-white block uppercase">The Elite.</span></h2>
-              <p className="text-lg md:text-xl text-coffee-400 font-serif italic leading-relaxed">"Verification logs aggregated from verified neural roastery nodes."</p>
+              <p className="text-lg md:text-xl text-cream font-serif italic leading-relaxed">\""Roastery reviews from verified customers.\""</p>
             </div>
             <div className="relative z-10 flex items-center gap-12 lg:gap-32 w-full lg:w-auto justify-center">
                <div className="text-center">
                    <span className="block text-4xl sm:text-5xl font-display font-bold text-caramel-gold tracking-tight">{product.rating}</span>
-                   <span className="text-[10px] font-medium text-coffee-500 uppercase tracking-wide leading-none block mt-2">Node Score</span>
+                   <span className="text-[10px] font-medium text-text-muted uppercase tracking-wide leading-none block mt-2">Rating</span>
                 </div>
                 <div className="text-center">
                    <span className="block text-4xl sm:text-5xl font-display font-bold text-white tracking-tight">{product.reviewCount}</span>
-                   <span className="text-[10px] font-medium text-coffee-500 uppercase tracking-wide leading-none block mt-2">Logs</span>
+                   <span className="text-[10px] font-medium text-text-muted uppercase tracking-wide leading-none block mt-2">Logs</span>
                </div>
             </div>
           </div>
@@ -431,11 +431,11 @@ export default function ProductDetail() {
                      <p className="text-xl sm:text-2xl md:text-3xl text-espresso font-serif italic leading-snug">"{review.comment}"</p>
                   </div>
 
-                  <div className="flex items-center gap-4 md:gap-6 pt-6 sm:pt-8 md:pt-12 border-t border-coffee-50 mt-6 sm:mt-8 md:mt-12">
+                  <div className="flex items-center gap-4 md:gap-6 pt-6 sm:pt-8 md:pt-12 border-t border-border-light mt-6 sm:mt-8 md:mt-12">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-espresso text-caramel-gold rounded-2xl md:rounded-3xl flex items-center justify-center font-black text-lg sm:text-xl md:text-2xl italic shadow-premium group-hover:rotate-12 transition-transform duration-700">{review.userName[0]}</div>
                     <div className="space-y-1">
                       <p className="font-black text-sm text-espresso uppercase tracking-widest italic">{review.userName}</p>
-                      <p className="text-[9px] text-coffee-300 font-black uppercase tracking-[0.3em]">{new Date(review.createdAt).toLocaleDateString()}_PROTOCOL</p>
+                      <p className="text-[9px] text-text-muted font-black uppercase tracking-[0.3em]">{new Date(review.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -446,20 +446,20 @@ export default function ProductDetail() {
                   <MessageSquare size={40} />
                 </div>
                 <div className="text-center space-y-3 sm:space-y-4 px-6 md:px-0">
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">Archive Empty</h3>
-                  <p className="text-lg sm:text-xl text-coffee-400 font-serif italic max-w-sm mx-auto">Be the first node to validate this specific ritual harvest.</p>
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">No Reviews Yet</h3>
+                      <p className="text-lg sm:text-xl text-text-secondary font-serif italic max-w-sm mx-auto">Share your thoughts and help others discover this coffee.</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* New Review Entry Protocol */}
+          {/* Write a Review */}
           <div className="flex justify-center pt-12 sm:pt-16 md:pt-24 px-4 md:px-0">
              <div className="w-full max-w-5xl p-6 sm:p-8 md:p-16 lg:p-20 bg-white shadow-premium-xl rounded-[3rem] md:rounded-[7rem] border border-white/60 relative overflow-hidden text-center space-y-8 sm:space-y-10 md:space-y-16">
                 <div className="mesh-gradient absolute inset-0 opacity-10 pointer-events-none" />
                 <div className="space-y-4 sm:space-y-6 md:space-y-8 relative z-10">
-                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-espresso tracking-tight leading-none uppercase">Post Your <span className="text-caramel">Validation.</span></h3>
-                  <p className="text-base sm:text-lg md:text-2xl text-coffee-400 font-serif italic max-w-xl mx-auto leading-relaxed">Personal roastery logs stabilize the local consensus network.</p>
+                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-espresso tracking-tight leading-none uppercase">Share Your <span className="text-caramel">Review.</span></h3>
+                  <p className="text-base sm:text-lg md:text-2xl text-text-secondary font-serif max-w-xl mx-auto leading-relaxed">Your honest feedback helps others choose their next great coffee.</p>
                 </div>
                 
                 {user ? (
@@ -489,16 +489,16 @@ export default function ProductDetail() {
                         value={newReview.comment}
                         onChange={e => setNewReview({ ...newReview, comment: e.target.value })}
                         required
-                        placeholder="INITIATE_SENSORY_LOG..."
+                        placeholder="Write your review..."
                         className="w-full p-8 sm:p-10 md:p-12 bg-cream border border-white rounded-[5rem] h-48 sm:h-64 focus:bg-white focus:ring-[20px] focus:ring-espresso/5 focus:border-caramel-gold outline-none transition-all resize-none text-lg sm:text-xl font-serif italic placeholder:text-coffee-200 shadow-inner"
                       />
                     </div>
                     <button 
                       disabled={submittingReview}
                       type="submit" 
-                      className="btn-premium w-full py-5 sm:py-7 text-sm group italic"
+                      className="btn btn-primary w-full py-5 sm:py-7 text-sm group italic"
                     >
-                      {submittingReview ? 'SYNCHRONIZING...' : 'UPLOAD PROTOCOL LOG'}
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
                       <ArrowRight size={20} className="group-hover:translate-x-6 transition-transform duration-700" />
                     </button>
                   </form>
@@ -506,17 +506,51 @@ export default function ProductDetail() {
                   <div className="space-y-8 sm:space-y-12 relative z-10">
                      <button 
                        onClick={() => navigate('/auth')}
-                       className="btn-premium px-12 sm:px-16 md:px-20 py-6 sm:py-8 italic"
+                       className="btn btn-primary px-12 sm:px-16 md:px-20 py-6 sm:py-8 italic"
                      >
-                       AUTHORIZE_CREDENTIALS
+                       Sign In to Review
                      </button>
-                     <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[1em] italic">Identity Protocol Required</p>
+                     <p className="text-[11px] font-black text-text-muted uppercase tracking-[1em] italic">Sign in to leave a review</p>
                   </div>
                 )}
              </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile Sticky Add to Cart Bar */}
+      {product && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-espresso/10 shadow-premium-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-espresso truncate">{product.name}</p>
+              <p className="text-sm font-black text-espresso">{formatPrice(currentPriceLbp)}</p>
+            </div>
+            <div className="flex items-center bg-cream rounded-full border border-espresso/10">
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-espresso text-lg font-black"
+              >-</button>
+              <span className="w-8 text-center font-black text-sm">{quantity}</span>
+              <button
+                onClick={() => setQuantity(quantity + 1)}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-espresso text-lg font-black"
+              >+</button>
+            </div>
+            <button
+              onClick={() => {
+                const p = { ...product, price: currentPriceLbp, priceUsd: currentPriceUsd };
+                addItem(selectedVariant ? { ...p, selectedVariant } : p, quantity);
+                setQuantity(1);
+                toast.success("Added to cart.");
+              }}
+              className="btn btn-primary px-6 py-3 text-xs whitespace-nowrap"
+            >
+              <ShoppingCart size={16} /> Add
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

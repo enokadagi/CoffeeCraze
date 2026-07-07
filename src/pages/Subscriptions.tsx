@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Check, ArrowRight, Zap, Coffee, Building2, Utensils, Truck } from 'lucide-react';
+import { Check, ArrowRight, Zap, Coffee, Building2, Utensils, Truck, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Seo from '../components/common/SEO';
 import ImageWithFallback from '../components/common/ImageWithFallback';
 import { cn } from '../lib/utils';
@@ -9,49 +10,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Address, Plan, PlanItem, SubscriptionStatus, PaymentStatus } from '../types';
 import { PlanService, SubscriptionService } from '../services/firestore';
-import { formatUSD, formatLBP } from '../utils/exchange';
-
-const DEFAULT_PLANS: Plan[] = [
-  {
-    id: 'sensory-starter',
-    name: 'SENSORY_STARTER',
-    description: 'Personalized selection of beans and essentials for the foundational ritual.',
-    price: 1200000,
-    features: ['Curated Local Beans', 'Syrup Add-on Included', 'Priority Provisioning', 'Bi-Weekly Sync'],
-    items: [],
-    frequency: 'biweekly',
-    minDeliveries: 2,
-    isFeatured: false,
-    isCustomizable: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'excellence-suite',
-    name: 'EXCELLENCE_SUITE',
-    description: 'The ultimate orchestral selection for high-performance sensory environments.',
-    price: 4500000,
-    features: ['Bulk Bean Allocation', 'Powder & Syrup Access', 'Dedicated Support Node', 'Weekly Fleet Logistics'],
-    items: [],
-    isFeatured: true,
-    frequency: 'weekly',
-    minDeliveries: 4,
-    isCustomizable: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'custom-archival',
-    name: 'LEGACY_ARCHIVE',
-    description: 'Bespoke sensory architecture for global entities and archival collectors.',
-    price: 9500000,
-    features: ['Isotopic Sourcing', 'AI Sensory Mapping', '24/7 Agent Node', 'Global Logistics'],
-    items: [],
-    frequency: 'monthly',
-    minDeliveries: 1,
-    isFeatured: false,
-    isCustomizable: true,
-    createdAt: new Date().toISOString(),
-  }
-];
+import { formatUSD } from '../utils/exchange';
 
 const getNextDeliveryDate = (frequency: 'weekly' | 'biweekly' | 'monthly') => {
   const date = new Date();
@@ -63,9 +22,9 @@ const getNextDeliveryDate = (frequency: 'weekly' | 'biweekly' | 'monthly') => {
 };
 
 export default function Subscriptions() {
-  const { user, profile } = useAuth();
+  const { user, profile, isEmailVerified } = useAuth();
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [creatingPlan, setCreatingPlan] = useState<string | null>(null);
 
@@ -73,12 +32,10 @@ export default function Subscriptions() {
     const loadPlans = async () => {
       try {
         const remotePlans = await PlanService.getAll();
-        if (remotePlans.length > 0) {
-          setPlans(remotePlans.map((plan) => ({
-            ...plan,
-            frequency: plan.frequency || 'monthly'
-          })));
-        }
+        setPlans(remotePlans.map((plan) => ({
+          ...plan,
+          frequency: plan.frequency || 'monthly'
+        })));
       } catch (error) {
         console.warn('Unable to fetch remote plans, using default plan definitions.', error);
       } finally {
@@ -90,8 +47,18 @@ export default function Subscriptions() {
 
   const handleSelectPlan = async (plan: Plan) => {
     if (!user) {
-      toast.error('Security clearance required. Please sign in to initiate your ritual subscription.');
+      toast.error('Please sign in to start your subscription.');
       navigate('/auth?redirect=/subscriptions');
+      return;
+    }
+
+    if (!isEmailVerified) {
+      toast.error('Please verify your email before starting a subscription. Go to your Profile to resend the verification email.');
+      return;
+    }
+
+    if (plan.isCustomizable) {
+      navigate('/custom-plan-builder');
       return;
     }
 
@@ -121,7 +88,7 @@ export default function Subscriptions() {
           phone: profile?.phone || ''
         },
         history: [],
-        paymentStatus: PaymentStatus.PAID
+        paymentStatus: PaymentStatus.PENDING
       });
 
       toast.success('Subscription initialized successfully.');
@@ -150,23 +117,23 @@ export default function Subscriptions() {
           transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
           className="space-y-10 md:space-y-16"
         >
-          <span className="text-fluid-small font-black uppercase tracking-[0.6em] md:tracking-[1em] text-caramel block italic leading-none ml-2">Neural_Provisioning_Cycle</span>
-          <h1 className="text-fluid-hero font-display font-black text-espresso tracking-tightest leading-[0.9] sm:leading-[0.85] md:leading-[0.8] italic uppercase">
-            Zero <span className="not-italic text-coffee-300">Latency.</span> <br className="hidden sm:block" />
-            <span className="text-caramel-gold block font-black not-italic sm:ml-8 underline decoration-espresso/10 underline-offset-[0.5rem] sm:underline-offset-[1.5rem]">Pure Excellence.</span>
+          <span className="text-small font-black uppercase tracking-[0.6em] md:tracking-[1em] text-caramel block italic leading-none ml-2">Subscription Plans</span>
+          <h1 className="text-display font-display font-black text-espresso tracking-tightest leading-[0.95] sm:leading-[0.9] md:leading-[0.85] uppercase">
+            Fresh Coffee <span className="text-caramel">Delivered</span> <br className="hidden sm:block" />
+            <span className="text-caramel block font-black sm:ml-8 underline decoration-espresso/10 underline-offset-[0.5rem] sm:underline-offset-[1.5rem]">On Your Schedule.</span>
           </h1>
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 mt-8 md:mt-24">
-            <p className="text-fluid-body text-coffee-400 max-w-xl font-serif italic leading-relaxed">
-              "Architected provisioning plans for those who demand the absolute zenith of sensory maintenance. Synchronized from Beirut for a global ritual."
+            <p className="text-body text-primary max-w-xl font-serif leading-relaxed">
+              Pick a plan that keeps your pantry stocked, simplifies ordering, and gives you flexibility with every delivery.
             </p>
             <div className="h-px w-32 bg-caramel/30 hidden md:block" />
             <div className="flex -space-x-6">
                {[1, 2, 3, 4].map((value) => (
                  <div key={`member-${value}`} className="w-16 h-16 rounded-full border-4 border-white bg-cream shadow-premium group overflow-hidden ring-1 ring-espresso/5">
-                   <ImageWithFallback src={`https://images.unsplash.com/photo-${1500000000000 + value * 10000000}?auto=format&fit=crop&q=80&w=200`} alt="Community member" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                   <ImageWithFallback src={`https://images.unsplash.com/photo-${1500000000000 + value * 10000000}?auto=format&fit=crop&q=80&w=200`} alt="Customer photo" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                  </div>
                ))}
-               <div className="w-16 h-16 rounded-full border-4 border-white bg-espresso flex items-center justify-center text-fluid-small text-white font-black italic shadow-premium ring-1 ring-white/10 uppercase tracking-tighter">
+               <div className="w-16 h-16 rounded-full border-4 border-white bg-espresso flex items-center justify-center text-small text-white font-black italic shadow-premium ring-1 ring-white/10 uppercase tracking-tighter">
                  +2K
                </div>
             </div>
@@ -176,7 +143,7 @@ export default function Subscriptions() {
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12 mb-24 md:mb-56 relative z-10 px-4 md:px-0">
         {[
-          { icon: <Coffee strokeWidth={1} />, title: 'Home Ritual', desc: 'Personal Protocol' },
+          { icon: <Coffee strokeWidth={1} />, title: 'Home Ritual', desc: 'Personal Plan' },
           { icon: <Building2 strokeWidth={1} />, title: 'Hub Choice', desc: 'Institutional Peak' },
           { icon: <Utensils strokeWidth={1} />, title: 'Pro Nodes', desc: 'Legacy Supply' },
           { icon: <Truck strokeWidth={1} />, title: 'Fleet Logic', desc: 'High-Density Ops' },
@@ -194,113 +161,234 @@ export default function Subscriptions() {
                 {item.icon}
              </div>
              <div className="space-y-3 md:space-y-6 relative z-10">
-               <h3 className="font-display font-black text-fluid-title tracking-tightest italic leading-none uppercase text-espresso">{item.title}</h3>
-               <p className="text-fluid-small text-caramel font-black uppercase tracking-[0.3em] md:tracking-[0.8em] italic">"{item.desc}"</p>
+               <h3 className="font-display font-black text-h2 tracking-tightest italic leading-none uppercase text-espresso">{item.title}</h3>
+               <p className="text-small text-caramel font-black uppercase tracking-[0.3em] md:tracking-[0.8em] italic">"{item.desc}"</p>
              </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-16 relative z-10 px-4 md:px-0">
-        {(loadingPlans ? DEFAULT_PLANS : plans).map((plan, i) => (
-          <motion.div
-            key={plan.id}
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
-            whileInView={{ opacity: 1, scale: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], delay: i * 0.2 }}
-            className={cn(
-              "p-6 md:p-8 rounded-3xl border transition-all duration-1000 relative overflow-hidden group shadow-premium flex flex-col justify-between min-h-[480px] lg:min-h-[600px] backdrop-blur-md",
-              plan.isFeatured 
-                ? 'bg-espresso text-white border-white/10 shadow-xl shadow-espresso/30' 
-                : 'bg-white/40 border-white/60 hover:bg-white/70 shadow-premium'
-            )}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-            {plan.isFeatured && (
-              <div className="absolute top-6 right-6 px-4 py-1.5 bg-caramel text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full z-10 shadow-premium italic animate-pulse-slow leading-none border border-white/20">
-                DOMINANT_PROTOCOL
-              </div>
-            )}
+      <div className="max-w-7xl mx-auto space-y-10 px-4 md:px-0 relative z-10">
+        <div className="grid gap-6 md:grid-cols-3 md:gap-8 mb-12">
+          <div className="rounded-3xl bg-white/90 border border-white/70 p-6 md:p-8 shadow-premium overflow-hidden h-full">
+            <h2 className="text-lg font-display font-black uppercase tracking-[0.2em] text-espresso mb-4">How it works</h2>
+            <ul className="space-y-4 text-sm text-text-secondary leading-relaxed">
+              <li className="flex items-start gap-3">
+                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-caramel text-white font-black">1</span>
+                Choose the plan that fits your routine.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-caramel text-white font-black">2</span>
+                Receive fresh coffee on the cadence you want.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-caramel text-white font-black">3</span>
+                Manage deliveries, swaps, and payment from your account.
+              </li>
+            </ul>
+          </div>
+          <div className="rounded-3xl bg-espresso/95 border border-white/10 p-6 md:p-8 shadow-xl text-white h-full">
+            <h2 className="text-lg font-display font-black uppercase tracking-[0.2em] mb-4">Why subscribe?</h2>
+            <p className="text-sm leading-relaxed text-white/80">Enjoy convenience, better value, and consistent coffee without reordering every week. Ideal for busy homes and offices that want premium coffee delivered reliably.</p>
+          </div>
+          <div className="rounded-3xl bg-white/90 border border-white/70 p-6 md:p-8 shadow-premium overflow-hidden h-full">
+            <h2 className="text-lg font-display font-black uppercase tracking-[0.2em] mb-4">Plan benefits</h2>
+            <div className="space-y-3 text-sm text-text-secondary leading-relaxed">
+              <p className="font-semibold">Flexible frequency</p>
+              <p>Modify delivery cadence, pause anytime, and manage orders on your schedule.</p>
+              <p className="font-semibold">Premium selection</p>
+              <p>Curated beans, capsules, and gear from trusted producers.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Plan cards */}
+      <div className="max-w-7xl mx-auto relative z-10 px-4 md:px-0">
+        <div className="text-center mb-10 md:mb-14 space-y-4">
+          <h2 className="text-2xl md:text-3xl font-display font-black text-espresso uppercase tracking-wide">
+            Choose Your Plan
+          </h2>
+          <p className="text-sm md:text-base text-text-secondary max-w-2xl mx-auto leading-relaxed">
+            {user
+              ? 'Pick a plan below to start your subscription. You can pause, swap items, or change delivery frequency anytime from your dashboard.'
+              : 'Browse our plans below. Sign in to subscribe --- it only takes a minute.'}
+          </p>
+          {!user && (
+            <Link
+              to="/auth?redirect=/subscriptions"
+              className="inline-flex items-center gap-2 mt-2 px-6 py-3 bg-espresso text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-caramel hover:text-espresso transition-all shadow-premium"
+            >
+              Sign In to Subscribe <ArrowRight size={14} />
+            </Link>
+          )}
+        </div>
 
-            <div className="relative z-10 space-y-6 md:space-y-10">
-              <div className="space-y-4 md:space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className={cn(
-                    "text-xs font-black uppercase tracking-[0.3em] italic leading-none",
-                    plan.isFeatured ? 'text-caramel' : 'text-coffee-300'
-                  )}>{plan.name} ALLOCATION</h3>
-                  <Zap size={14} className={plan.isFeatured ? 'text-caramel animate-pulse' : 'text-coffee-100'} />
-                </div>
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-1">
-                    <p className={cn(
-                      "text-[10px] font-black uppercase tracking-[0.2em] italic opacity-40",
-                      plan.isFeatured ? 'text-white' : 'text-espresso'
-                    )}>PROVISIONING_VALUE</p>
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <p className="text-3xl md:text-4xl font-display font-black tracking-tightest italic leading-none uppercase">
-                        {formatUSD(plan.price / 89500)}
-                      </p>
-                      <span className={cn(
-                        "text-[10px] font-black uppercase tracking-[0.1em] italic leading-none opacity-30",
-                        plan.isFeatured ? 'text-white' : 'text-espresso'
-                      )}>/ cycle</span>
+        <div className="rounded-[2rem] md:rounded-[2.5rem] bg-white/60 border border-espresso/8 p-4 sm:p-6 md:p-10 shadow-premium-lg backdrop-blur-sm">
+          {loadingPlans ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-72 bg-white/50 rounded-2xl md:rounded-3xl animate-pulse border border-espresso/10" />
+              ))}
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="py-16 text-center">
+              <h3 className="text-xl font-display font-bold text-text-secondary mb-2">Subscription Plans Coming Soon</h3>
+              <p className="text-sm text-text-muted mb-8">Our subscription plans are being prepared. Check back shortly or contact us for early access.</p>
+              <Link to="/contact" className="btn-outline px-8 py-3">Contact Us</Link>
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
+            {plans.map((plan, i) => (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: i * 0.12 }}
+                className={cn(
+                  'relative flex flex-col rounded-2xl md:rounded-3xl border p-6 md:p-8 transition-all duration-500 group overflow-hidden h-full',
+                  plan.isFeatured
+                    ? 'bg-espresso text-white border-caramel/40 shadow-xl shadow-espresso/25 ring-2 ring-caramel/50 hover:shadow-2xl hover:shadow-espresso/30 hover:-translate-y-1'
+                    : 'bg-white border-espresso/10 shadow-premium hover:shadow-premium-lg hover:border-caramel/30 hover:-translate-y-1'
+                )}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-caramel/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                {plan.isFeatured && (
+                  <div className="absolute top-5 right-5 px-3 py-1.5 bg-caramel text-espresso text-[10px] font-black uppercase tracking-[0.25em] rounded-full z-10 shadow-md flex items-center gap-1.5">
+                    <Sparkles size={10} /> BEST VALUE
+                  </div>
+                )}
+
+                <div className="relative z-10 flex flex-col flex-1 gap-6">
+                  {/* Plan header */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3 pr-16">
+                      <h3 className={cn(
+                        'text-xs font-black uppercase tracking-[0.2em] leading-snug',
+                        plan.isFeatured ? 'text-caramel' : 'text-espresso'
+                      )}>
+                        {plan.name.replace(/_/g, ' ')}
+                      </h3>
+                      <Zap size={16} className={cn(
+                        'shrink-0',
+                        plan.isFeatured ? 'text-caramel' : 'text-caramel'
+                      )} />
                     </div>
+
+                    {/* Price block */}
+                    <div className="rounded-2xl p-4 border bg-white border-espresso/10 shadow-sm">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] mb-2 text-black">
+                        Per delivery cycle
+                      </p>
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <p className="text-3xl md:text-4xl font-display font-black tracking-tight leading-none text-black">
+                          {formatUSD(plan.price / 89500)}
+                        </p>
+                        <span className="text-xs font-semibold text-black">
+                          / cycle
+                        </span>
+                      </div>
+                      <p className={cn(
+                        'text-sm font-semibold mt-2',
+                        plan.isFeatured ? 'text-caramel' : 'text-text-secondary'
+                      )}>
+                        ~ {plan.price.toLocaleString()} LBP
+                      </p>
+                    </div>
+
                     <p className={cn(
-                      "text-[11px] font-semibold opacity-60",
-                      plan.isFeatured ? 'text-caramel-gold' : 'text-coffee-500'
+                      'text-sm leading-relaxed',
+                      plan.isFeatured ? 'text-white/85' : 'text-text-secondary'
                     )}>
-                      ≈ {formatLBP(plan.price)} LBP
+                      {plan.description}
                     </p>
                   </div>
-                  <p className={cn("text-sm font-serif italic leading-tight text-balance opacity-80", plan.isFeatured ? 'text-coffee-300' : 'text-coffee-500')}>
-                    "{plan.description}"
-                  </p>
+
+                  {/* Features */}
+                  <div className="flex-1 space-y-3">
+                    <p className={cn(
+                      'text-[10px] font-bold uppercase tracking-[0.2em]',
+                      plan.isFeatured ? 'text-caramel' : 'text-espresso'
+                    )}>
+                      What's included
+                    </p>
+                    <ul className="space-y-2.5">
+                      {plan.features.map((feat) => (
+                        <li key={feat} className="flex items-center gap-3 text-sm group/feat">
+                          <div className={cn(
+                            'w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-transform duration-300 group-hover/feat:scale-110',
+                            plan.isFeatured
+                              ? 'bg-caramel/20 border-caramel/40 text-caramel'
+                              : 'bg-caramel/10 border-caramel/25 text-espresso'
+                          )}>
+                            <Check className="w-3 h-3" strokeWidth={3} />
+                          </div>
+                          <span className={cn(
+                            'font-medium leading-snug',
+                            plan.isFeatured ? 'text-white' : 'text-espresso'
+                          )}>
+                            {feat}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* CTA */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleSelectPlan(plan)}
+                    disabled={creatingPlan !== null}
+                    className={cn(
+                      'w-full py-3.5 md:py-4 rounded-full font-bold uppercase tracking-[0.2em] text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-md group/btn relative overflow-hidden mt-auto',
+                      plan.isFeatured
+                        ? 'bg-caramel text-espresso hover:bg-white hover:text-espresso'
+                        : 'bg-espresso text-white hover:bg-caramel hover:text-espresso',
+                      creatingPlan !== null && creatingPlan !== plan.id && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    <span className="relative z-10">
+                      {creatingPlan === plan.id
+                        ? 'Starting...'
+                        : plan.isCustomizable && plan.name.includes('CUSTOM')
+                          ? 'Build Custom Plan'
+                          : 'Start Subscription'}
+                    </span>
+                    <ArrowRight size={16} className="relative z-10 group-hover/btn:translate-x-1 transition-transform" />
+                  </motion.button>
                 </div>
-              </div>
 
-              <div className="space-y-4 md:space-y-6">
-                <p className={cn("text-xs font-black uppercase tracking-[0.3em] italic leading-none", plan.isFeatured ? 'text-caramel' : 'text-espresso')}>System_Permissions:</p>
-                <ul className="space-y-3 md:space-y-4">
-                  {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-3 text-xs font-black italic tracking-tight uppercase leading-none group/feat">
-                      <div className={cn(
-                        "w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 shadow-premium border transition-all duration-1000 group-hover/feat:rotate-12 group-hover/feat:scale-110",
-                        plan.isFeatured ? 'bg-white/5 border-white/10 text-caramel' : 'bg-white border-espresso/5 text-espresso shadow-inner'
-                      )}>
-                        <Check className="w-2.5 h-2.5" strokeWidth={4} />
-                      </div>
-                      <span className="pt-1 group-hover/feat:translate-x-2 transition-transform duration-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+                <div className={cn(
+                  'absolute -bottom-32 -right-32 w-64 h-64 rounded-full blur-[100px] opacity-25 pointer-events-none transition-transform duration-700 group-hover:scale-125',
+                  plan.isFeatured ? 'bg-caramel' : 'bg-caramel/40'
+                )} />
+              </motion.div>
+            ))}
+          </div>
+          )}
+        </div>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleSelectPlan(plan)}
-              disabled={creatingPlan !== null}
-              className={cn(
-                "w-full py-3.5 rounded-full font-black uppercase tracking-[0.3em] text-xs transition-all duration-1000 flex items-center justify-center gap-3 shadow-premium italic active:scale-95 group/btn relative overflow-hidden mt-6 md:mt-10",
-                plan.isFeatured
-                  ? 'bg-caramel hover:bg-white text-white hover:text-espresso shadow-caramel/20'
-                  : 'bg-espresso hover:bg-caramel text-white shadow-espresso/20'
-              )}
+        {/* How members become subscribers */}
+        <div className="mt-12 md:mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+          {[
+            { step: '1', title: 'Create Account', desc: 'Sign in or register for free to access subscriptions.' },
+            { step: '2', title: 'Choose a Plan', desc: 'Pick Starter, Premium, or build a fully custom plan.' },
+            { step: '3', title: 'Manage in Dashboard', desc: 'Track deliveries, pause, swap items, and update payment.' },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="p-5 md:p-6 bg-white border border-espresso/8 rounded-2xl shadow-premium hover:shadow-premium-lg hover:border-caramel/25 transition-all duration-300 h-full"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              <span className="relative z-10 font-black tracking-[0.4em]">{creatingPlan === plan.id ? 'INITIALIZING...' : 'INITIALIZE_RITUAL'}</span>
-              <ArrowRight className="relative z-10 group-hover:translate-x-4 transition-transform duration-1000 w-4 h-4" />
-            </motion.button>
-
-            <div className={cn(
-              "absolute -bottom-64 -right-64 w-[300px] md:w-[600px] h-[300px] md:h-[600px] rounded-full blur-[200px] transition-transform duration-[4s] group-hover:scale-150 opacity-20 pointer-events-none",
-              plan.isFeatured ? 'bg-caramel-gold' : 'bg-caramel/30'
-            )} />
-          </motion.div>
-        ))}
+              <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-caramel text-espresso text-sm font-black mb-3">
+                {item.step}
+              </span>
+              <h4 className="font-bold text-espresso text-sm mb-1">{item.title}</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -59,7 +59,7 @@ export default function Settings() {
         <div className="border-b border-espresso/5 pb-8">
           <p className="text-xs font-bold uppercase tracking-widest text-caramel mb-2">Configuration</p>
           <h1 className="text-4xl font-display font-black text-espresso italic">Settings</h1>
-          <p className="text-sm text-coffee-400 mt-2">Customize your CoffeeCraze experience</p>
+          <p className="text-sm text-text-muted mt-2">Customize your CoffeeCraze experience</p>
         </div>
 
         {/* Settings Sections */}
@@ -120,7 +120,7 @@ export default function Settings() {
             </div>
 
             <div>
-              <label htmlFor="preferred-delivery-time" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-3">
+              <label htmlFor="preferred-delivery-time" className="text-xs font-bold uppercase tracking-widest text-text-muted block mb-3">
                 Preferred Delivery Time
               </label>
               <select
@@ -154,7 +154,7 @@ export default function Settings() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="preferred-currency" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-3">
+                <label htmlFor="preferred-currency" className="text-xs font-bold uppercase tracking-widest text-text-muted block mb-3">
                   Currency
                 </label>
                 <select
@@ -169,12 +169,12 @@ export default function Settings() {
                   className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso bg-white"
                 >
                   <option value="USD">USD ($)</option>
-                  <option value="LBP">LBP (ل.ل)</option>
+                  <option value="LBP">LBP (Ù„.Ù„)</option>
                 </select>
               </div>
 
               <div>
-                <label htmlFor="preferred-language" className="text-xs font-bold uppercase tracking-widest text-coffee-400 block mb-3">
+                <label htmlFor="preferred-language" className="text-xs font-bold uppercase tracking-widest text-text-muted block mb-3">
                   Language
                 </label>
                 <select
@@ -189,7 +189,7 @@ export default function Settings() {
                   className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso bg-white"
                 >
                   <option value="en">English</option>
-                  <option value="ar">العربية</option>
+                  <option value="ar">Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</option>
                 </select>
               </div>
             </div>
@@ -210,17 +210,17 @@ export default function Settings() {
             </div>
 
             <div className="space-y-3">
-              <button className="w-full p-4 border border-espresso/10 rounded-lg hover:bg-espresso/5 transition-colors text-left">
+              <button onClick={() => toast.info('Password reset link will be sent to your email.')} className="w-full p-4 border border-espresso/10 rounded-lg hover:bg-espresso/5 transition-colors text-left">
                 <p className="font-bold text-espresso text-sm">Change Password</p>
-                <p className="text-xs text-coffee-400 mt-1">Update your account password</p>
+                <p className="text-xs text-text-muted mt-1">Update your account password</p>
               </button>
-              <button className="w-full p-4 border border-espresso/10 rounded-lg hover:bg-espresso/5 transition-colors text-left">
+              <button onClick={() => toast.info('Two-factor authentication coming soon.')} className="w-full p-4 border border-espresso/10 rounded-lg hover:bg-espresso/5 transition-colors text-left">
                 <p className="font-bold text-espresso text-sm">Two-Factor Authentication</p>
-                <p className="text-xs text-coffee-400 mt-1">Add extra security to your account</p>
+                <p className="text-xs text-text-muted mt-1">Add extra security to your account</p>
               </button>
-              <button className="w-full p-4 border border-espresso/10 rounded-lg hover:bg-espresso/5 transition-colors text-left">
+              <button onClick={() => toast.info('Active sessions management coming soon.')} className="w-full p-4 border border-espresso/10 rounded-lg hover:bg-espresso/5 transition-colors text-left">
                 <p className="font-bold text-espresso text-sm">Active Sessions</p>
-                <p className="text-xs text-coffee-400 mt-1">Manage devices logged into your account</p>
+                <p className="text-xs text-text-muted mt-1">Manage devices logged into your account</p>
               </button>
             </div>
           </motion.div>
@@ -242,10 +242,10 @@ export default function Settings() {
               </p>
             </div>
             <div className="flex gap-3">
-              <button className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-200 transition-colors">
+              <button onClick={() => toast.info('Data export coming soon. You will receive an email with your data.')} className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-200 transition-colors">
                 Download Data
               </button>
-              <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors">
+              <button onClick={() => toast.error('Account deletion requires contacting support. Please email coffeecraze@nilelink.app')} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors">
                 Delete Account
               </button>
             </div>
@@ -285,7 +285,7 @@ function SettingToggle({
     <div className="flex items-center justify-between p-4 border border-espresso/5 rounded-lg hover:bg-espresso/5 transition-colors">
       <div>
         <p className="font-semibold text-espresso text-sm">{label}</p>
-        <p className="text-xs text-coffee-400 mt-1">{description}</p>
+        <p className="text-xs text-text-muted mt-1">{description}</p>
       </div>
       <button
         type="button"

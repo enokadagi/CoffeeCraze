@@ -1,26 +1,28 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Coffee, Truck, Star, ArrowRight, Sparkles, Bell, Settings,
+  Coffee, Truck, Star, ArrowRight, Sparkles, Settings,
   CreditCard, Calendar, Package, AlertCircle, CheckCircle, 
   TrendingUp, MessageSquare, ShoppingBag, Zap
 } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Order, Subscription, SubscriptionStatus, PaymentStatus, Delivery, DeliveryStatus } from '../../types';
 import { formatUSD, formatLBP, formatDualFromLBP } from '../../utils/exchange';
+import { formatPrice, formatDate } from '../../lib/utils';
 import MetricCard from '../../components/dashboard/MetricCard';
 import SubscriptionCard from '../../components/dashboard/SubscriptionCard';
 import DeliveryCard from '../../components/dashboard/DeliveryCard';
 import OrderHistory from '../../components/dashboard/OrderHistory';
 
 export default function DashboardOverview() {
-  const { user, profile } = useAuth();
+  const { user, profile, isEmailVerified, sendVerificationEmail } = useAuth();
   // NOTE: The file contained a duplicated/stray JSX block after the component ended,
   // which caused TS2657/TS1128 parser failures. This component ends cleanly below.
 
@@ -106,22 +108,42 @@ export default function DashboardOverview() {
     }
   };
 
-  const handlePauseSubscription = (subscriptionId: string) => {
-    // TODO: Implement pause logic
-    console.log('Pause subscription:', subscriptionId);
+  const handlePauseSubscription = async (subscriptionId: string) => {
+    try {
+      const subRef = doc(db, 'subscriptions', subscriptionId);
+      await updateDoc(subRef, {
+        status: SubscriptionStatus.PAUSED,
+        pausedAt: new Date().toISOString(),
+      });
+      toast.success('Subscription paused');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to pause subscription:', error);
+      toast.error('Failed to pause subscription');
+    }
   };
 
-  const handleResumeSubscription = (subscriptionId: string) => {
-    // TODO: Implement resume logic
-    console.log('Resume subscription:', subscriptionId);
+  const handleResumeSubscription = async (subscriptionId: string) => {
+    try {
+      const subRef = doc(db, 'subscriptions', subscriptionId);
+      await updateDoc(subRef, {
+        status: SubscriptionStatus.ACTIVE,
+        pausedAt: null,
+      });
+      toast.success('Subscription resumed');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to resume subscription:', error);
+      toast.error('Failed to resume subscription');
+    }
   };
 
-  const handleManageSubscription = (subscriptionId: string) => {
-    navigate(`/dashboard/subscriptions/${subscriptionId}`);
+  const handleManageSubscription = (_subscriptionId: string) => {
+    navigate('/dashboard/subscriptions');
   };
 
-  const handleEditSubscription = (subscriptionId: string) => {
-    navigate(`/dashboard/subscriptions/${subscriptionId}/edit`);
+  const handleEditSubscription = (_subscriptionId: string) => {
+    navigate('/dashboard/subscriptions');
   };
 
   return (
@@ -132,39 +154,100 @@ export default function DashboardOverview() {
           description="Manage your subscriptions, orders, deliveries, and account settings." 
         />
 
+        {/* Email Verification Banner */}
+        {!isEmailVerified && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-4 p-5 bg-amber-50 border border-amber-200 rounded-2xl"
+          >
+            <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold text-amber-900 text-sm">Email Not Verified</p>
+              <p className="text-xs text-amber-700 mt-1">Please verify your email address to access all features.</p>
+            </div>
+            <button
+              onClick={sendVerificationEmail}
+              className="shrink-0 px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              Resend
+            </button>
+          </motion.div>
+        )}
+
         {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-espresso/5 pb-8"
+          className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 border-b border-espresso/8 pb-6 md:pb-8"
         >
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3 min-w-0">
             <p className="text-xs font-bold uppercase tracking-widest text-caramel">Welcome Back</p>
-            <h1 className="text-4xl md:text-5xl font-display font-black text-espresso italic leading-tight">
-              Your <span className="text-coffee-400">Command</span> <br/>Center
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-espresso leading-tight">
+              Your <span className="text-caramel">Dashboard</span>
             </h1>
-            <p className="text-sm text-coffee-400 max-w-md">
-              Manage your subscriptions, track deliveries, and stay updated with your coffee ritual.
+            <p className="text-sm text-text-secondary max-w-md leading-relaxed">
+              {stats.activeSubscriptions > 0
+                ? 'Manage your subscriptions, track deliveries, and stay updated with your coffee ritual.'
+                : 'You are a member. Start a subscription to get coffee delivered on your schedule.'}
             </p>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/dashboard/notifications')}
-              className="p-3 hover:bg-espresso/5 rounded-xl transition-colors relative"
-            >
-              <Bell size={20} className="text-espresso" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+            {!loading && stats.activeSubscriptions === 0 && (
+              <Link
+                to="/subscriptions"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-espresso transition-colors shadow-sm"
+              >
+                <Coffee size={16} /> Start Subscription
+              </Link>
+            )}
             <button
               onClick={() => navigate('/dashboard/settings')}
-              className="p-3 hover:bg-espresso/5 rounded-xl transition-colors"
+              className="p-3 border border-espresso/10 hover:bg-espresso/5 rounded-xl transition-colors text-espresso"
+              aria-label="Settings"
             >
-              <Settings size={20} className="text-espresso" />
+              <Settings size={20} />
             </button>
           </div>
         </motion.div>
+
+        {/* Subscriber onboarding --- shown when no active plans */}
+        {!loading && stats.activeSubscriptions === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl md:rounded-3xl border border-caramel/25 bg-gradient-to-br from-caramel/10 via-white to-cream p-6 md:p-8 shadow-premium"
+          >
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex-1 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-caramel">Become a Subscriber</p>
+                <h2 className="text-xl md:text-2xl font-display font-black text-espresso">
+                  Turn your account into a coffee subscription
+                </h2>
+                <ol className="text-sm text-text-secondary space-y-2 list-none">
+                  <li className="flex items-start gap-2"><span className="w-5 h-5 rounded-full bg-caramel text-espresso text-xs font-black flex items-center justify-center shrink-0">1</span> Browse plans on the Subscriptions page</li>
+                  <li className="flex items-start gap-2"><span className="w-5 h-5 rounded-full bg-caramel text-espresso text-xs font-black flex items-center justify-center shrink-0">2</span> Pick Starter, Premium, or build a Custom plan</li>
+                  <li className="flex items-start gap-2"><span className="w-5 h-5 rounded-full bg-caramel text-espresso text-xs font-black flex items-center justify-center shrink-0">3</span> Manage deliveries here in your dashboard</li>
+                </ol>
+              </div>
+              <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
+                <Link
+                  to="/subscriptions"
+                  className="px-6 py-3.5 bg-espresso text-white rounded-xl text-sm font-bold text-center hover:bg-caramel hover:text-espresso transition-colors"
+                >
+                  View Plans
+                </Link>
+                <Link
+                  to="/custom-plan-builder"
+                  className="px-6 py-3.5 border-2 border-espresso text-espresso rounded-xl text-sm font-bold text-center hover:bg-espresso hover:text-white transition-colors"
+                >
+                  Build Custom Plan
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {loading ? (
           <div className="space-y-6">
@@ -181,84 +264,85 @@ export default function DashboardOverview() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+              className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
             >
               <MetricCard
                 label="Active Plans"
                 value={stats.activeSubscriptions}
-                icon={<Coffee size={20} className="text-espresso" />}
+                icon={<Coffee size={18} className="text-espresso" />}
                 color="primary"
               />
               <MetricCard
                 label="Next Delivery"
-                value={stats.nextDeliveryDays > 0 ? `${stats.nextDeliveryDays}d` : 'Soon'}
-                icon={<Truck size={20} className="text-green-600" />}
+                value={stats.nextDeliveryDays > 0 ? `${stats.nextDeliveryDays}d` : '---'}
+                icon={<Truck size={18} className="text-green-700" />}
                 color="success"
               />
               <MetricCard
                 label="Total Spent"
-                value={formatLBP(stats.totalSpent)}
-                icon={<CreditCard size={20} className="text-amber-600" />}
+                value={formatPrice(stats.totalSpent, profile?.preferences?.currency || 'LBP')}
+                icon={<CreditCard size={18} className="text-amber-700" />}
                 color="warning"
               />
               <MetricCard
                 label="Loyalty Points"
                 value={stats.loyaltyPoints}
-                icon={<Star size={20} className="text-caramel" />}
+                icon={<Star size={18} className="text-caramel" />}
                 color="primary"
               />
             </motion.div>
 
             {/* Primary Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
               {/* Main Column */}
-              <div className="lg:col-span-2 space-y-8">
+              <div className="xl:col-span-2 space-y-6 md:space-y-8 min-w-0">
                 {/* Next Delivery Section */}
                 {activeSubscriptions.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-espresso to-espresso/90 rounded-3xl p-8 text-white overflow-hidden relative shadow-lg border border-white/10"
+                    className="bg-gradient-to-br from-espresso to-primary rounded-2xl md:rounded-3xl p-6 md:p-8 text-white overflow-hidden relative shadow-lg border border-white/10"
                   >
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-caramel/10 blur-[100px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2" />
+                    <div className="absolute top-0 right-0 w-64 md:w-96 h-64 md:h-96 bg-caramel/15 blur-[80px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2" />
                     
-                    <div className="relative z-10 space-y-6">
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full">
+                    <div className="relative z-10 space-y-5 md:space-y-6">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/12 border border-white/20 rounded-full">
                         <Truck size={14} className="text-caramel" />
-                        <span className="text-xs font-bold uppercase tracking-widest">Next Delivery</span>
+                        <span className="text-xs font-bold uppercase tracking-widest text-white">Next Delivery</span>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-3 md:space-y-4">
                         <div>
-                          <p className="text-sm text-coffee-300 mb-2">Scheduled for</p>
-                          <p className="text-3xl md:text-4xl font-display font-black italic">
-                            {new Date(activeSubscriptions[0].nextDelivery).toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              month: 'long',
-                              day: 'numeric',
-                            })}
+                          <p className="text-sm text-white/70 mb-1">Scheduled for</p>
+                          <p className="text-2xl sm:text-3xl md:text-4xl font-display font-black">
+                            {new Date(activeSubscriptions[0].nextDelivery).toLocaleDateString(
+                              profile?.preferences?.language === 'ar' ? 'ar-SA' : 'en-US',
+                              { weekday: 'long', month: 'long', day: 'numeric' }
+                            )}
                           </p>
                         </div>
-                        <p className="text-sm text-coffee-300 max-w-xl">
-                          Your {activeSubscriptions[0].plan?.frequency} delivery of{' '}
+                        <p className="text-sm text-white/80 max-w-xl leading-relaxed">
+                          Your {activeSubscriptions[0].plan?.frequency || activeSubscriptions[0].frequency} delivery of{' '}
                           <span className="font-bold text-white">
-                            {activeSubscriptions[0].plan?.items?.length} items
+                            {activeSubscriptions[0].plan?.items?.length || activeSubscriptions[0].items?.length || 0} items
                           </span>{' '}
-                          to {activeSubscriptions[0].deliveryAddress?.city || 'your address'}
+                          to {activeSubscriptions[0].deliveryAddress?.city
+                            || (typeof activeSubscriptions[0].address === 'object' ? activeSubscriptions[0].address?.city : null)
+                            || 'your address'}
                         </p>
                       </div>
 
-                      <div className="flex flex-wrap gap-3 pt-4">
+                      <div className="flex flex-wrap gap-3 pt-2">
                         <Link
-                          to={`/dashboard/subscriptions/${activeSubscriptions[0].id}`}
-                          className="px-6 py-3 bg-white text-espresso rounded-lg font-bold text-sm hover:bg-caramel hover:text-white transition-all duration-300"
+                          to="/dashboard/subscriptions"
+                          className="px-5 py-2.5 bg-white text-espresso rounded-xl font-bold text-sm hover:bg-caramel hover:text-espresso transition-all duration-300"
                         >
                           Manage
                         </Link>
                         <button
                           onClick={() => navigate('/subscriptions')}
-                          className="px-6 py-3 border border-white/20 text-white rounded-lg font-bold text-sm hover:bg-white/10 transition-all duration-300"
+                          className="px-5 py-2.5 border border-white/30 text-white rounded-xl font-bold text-sm hover:bg-white/15 transition-all duration-300"
                         >
                           View Plans
                         </button>
@@ -277,7 +361,7 @@ export default function DashboardOverview() {
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className="text-xl font-display font-black text-espresso italic">Active Plans</h2>
-                        <p className="text-sm text-coffee-400">Manage your subscription plans</p>
+                        <p className="text-sm text-text-secondary">Manage your subscription plans</p>
                       </div>
                       <Link
                         to="/dashboard/subscriptions"
@@ -287,7 +371,7 @@ export default function DashboardOverview() {
                       </Link>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                       {activeSubscriptions.slice(0, 2).map(sub => (
                         <SubscriptionCard
                           key={sub.id}
@@ -312,10 +396,10 @@ export default function DashboardOverview() {
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className="text-xl font-display font-black text-espresso italic">Upcoming Deliveries</h2>
-                        <p className="text-sm text-coffee-400">Track your shipments</p>
+                        <p className="text-sm text-text-secondary">Track your shipments</p>
                       </div>
                       <Link
-                        to="/dashboard/deliveries"
+                        to="/dashboard/orders"
                         className="text-xs font-bold text-caramel hover:text-espresso transition-colors"
                       >
                         View All →
@@ -327,7 +411,7 @@ export default function DashboardOverview() {
                         <DeliveryCard
                           key={delivery.id}
                           delivery={delivery}
-                          onClick={() => navigate(`/dashboard/deliveries/${delivery.id}`)}
+                          onClick={() => navigate('/dashboard/orders')}
                         />
                       ))}
                     </div>
@@ -343,7 +427,7 @@ export default function DashboardOverview() {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h2 className="text-xl font-display font-black text-espresso italic">Recent Orders</h2>
-                      <p className="text-sm text-coffee-400">Your order history</p>
+                      <p className="text-sm text-text-secondary">Your order history</p>
                     </div>
                     <Link
                       to="/dashboard/orders"
@@ -364,10 +448,10 @@ export default function DashboardOverview() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="space-y-6"
+                className="space-y-4 md:space-y-6 min-w-0"
               >
                 {/* Payment Status */}
-                <div className="bg-white border border-espresso/5 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-espresso/10 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-espresso/10 rounded-lg">
                       <CreditCard size={20} className="text-espresso" />
@@ -376,48 +460,36 @@ export default function DashboardOverview() {
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">Next Payment</p>
+                      <p className="text-xs text-text-secondary uppercase font-semibold mb-1">Next Payment</p>
                       <p className="text-lg font-bold text-espresso">
                         No payments due
                       </p>
                     </div>
-                    <button className="w-full py-2 bg-espresso text-white rounded-lg text-sm font-bold hover:bg-espresso/90 transition-colors">
+                    <button className="w-full py-2.5 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-espresso transition-colors">
                       View Invoices
                     </button>
                   </div>
                 </div>
 
                 {/* Quick Actions */}
-                <div className="bg-white border border-espresso/5 rounded-2xl p-6 space-y-3">
-                  <h3 className="font-bold text-espresso mb-4">Quick Actions</h3>
-                  <Link
-                    to="/shop"
-                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
-                  >
-                    <ShoppingBag size={18} className="text-caramel" />
-                    <span className="text-sm font-semibold text-espresso">Shop</span>
-                  </Link>
-                  <Link
-                    to="/custom-plan-builder"
-                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
-                  >
-                    <Zap size={18} className="text-caramel" />
-                    <span className="text-sm font-semibold text-espresso">Create Plan</span>
-                  </Link>
-                  <Link
-                    to="/ai-barista"
-                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
-                  >
-                    <Sparkles size={18} className="text-caramel" />
-                    <span className="text-sm font-semibold text-espresso">AI Recommendations</span>
-                  </Link>
-                  <Link
-                    to="/dashboard/settings"
-                    className="flex items-center gap-3 p-3 hover:bg-espresso/5 rounded-lg transition-colors"
-                  >
-                    <Settings size={18} className="text-caramel" />
-                    <span className="text-sm font-semibold text-espresso">Settings</span>
-                  </Link>
+                <div className="bg-white border border-espresso/10 rounded-2xl p-5 md:p-6 space-y-1 shadow-sm">
+                  <h3 className="font-bold text-espresso mb-3">Quick Actions</h3>
+                  {[
+                    { to: '/subscriptions', icon: Coffee, label: 'Subscription Plans' },
+                    { to: '/shop', icon: ShoppingBag, label: 'Shop' },
+                    { to: '/custom-plan-builder', icon: Zap, label: 'Create Custom Plan' },
+                    { to: '/ai-barista', icon: Sparkles, label: 'AI Recommendations' },
+                    { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+                  ].map(({ to, icon: Icon, label }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      className="flex items-center gap-3 p-3 hover:bg-caramel/10 rounded-xl transition-colors border border-transparent hover:border-caramel/20"
+                    >
+                      <Icon size={18} className="text-caramel shrink-0" />
+                      <span className="text-sm font-semibold text-espresso">{label}</span>
+                    </Link>
+                  ))}
                 </div>
 
                 {/* Support Card */}
@@ -429,7 +501,10 @@ export default function DashboardOverview() {
                   <p className="text-xs text-amber-800 leading-relaxed">
                     Have questions about your subscription or delivery? Our support team is ready to help.
                   </p>
-                  <button className="w-full py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 transition-colors">
+                  <button
+                    onClick={() => navigate('/contact')}
+                    className="w-full py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-colors"
+                  >
                     Contact Support
                   </button>
                 </div>
@@ -441,38 +516,16 @@ export default function DashboardOverview() {
                     <h3 className="font-bold text-espresso">Loyalty Points</h3>
                   </div>
                   <div>
-                    <p className="text-xs text-coffee-400 uppercase font-semibold mb-1">Available Points</p>
+                    <p className="text-xs text-text-secondary uppercase font-semibold mb-1">Available Points</p>
                     <p className="text-2xl font-bold text-espresso">{stats.loyaltyPoints}</p>
                   </div>
-                  <p className="text-xs text-coffee-400 italic">
+                  <p className="text-xs text-text-secondary italic leading-relaxed">
                     Earn points on every purchase. Redeem for discounts and free items.
                   </p>
                 </div>
               </motion.div>
             </div>
 
-            {/* Empty States */}
-            {activeSubscriptions.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-espresso/5 to-caramel/5 border-2 border-dashed border-espresso/20 rounded-3xl p-12 text-center"
-              >
-                <Coffee size={48} className="mx-auto text-espresso/30 mb-6" />
-                <h2 className="text-2xl font-display font-black text-espresso mb-3 italic">
-                  No Active Subscriptions
-                </h2>
-                <p className="text-coffee-400 mb-6 max-w-md mx-auto">
-                  Start your coffee ritual today by choosing from our premium subscription plans.
-                </p>
-                <Link
-                  to="/subscriptions"
-                  className="inline-block px-8 py-4 bg-espresso text-white rounded-xl font-bold hover:bg-espresso/90 transition-colors"
-                >
-                  Browse Plans
-                </Link>
-              </motion.div>
-            )}
           </>
         )}
       </div>

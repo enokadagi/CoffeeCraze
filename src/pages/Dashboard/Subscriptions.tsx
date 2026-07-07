@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -12,6 +12,7 @@ import { cn } from '../../lib/utils';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { format } from 'date-fns';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 export default function DashboardSubscriptions() {
   const { user } = useAuth();
@@ -41,8 +42,11 @@ export default function DashboardSubscriptions() {
     }
   };
 
-  const cancelSubscription = async (id: string) => {
-    if (!confirm("Are you sure you want to end this coffee journey?")) return;
+  const cancelSubscription = (id: string) => setCancelTargetId(id);
+
+  const executeCancel = async () => {
+    const id = cancelTargetId!;
+    setCancelTargetId(null);
     try {
       await updateDoc(doc(db, 'subscriptions', id), { status: SubscriptionStatus.CANCELLED });
       setSubscriptions(subscriptions.map(s => s.id === id ? { ...s, status: SubscriptionStatus.CANCELLED } : s));
@@ -54,6 +58,7 @@ export default function DashboardSubscriptions() {
 
   const [editingSub, setEditingSub] = useState<Subscription | null>(null);
   const [activeTab, setActiveTab] = useState<'items' | 'logistics' | 'duration'>('items');
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   // Logistics form state
   const [logisticsForm, setLogisticsForm] = useState({
@@ -163,9 +168,9 @@ export default function DashboardSubscriptions() {
         
         <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-espresso/5 pb-8">
           <div className="space-y-3">
-            <span className="stat-label text-caramel">Operational Continuity</span>
-            <h1 className="text-4xl font-display font-black text-espresso tracking-tight leading-none uppercase">Ritual <span className="text-coffee-400">Cycles.</span></h1>
-            <p className="text-base text-coffee-400 font-serif italic max-w-2xl leading-relaxed">Management of your recurring <span className="text-espresso font-black not-italic uppercase tracking-tightest">{subscriptions.length}</span> automated sensory protocols within the mainframe.</p>
+            <span className="text-caption text-caramel">Operational Continuity</span>
+            <h1 className="text-4xl font-display font-black text-espresso tracking-tight leading-none uppercase">Ritual <span className="text-text-muted">Cycles.</span></h1>
+            <p className="text-base text-text-muted font-serif italic max-w-2xl leading-relaxed">Management of your recurring <span className="text-espresso font-black not-italic uppercase tracking-tightest">{subscriptions.length}</span> automated sensory protocols within the mainframe.</p>
           </div>
 
           <div className="flex items-center gap-4 w-full md:w-auto">
@@ -174,7 +179,7 @@ export default function DashboardSubscriptions() {
                 <RefreshCw size={18} strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-[10px] font-semibold tracking-wide text-coffee-400 uppercase">System Health</p>
+                <p className="text-[10px] font-semibold tracking-wide text-text-muted uppercase">System Health</p>
                 <p className="text-lg font-display font-bold text-espresso tracking-tight leading-none mt-1">{subscriptions.some(s => s.status === SubscriptionStatus.ACTIVE) ? 'Nominal' : 'Dormant'}</p>
               </div>
             </div>
@@ -195,7 +200,7 @@ export default function DashboardSubscriptions() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                className="bg-white border border-white/60 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden group shadow-premium hover-lift"
+                className="bg-white border border-white/60 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden group shadow-premium hover-lift h-full"
               >
                 <div className="flex justify-between items-start relative z-10">
                   <div className="space-y-4">
@@ -216,8 +221,8 @@ export default function DashboardSubscriptions() {
                     </div>
                     <div>
                       <h3 className="text-2xl font-display font-black text-espresso tracking-tight leading-none uppercase">Ritual <span className="text-caramel-gold">#{sub.id.slice(-6).toUpperCase()}</span></h3>
-                      <p className="text-[10px] text-coffee-500 font-bold tracking-widest uppercase mt-3 bg-cream inline-block px-3 py-1.5 rounded-lg border border-white/60">
-                        {sub.frequency.toUpperCase()} · {sub.items?.length || 0} ITEMS
+                      <p className="text-[10px] text-text-muted font-bold tracking-widest uppercase mt-3 bg-cream inline-block px-3 py-1.5 rounded-lg border border-white/60">
+                        {sub.frequency.toUpperCase()}  -  {sub.items?.length || 0} ITEMS
                       </p>
                     </div>
                   </div>
@@ -225,12 +230,12 @@ export default function DashboardSubscriptions() {
 
                 {/* Subscribed items list */}
                 <div className="space-y-3 bg-cream/40 p-4 rounded-2xl border border-espresso/5">
-                  <p className="text-[9px] font-black text-coffee-300 uppercase tracking-widest">Ritual Recipe Components</p>
+                  <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Ritual Recipe Components</p>
                   <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
                     {sub.items?.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between text-xs">
                         <span className="font-bold text-espresso uppercase truncate max-w-[200px]">{item.name}</span>
-                        <span className="text-coffee-400 font-medium">QTY {item.quantity}</span>
+                        <span className="text-text-muted font-medium">QTY {item.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -238,7 +243,7 @@ export default function DashboardSubscriptions() {
 
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-espresso/5 relative z-10">
                   <div className="space-y-1">
-                    <p className="text-[9px] font-bold text-coffee-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
                       <Calendar size={12} className="text-caramel shrink-0" /> Next Delivery
                     </p>
                     <p className="text-base font-display font-black text-espresso tracking-tight leading-none">
@@ -246,7 +251,7 @@ export default function DashboardSubscriptions() {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[9px] font-bold text-coffee-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
                       <Clock size={12} className="text-caramel shrink-0" /> Slot Lock
                     </p>
                     <p className="text-xs font-bold text-espresso truncate">
@@ -257,7 +262,7 @@ export default function DashboardSubscriptions() {
 
                 {/* Logistics summary info */}
                 {sub.address && (
-                  <div className="text-[10px] text-coffee-400 font-medium bg-cream/20 p-3 rounded-xl border border-dashed border-espresso/5 flex items-start gap-2">
+                  <div className="text-[10px] text-text-muted font-medium bg-cream/20 p-3 rounded-xl border border-dashed border-espresso/5 flex items-start gap-2">
                     <MapPin size={12} className="text-caramel shrink-0 mt-0.5" />
                     <span className="truncate">
                       {typeof sub.address === 'object' ? sub.address.address : sub.address}
@@ -293,7 +298,7 @@ export default function DashboardSubscriptions() {
                         <button 
                           onClick={() => toggleStatus(sub)}
                           className={cn(
-                            "btn-premium text-xs py-3 flex-1 uppercase tracking-widest",
+                            "btn btn-primary text-xs py-3 flex-1 uppercase tracking-widest",
                             sub.status === SubscriptionStatus.ACTIVE ? "bg-amber-600 hover:bg-amber-700 text-white" : ""
                           )}
                         >
@@ -332,7 +337,7 @@ export default function DashboardSubscriptions() {
                     </>
                   )}
                   {sub.status === SubscriptionStatus.CANCELLED && (
-                    <button className="w-full py-3 bg-cream text-coffee-300 rounded-full text-xs font-semibold tracking-wider uppercase cursor-not-allowed border border-espresso/5">
+                    <button className="w-full py-3 bg-espresso/5 text-espresso/50 rounded-full text-xs font-semibold tracking-wider uppercase cursor-not-allowed border border-espresso/10">
                       Archival Record Only
                     </button>
                   )}
@@ -347,9 +352,9 @@ export default function DashboardSubscriptions() {
             </div>
             <div className="space-y-2 relative z-10">
               <h3 className="text-2xl font-display font-black text-espresso tracking-tight leading-none uppercase">No Rituals Yet</h3>
-              <p className="text-xs text-coffee-500 max-w-sm mx-auto leading-normal">Your subscription manifest is currently offline. Activate recurring extractions for seamless sensory continuity.</p>
+              <p className="text-xs text-text-muted max-w-sm mx-auto leading-normal">Your subscription manifest is currently offline. Activate recurring extractions for seamless sensory continuity.</p>
             </div>
-            <Link to="/subscriptions" className="btn-premium text-xs inline-flex relative z-10">
+            <Link to="/subscriptions" className="btn btn-primary text-xs inline-flex relative z-10">
               Begin Your Journey <ArrowRight size={14} className="ml-2" />
             </Link>
           </div>
@@ -374,26 +379,26 @@ export default function DashboardSubscriptions() {
               >
                 <div className="space-y-6">
                    <header className="space-y-2 border-b border-espresso/5 pb-4">
-                      <span className="stat-label text-caramel">Cycle Modulation Manifest</span>
+                      <span className="text-caption text-caramel">Cycle Modulation Manifest</span>
                       <h2 className="text-2xl font-display font-black text-espresso tracking-tight leading-none uppercase">Modulate Ritual</h2>
                       
                       {/* Navigation tabs */}
                       <div className="flex gap-2 pt-4">
                         <button 
                           onClick={() => setActiveTab('items')}
-                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'items' ? "bg-espresso text-white" : "bg-cream text-coffee-400 hover:text-espresso")}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'items' ? "bg-espresso text-white" : "bg-cream text-text-muted hover:text-espresso")}
                         >
                           Items & Frequency
                         </button>
                         <button 
                           onClick={() => setActiveTab('logistics')}
-                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'logistics' ? "bg-espresso text-white" : "bg-cream text-coffee-400 hover:text-espresso")}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'logistics' ? "bg-espresso text-white" : "bg-cream text-text-muted hover:text-espresso")}
                         >
                           Coordinates
                         </button>
                         <button 
                           onClick={() => setActiveTab('duration')}
-                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'duration' ? "bg-espresso text-white" : "bg-cream text-coffee-400 hover:text-espresso")}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'duration' ? "bg-espresso text-white" : "bg-cream text-text-muted hover:text-espresso")}
                         >
                           Extend Duration
                         </button>
@@ -404,7 +409,7 @@ export default function DashboardSubscriptions() {
                    {activeTab === 'items' && (
                      <div className="space-y-6">
                         <div className="space-y-3">
-                          <p className="text-[10px] font-black text-coffee-400 uppercase tracking-widest">Recipe Blueprint Items</p>
+                          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Recipe Blueprint Items</p>
                           <div className="space-y-2">
                             {editingSub.items.map((item: any, idx: number) => (
                               <div key={idx} className="flex items-center justify-between p-3 bg-cream rounded-xl border border-espresso/5">
@@ -433,7 +438,7 @@ export default function DashboardSubscriptions() {
                                        toast.error("Failed to remove component");
                                      }
                                    }}
-                                   className="w-8 h-8 flex items-center justify-center text-coffee-300 hover:text-red-500 bg-white rounded-lg transition-all shadow-sm"
+                                   className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-red-500 bg-white rounded-lg transition-all shadow-sm"
                                  >
                                    <XCircle size={14} />
                                  </button>
@@ -441,7 +446,7 @@ export default function DashboardSubscriptions() {
                             ))}
                             <Link 
                               to="/shop" 
-                              className="w-full py-3.5 flex items-center justify-center gap-2 border border-dashed border-espresso/10 rounded-xl text-xs font-bold tracking-wider uppercase text-coffee-400 hover:border-caramel hover:text-espresso transition-all group bg-cream/10"
+                              className="w-full py-3.5 flex items-center justify-center gap-2 border border-dashed border-espresso/20 rounded-xl text-xs font-bold tracking-wider uppercase text-espresso hover:border-caramel hover:bg-caramel/10 transition-all group bg-cream/20"
                             >
                               <Plus size={14} className="group-hover:rotate-90 transition-transform" /> Add Component Bag
                             </Link>
@@ -449,8 +454,8 @@ export default function DashboardSubscriptions() {
                         </div>
 
                         <div className="space-y-3">
-                          <p className="text-[10px] font-black text-coffee-400 uppercase tracking-widest">Modulate Supply Speed</p>
-                          <div className="grid grid-cols-3 gap-2">
+                          <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Modulate Supply Speed</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             {['weekly', 'biweekly', 'monthly'].map((freq) => (
                                <button 
                                  key={freq}
@@ -471,11 +476,11 @@ export default function DashboardSubscriptions() {
                    {/* Tab 2: Logistics / Coordinates */}
                    {activeTab === 'logistics' && (
                      <div className="space-y-4">
-                        <p className="text-[10px] font-black text-coffee-400 uppercase tracking-widest">Logistics Coordinates</p>
+                        <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Logistics Coordinates</p>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">STREET ADDRESS</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">STREET ADDRESS</label>
                             <input 
                               type="text" 
                               value={logisticsForm.street}
@@ -486,7 +491,7 @@ export default function DashboardSubscriptions() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">BUILDING / BLOCK</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">BUILDING / BLOCK</label>
                             <input 
                               type="text" 
                               value={logisticsForm.building}
@@ -497,7 +502,7 @@ export default function DashboardSubscriptions() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">FLOOR / APARTMENT</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">FLOOR / APARTMENT</label>
                             <input 
                               type="text" 
                               value={logisticsForm.floor}
@@ -508,7 +513,7 @@ export default function DashboardSubscriptions() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">CITY / REGION</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">CITY / REGION</label>
                             <input 
                               type="text" 
                               value={logisticsForm.city}
@@ -519,7 +524,7 @@ export default function DashboardSubscriptions() {
                           </div>
 
                           <div className="space-y-1 col-span-2">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">DELIVERY TIME-SLOT LOCK</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">DELIVERY TIME-SLOT LOCK</label>
                             <select 
                               value={logisticsForm.preferredTimeSlot}
                               onChange={e => setLogisticsForm({...logisticsForm, preferredTimeSlot: e.target.value})}
@@ -532,7 +537,7 @@ export default function DashboardSubscriptions() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">BUILDING GATE CODE</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">BUILDING GATE CODE</label>
                             <input 
                               type="text" 
                               value={logisticsForm.gateCode}
@@ -543,7 +548,7 @@ export default function DashboardSubscriptions() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-coffee-300 uppercase tracking-wider ml-1">ROASTERY DELIVERY DIRECTIONS</label>
+                            <label className="text-[9px] font-black text-text-muted uppercase tracking-wider ml-1">ROASTERY DELIVERY DIRECTIONS</label>
                             <input 
                               type="text" 
                               value={logisticsForm.customNotes}
@@ -556,7 +561,7 @@ export default function DashboardSubscriptions() {
 
                         <button 
                           onClick={saveLogistics}
-                          className="btn-premium w-full py-3.5 mt-4 text-xs font-black uppercase tracking-wider"
+                          className="btn btn-primary w-full py-3.5 mt-4 text-xs font-black uppercase tracking-wider"
                         >
                           Commit Delivery Coordinates
                         </button>
@@ -571,10 +576,10 @@ export default function DashboardSubscriptions() {
                         </div>
                         <div className="space-y-2">
                           <h3 className="text-lg font-display font-black text-espresso uppercase">Extend Extraction Cycle Plan</h3>
-                          <p className="text-xs text-coffee-400 font-medium max-w-md mx-auto">Extend your ongoing coffee roastery subscription plan to secure custom rates and seasonal batch selections.</p>
+                          <p className="text-xs text-text-muted font-medium max-w-md mx-auto">Extend your ongoing coffee roastery subscription plan to secure custom rates and seasonal batch selections.</p>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           {[3, 6, 12].map(m => (
                             <button
                               key={m}
@@ -582,7 +587,7 @@ export default function DashboardSubscriptions() {
                               className="p-4 bg-cream border border-espresso/5 hover:border-caramel hover:bg-white rounded-2xl flex flex-col items-center gap-2 group transition-all duration-500"
                             >
                               <span className="text-xl font-display font-black text-espresso group-hover:text-caramel">+{m} Months</span>
-                              <span className="text-[9px] font-black text-coffee-300 uppercase tracking-widest">Extend Protocol</span>
+                              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Extend Protocol</span>
                             </button>
                           ))}
                         </div>
@@ -591,7 +596,7 @@ export default function DashboardSubscriptions() {
 
                    <button 
                     onClick={() => setEditingSub(null)}
-                    className="w-full py-3.5 border border-espresso/10 rounded-xl text-xs font-bold tracking-wider text-coffee-400 hover:text-espresso transition-colors uppercase bg-cream/10"
+                    className="w-full py-3.5 border border-espresso/20 rounded-xl text-xs font-bold tracking-wider text-espresso hover:bg-espresso/5 transition-colors uppercase bg-cream/20"
                    >
                      Close Manifest Controls
                    </button>
@@ -602,19 +607,29 @@ export default function DashboardSubscriptions() {
         </AnimatePresence>
 
         {/* Global Guidance Node */}
-        <div className="bg-espresso rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-premium-lg border border-white/5">
+        <div className="bg-primary rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-premium-lg border border-white/5">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8 relative z-10">
             <div className="max-w-xl space-y-3 text-center lg:text-left">
               <span className="text-xs font-semibold tracking-wider text-caramel block uppercase">Operational Info Protocol</span>
               <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight leading-none uppercase">Modulate Your Harvest Suite</h2>
-              <p className="text-coffee-300 text-xs sm:text-sm leading-relaxed">Any variation in components or logistics coordinates must be committed <span className="text-caramel font-semibold text-xs uppercase tracking-wider">48 Hours</span> prior to your next scheduled delivery window.</p>
+              <p className="text-white text-xs sm:text-sm leading-relaxed">Any variation in components or logistics coordinates must be committed <span className="text-white font-semibold text-xs uppercase tracking-wider">48 Hours</span> prior to your next scheduled delivery window.</p>
             </div>
-            <Link to="/shop" className="btn-premium whitespace-nowrap bg-white text-espresso hover:bg-caramel hover:text-white uppercase tracking-widest text-[10px]">
+            <Link to="/shop" className="btn btn-primary whitespace-nowrap bg-white text-espresso hover:bg-caramel hover:text-espresso uppercase tracking-widest text-[10px]">
               Browse Database Catalog <ArrowRight size={12} className="ml-1.5" />
             </Link>
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={cancelTargetId !== null}
+        title="Cancel Ritual"
+        message="Are you sure you want to end this coffee journey? This action cannot be undone."
+        confirmLabel="Cancel Ritual"
+        variant="danger"
+        onConfirm={executeCancel}
+        onCancel={() => setCancelTargetId(null)}
+      />
     </DashboardLayout>
   );
 }

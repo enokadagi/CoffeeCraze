@@ -48,23 +48,32 @@ export default function AdminAnalytics() {
         inventoryCount: productsSnap.docs.reduce((acc, curr) => acc + (curr.data().stock || 0), 0)
       });
 
-      // Compute weekly revenue from orders
+      // Compute last 7 days of actual revenue
+      const today = new Date();
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const dayRevenue = [0, 0, 0, 0, 0, 0, 0];
-      orders.forEach(order => {
-        const d = new Date(order.createdAt);
-        dayRevenue[d.getDay()] += order.total || 0;
-      });
-      setWeeklyRevenue(dayNames.map((name, i) => ({
-        name: name.slice(0, 3),
-        revenue: dayRevenue[i] || 0
-      })));
+      const last7Days: { name: string; revenue: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayOrders = orders.filter(o => o.createdAt && o.createdAt.startsWith(dateStr));
+        const revenue = dayOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+        last7Days.push({
+          name: dayNames[date.getDay()].slice(0, 3),
+          revenue,
+        });
+      }
+      setWeeklyRevenue(last7Days);
 
-      // Compute category sales from products
+      // Compute category sales from actual order items
       const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const catMap: Record<string, number> = {};
-      products.forEach(p => {
-        catMap[p.category] = (catMap[p.category] || 0) + (p.stock || 0);
+      orders.forEach(order => {
+        (order.items || []).forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          const cat = product?.category || 'Uncategorized';
+          catMap[cat] = (catMap[cat] || 0) + item.quantity;
+        });
       });
       setCategorySales(Object.entries(catMap).map(([name, sales]) => ({ name, sales })));
 
@@ -77,19 +86,19 @@ export default function AdminAnalytics() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-coffee-100 p-10 rounded-[3.5rem] shadow-premium hover:shadow-premium-xl transition-all duration-1000 group relative overflow-hidden"
+      className="bg-white border border-border p-10 rounded-[3.5rem] shadow-premium hover:shadow-premium-xl transition-all duration-1000 group relative overflow-hidden"
     >
       <div className="mesh-gradient absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-1000 pointer-events-none" />
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div className="w-14 h-14 bg-mocha/5 rounded-2xl flex items-center justify-center text-caramel shadow-premium group-hover:rotate-12 transition-transform duration-700 border border-mocha/10">
           <Icon size={24} strokeWidth={1.5} />
         </div>
-        <div className="px-4 py-2 rounded-full text-[10px] font-black italic border bg-coffee-50 text-coffee-400 border-coffee-100">
+        <div className="px-4 py-2 rounded-full text-[10px] font-black italic border bg-cream text-text-muted border-border">
           LIVE
         </div>
       </div>
       <div className="relative z-10">
-        <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] mb-3 italic">{title}_VECTOR</p>
+        <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] mb-3 italic">{title}_VECTOR</p>
         <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">{value}</h3>
       </div>
     </motion.div>
@@ -99,11 +108,11 @@ export default function AdminAnalytics() {
     <DashboardLayout>
       <div className="space-y-20 relative">
         <SEO title="Analytics" description="View CoffeeCraze sales performance, revenue trends, and business insights." />
-        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-100 pb-16">
+        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-border pb-16">
           <div className="space-y-4">
-            <span className="stat-label text-caramel italic">Deep Sensory Analysis</span>
-            <h1 className="text-7xl font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Performance <br/><span className="not-italic text-coffee-300">Vault.</span></h1>
-            <p className="text-xl text-coffee-400 font-serif italic">Real-time quantification of the <span className="text-espresso font-black not-italic uppercase">CoffeeCraze</span> ecosystem dynamics.</p>
+            <span className="text-caption text-caramel italic">Deep Sensory Analysis</span>
+            <h1 className="text-7xl font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Performance <br/><span className="not-italic text-text-muted">Vault.</span></h1>
+            <p className="text-xl text-text-muted font-serif italic">Real-time quantification of the <span className="text-espresso font-black not-italic uppercase">CoffeeCraze</span> ecosystem dynamics.</p>
           </div>
 
           <div className="flex items-center gap-6">
@@ -123,16 +132,16 @@ export default function AdminAnalytics() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
           {/* Revenue Vector */}
-          <div className="bg-white border border-coffee-100 p-12 md:p-16 rounded-[5rem] shadow-premium-lg space-y-12 relative overflow-hidden group">
+          <div className="bg-white border border-border p-12 md:p-16 rounded-[5rem] shadow-premium-lg space-y-12 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-16 opacity-[0.02] transition-opacity duration-1000 group-hover:opacity-[0.06] pointer-events-none">
               <TrendingUp size={240} strokeWidth={0.5} />
             </div>
             <div className="flex items-center justify-between relative z-10">
               <div className="space-y-4">
-                <span className="stat-label text-caramel">Flux_Vector</span>
-                <h3 className="text-4xl font-display font-black text-espresso italic uppercase tracking-tightest leading-none">Revenue <br/><span className="not-italic text-coffee-300">Diffusion.</span></h3>
+                <span className="text-caption text-caramel">Flux_Vector</span>
+                <h3 className="text-4xl font-display font-black text-espresso italic uppercase tracking-tightest leading-none">Revenue <br/><span className="not-italic text-text-muted">Diffusion.</span></h3>
               </div>
-              <div className="w-12 h-12 bg-mocha/5 rounded-2xl flex items-center justify-center text-coffee-300">
+              <div className="w-12 h-12 bg-mocha/5 rounded-2xl flex items-center justify-center text-text-muted">
                 <BarChart3 size={20} />
               </div>
             </div>
@@ -160,7 +169,7 @@ export default function AdminAnalytics() {
                   <Area type="monotone" dataKey="revenue" stroke="#C0A080" strokeWidth={5} fillOpacity={1} fill="url(#colorRev)" />
                 </AreaChart>
               </ResponsiveContainer>
-              <div className="flex justify-between px-4 pt-8 border-t border-coffee-100">
+              <div className="flex justify-between px-4 pt-8 border-t border-border">
                  {weeklyRevenue.map((d, i) => (
                    <span key={i} className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic leading-none">{d.name}</span>
                  ))}
@@ -169,14 +178,14 @@ export default function AdminAnalytics() {
           </div>
 
           {/* Sensory Performance Vector */}
-          <div className="bg-white border border-coffee-100 p-12 md:p-16 rounded-[5rem] shadow-premium-lg space-y-12 relative overflow-hidden group">
+          <div className="bg-white border border-border p-12 md:p-16 rounded-[5rem] shadow-premium-lg space-y-12 relative overflow-hidden group">
             <div className="mesh-gradient absolute inset-0 opacity-[0.02] pointer-events-none" />
             <div className="flex items-center justify-between relative z-10">
               <div className="space-y-4">
-                <span className="stat-label text-caramel">Sensory_Node_Bias</span>
-                <h3 className="text-4xl font-display font-black text-espresso italic uppercase tracking-tightest leading-none">Category <br/><span className="not-italic text-coffee-300">Bias.</span></h3>
+                <span className="text-caption text-caramel">Sensory_Node_Bias</span>
+                <h3 className="text-4xl font-display font-black text-espresso italic uppercase tracking-tightest leading-none">Category <br/><span className="not-italic text-text-muted">Bias.</span></h3>
               </div>
-              <div className="w-12 h-12 bg-mocha/5 rounded-2xl flex items-center justify-center text-coffee-300">
+              <div className="w-12 h-12 bg-mocha/5 rounded-2xl flex items-center justify-center text-text-muted">
                 <BarChart3 size={20} />
               </div>
             </div>
@@ -193,9 +202,9 @@ export default function AdminAnalytics() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-coffee-300 font-serif italic">No category data available</div>
+                <div className="h-full flex items-center justify-center text-text-muted font-serif italic">No category data available</div>
               )}
-              <div className="grid grid-cols-1 gap-4 pt-8 border-t border-coffee-100">
+              <div className="grid grid-cols-1 gap-4 pt-8 border-t border-border">
                  {categorySales.map(d => (
                    <span key={d.name} className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic text-center leading-none">{d.name}</span>
                  ))}

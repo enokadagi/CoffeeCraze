@@ -1,46 +1,124 @@
-import { GoogleGenAI } from "@google/genai";
+import { toast } from 'sonner';
 
-const apiKey = typeof import.meta !== 'undefined' ? import.meta.env.VITE_GEMINI_API_KEY : '';
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+const AI_CHAT_ENDPOINT = '/api/ai/chat';
+
+type ChatResponse = { text?: string; error?: string; details?: string };
+
+export type AiContext = {
+  userName?: string;
+  userEmail?: string;
+  cartItems?: { id: string; name: string; quantity: number; price: number }[];
+  recentOrders?: { id: string; status: string; total: number; createdAt: string }[];
+  currentPage?: string;
+  products?: { id: string; name: string; category: string; price: number; priceUsd?: number; description?: string; isSubscriptionEligible?: boolean }[];
+  plans?: { id: string; name: string; price: number; description?: string; frequency: string; isFeatured?: boolean }[];
+};
+
+const FALLBACK_RECOMMENDATIONS = [
+  "I recommend starting with our **Ethiopian Yirgacheffe** — a light roast with bright citrus notes and a silky body. Perfect for pour-over or Chemex.\n\nLet me know if you'd like brewing tips or pairing suggestions!",
+  "Our **House Espresso Blend** is a customer favourite — medium-dark roast with notes of dark chocolate and caramel. Works beautifully in lattes and cappuccinos.\n\nWould you like me to suggest a brewing ratio?",
+  "For a bold morning cup, try the **Sumatra Mandheling**. It's a dark roast with low acidity, heavy body, and earthy spice notes. Ideal for French press or cold brew.\n\nWould you like to explore more?",
+  "If you enjoy flavoured coffee, our **Vanilla Bourbon** beans are a treat — medium roast with natural vanilla sweetness. Goes great with a splash of oat milk.\n\nShall I recommend a brewing method?",
+  "I'd suggest exploring our **subscription plans** to get fresh-roasted beans delivered on your schedule. You can customise frequency, grind size, and quantity.\n\nCheck the Subscriptions page for details!",
+  "The **Colombia Supremo** is our top-rated single origin — well-balanced with nutty and fruity notes. Excellent for drip coffee or AeroPress.\n\nWant to know more about its tasting profile?",
+];
+
+function getFallbackRecommendation(input: string): string {
+  const keywordMap: Record<string, number> = {
+    light: 0, bright: 0, citrus: 0, morning: 0, gift: 0,
+    espresso: 1, latte: 1, cappuccino: 1, milk: 1,
+    bold: 2, dark: 2, strong: 2, french: 2, cold: 2,
+    vanilla: 3, flavoured: 3, sweet: 3, syrup: 3,
+    subscription: 4, plan: 4, deliver: 4, schedule: 4,
+    balanced: 5, nutty: 5, medium: 5, colombia: 5,
+  };
+  const inputLower = input.toLowerCase();
+  let bestIdx = Math.floor(Math.random() * FALLBACK_RECOMMENDATIONS.length);
+  let bestScore = 0;
+  for (const [word, idx] of Object.entries(keywordMap)) {
+    if (inputLower.includes(word)) {
+      const score = 1;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = idx;
+      }
+    }
+  }
+  return FALLBACK_RECOMMENDATIONS[bestIdx];
+}
+
+async function postAi<T>(body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(AI_CHAT_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const contentType = res.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+
+  if (!res.ok) {
+    let details = '';
+    try {
+      if (isJson) {
+        const parsed: any = await res.json();
+        details = parsed?.error ? String(parsed.error) : '';
+      } else {
+        details = await res.text();
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(`AI request failed: ${res.status}${details ? ` - ${details}` : ''}`);
+  }
+
+  return res.json() as Promise<T>;
+}
 
 export const GeminiService = {
-  async getBaristaResponse(message: string, history: any[] = []) {
+  async getBaristaResponse(
+    message: string,
+    history: { role: string; parts: { text: string }[] }[] = [],
+    context?: AiContext
+  ): Promise<string> {
     try {
-      const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
-        config: {
-          systemInstruction: "You are 'dggash', the legendary CoffeeCraze master barista in Beirut. You are sophisticated, slightly mysterious, but incredibly helpful and warm. Your tone is like a high-end concierge. You guide users through the 'Ritual of Extraction'. You know everything about Lebanese coffee, artisanal roasting, and global sourcing. Keep responses concise, inspiring, and formatted beautifully with Markdown."
-        }
-      });
-      
-      const response = await chat.sendMessage({ message });
-      return response.text || "My apologies, the brew was empty.";
+      const payload: Record<string, unknown> = { message, history, mode: 'chat' };
+      if (context) payload.context = context;
+      const data = await postAi<ChatResponse>(payload);
+      if (data.text) return data.text;
+      console.warn('[AiBarista] Gemini returned error:', data.error, data.details);
+      return getFallbackRecommendation(message);
     } catch (error) {
-       console.error("Gemini Error:", error);
-       return "My apologies, the brew encountered a slight error. Please try again.";
+      console.error('[AiBarista] Request failed:', error);
+      return getFallbackRecommendation(message);
     }
   },
 
-  async getCoffeeRecommendation(answers: Record<string, string>) {
+  async getCoffeeRecommendation(answers: Record<string, string>): Promise<{
+    profile: string;
+    reason: string;
+    recommendedCategory: string;
+  }> {
     try {
-      const prompt = `Based on these coffee preference answers: ${JSON.stringify(answers)}, recommend the perfect coffee profile from a premium collection. Provide a short explanation. Return in JSON format: { "profile": "Name", "reason": "...", "recommendedCategory": "..." }`;
-      
-      const response = await ai.models.generateContent({ 
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { 
-          responseMimeType: "application/json" 
-        }
+      const data = await postAi<{
+        result?: { profile: string; reason: string; recommendedCategory: string };
+      }>({
+        mode: 'quiz',
+        answers,
       });
-      
-      return JSON.parse(response.text || "{}");
+      if (data.result) return data.result;
+      return {
+        profile: 'Balanced & Classic',
+        reason: 'A balanced profile that suits almost any palate.',
+        recommendedCategory: 'Medium Roast',
+      };
     } catch (error) {
-      console.error("Gemini Error:", error);
-      return { 
-        profile: "Balanced & Classic", 
-        reason: "A balanced profile that suits almost any palate.",
-        recommendedCategory: "Medium Roast"
+      console.warn('[AiBarista] Quiz API error:', error);
+      return {
+        profile: 'Balanced & Classic',
+        reason: 'A balanced profile. Try our Medium Roast selection!',
+        recommendedCategory: 'Medium Roast',
       };
     }
-  }
+  },
 };

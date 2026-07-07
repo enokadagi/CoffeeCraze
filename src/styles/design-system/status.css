@@ -1,0 +1,15 @@
+﻿.ds-status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.25rem;
+  padding:0.25rem 0.75rem;
+  border-radius:9999px;
+  font-weight:800;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+.ds-status--active{ background: #E7F5EC; color: #2F7A46; }
+.ds-status--paused{ background: #FFF6DD; color: #D49A00; }
+.ds-status--cancelled{ background: #FDECEA; color: #C0392B; }
+.ds-status--pending{ background: #EAF2FF; color: #4A6FA5; }

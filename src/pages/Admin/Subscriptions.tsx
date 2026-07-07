@@ -58,11 +58,11 @@ export default function AdminSubscriptions() {
     <DashboardLayout>
       <div className="space-y-16 relative">
         <SEO title="Subscriptions" description="Manage CoffeeCraze subscription plans and recurring deliveries." />
-        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-coffee-50 pb-16">
+        <header className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-border-light pb-16">
           <div className="space-y-4">
-            <span className="stat-label text-gold-500 italic">Program Administration</span>
-            <h1 className="text-7xl font-display font-black text-coffee-950 tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-coffee-400">Flows.</span></h1>
-            <p className="text-xl text-coffee-400 font-serif italic">Global orchestration of recurring <span className="text-coffee-950 font-black not-italic uppercase">sensory delivery</span> protocols.</p>
+            <span className="text-caption text-gold-500 italic">Program Administration</span>
+            <h1 className="text-7xl font-display font-black text-text tracking-tightest leading-none italic uppercase">Ritual <br/><span className="not-italic text-text-muted">Flows.</span></h1>
+            <p className="text-xl text-text-muted font-serif italic">Global orchestration of recurring <span className="text-text font-black not-italic uppercase">sensory delivery</span> protocols.</p>
           </div>
 
           <div className="relative w-full md:w-96 group">
@@ -73,7 +73,7 @@ export default function AdminSubscriptions() {
               placeholder="Query supply_link_ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-coffee-50 rounded-full pl-16 pr-8 py-5 text-[11px] font-black uppercase tracking-[0.4em] focus:border-gold-500 transition-all duration-700 outline-none shadow-premium italic placeholder:text-coffee-200 relative z-10"
+              className="w-full bg-white border border-border-light rounded-full pl-16 pr-8 py-5 text-[11px] font-black uppercase tracking-[0.4em] focus:border-gold-500 transition-all duration-700 outline-none shadow-premium italic placeholder:text-coffee-200 relative z-10"
             />
           </div>
         </header>
@@ -81,7 +81,7 @@ export default function AdminSubscriptions() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-80 bg-white/50 backdrop-blur-xl animate-pulse rounded-[4rem] border border-coffee-50 shadow-premium" />
+              <div key={i} className="h-80 bg-white/50 backdrop-blur-xl animate-pulse rounded-[4rem] border border-border-light shadow-premium" />
             ))}
           </div>
         ) : (
@@ -92,11 +92,11 @@ export default function AdminSubscriptions() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.05, duration: 0.8 }}
-                className="bg-white p-12 rounded-[4rem] border border-coffee-50 shadow-premium hover:shadow-premium-xl group hover:-translate-y-2 transition-all duration-1000 relative overflow-hidden"
+                className="bg-white p-12 rounded-[4rem] border border-border-light shadow-premium hover:shadow-premium-xl group hover:-translate-y-2 transition-all duration-1000 relative overflow-hidden"
               >
                 <div className="mesh-gradient absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity duration-1000 pointer-events-none" />
                 <div className="flex items-start justify-between mb-10 relative z-10">
-                  <div className="w-16 h-16 bg-coffee-50 rounded-2xl flex items-center justify-center text-gold-500 shadow-premium group-hover:rotate-12 transition-transform duration-700 border border-coffee-100">
+                  <div className="w-16 h-16 bg-cream rounded-2xl flex items-center justify-center text-gold-500 shadow-premium group-hover:rotate-12 transition-transform duration-700 border border-border">
                     <Truck size={28} strokeWidth={1} />
                   </div>
                   <div className={cn(
@@ -111,23 +111,23 @@ export default function AdminSubscriptions() {
 
                 <div className="space-y-8 mb-10 relative z-10">
                   <div>
-                    <h3 className="text-4xl font-display font-black text-coffee-950 tracking-tightest leading-none italic uppercase">{sub.planId}_PROX</h3>
-                    <p className="text-[10px] font-black text-coffee-300 uppercase tracking-[0.4em] mt-3 italic">LINK_ID: {sub.id.slice(0, 12)}</p>
+                    <h3 className="text-4xl font-display font-black text-text tracking-tightest leading-none italic uppercase">{sub.planId}_PROX</h3>
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] mt-3 italic">LINK_ID: {sub.id.slice(0, 12)}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8 pt-8 border-t border-coffee-50">
+                  <div className="grid grid-cols-2 gap-8 pt-8 border-t border-border-light">
                     <div className="space-y-2">
                        <p className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic leading-none">PROTOCOL</p>
-                       <p className="text-lg font-display font-black text-coffee-950 italic leading-none uppercase">{sub.frequency}_CYC</p>
+                       <p className="text-lg font-display font-black text-text italic leading-none uppercase">{sub.frequency}_CYC</p>
                     </div>
                     <div className="space-y-2">
                        <p className="text-[10px] font-black text-coffee-200 uppercase tracking-[0.4em] italic leading-none">NEXT_EXTRACTION</p>
-                       <p className="text-lg font-display font-black text-coffee-950 italic leading-none uppercase">{new Date(sub.nextDelivery).toLocaleDateString()}</p>
+                       <p className="text-lg font-display font-black text-text italic leading-none uppercase">{new Date(sub.nextDelivery).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-10 border-t border-coffee-50 flex items-center justify-between gap-6 relative z-10">
+                <div className="pt-10 border-t border-border-light flex items-center justify-between gap-6 relative z-10">
                   <div className="flex gap-4">
                     {sub.status !== SubscriptionStatus.ACTIVE && (
                       <button 

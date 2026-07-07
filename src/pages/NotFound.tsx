@@ -5,7 +5,7 @@ import SEO from '../components/common/SEO';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream grainy-overlay relative overflow-hidden pt-32 pb-24">
+    <div className="min-h-screen flex items-center justify-center bg-cream relative overflow-hidden pt-32 pb-24">
       <SEO title="404 - Not Found" description="The page you are looking for does not exist." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       <div className="page-container relative z-10 text-center">
@@ -19,16 +19,16 @@ export default function NotFound() {
             <Compass className="text-caramel w-10 h-10 md:w-16 md:h-16" strokeWidth={1} />
           </div>
           <div className="space-y-6">
-            <span className="stat-label text-caramel tracking-[0.8em]">ERROR_404</span>
-            <h1 className="text-fluid-hero font-display font-black text-espresso tracking-tightest italic uppercase">
-              Lost <br/><span className="not-italic text-coffee-400">Signal.</span>
+            <span className="text-caption text-caramel tracking-[0.8em]">ERROR_404</span>
+            <h1 className="text-display font-display font-black text-espresso tracking-tightest italic uppercase">
+              Lost <br/><span className="not-italic text-text-muted">Signal.</span>
             </h1>
-            <p className="text-fluid-body text-coffee-500 font-serif italic max-w-xl mx-auto leading-relaxed">
+            <p className="text-body text-text-secondary font-serif italic max-w-xl mx-auto leading-relaxed">
               "The coordinates you seek exist beyond our current archival maps.
               Return to the hub and recalibrate your search parameters."
             </p>
           </div>
-          <Link to="/" className="btn-premium btn-lg inline-flex group">
+          <Link to="/" className="btn btn-primary btn-lg inline-flex group">
             Return to Hub <ArrowRight size={18} className="group-hover:translate-x-4 transition-transform duration-700" />
           </Link>
         </motion.div>

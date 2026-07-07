@@ -1,8 +1,40 @@
 // ============= ENUMS =============
 export enum UserRole {
+  SUPER_ADMIN = 'super_admin',
   ADMIN = 'admin',
+  PRODUCT_MANAGER = 'product_manager',
+  WHOLESALE_MANAGER = 'wholesale_manager',
+  CUSTOMER_SERVICE = 'customer_service',
+  ANALYST = 'analyst',
   WHOLESALE = 'wholesale',
   CUSTOMER = 'customer',
+}
+
+export const ROLE_HIERARCHY: Record<UserRole, number> = {
+  [UserRole.SUPER_ADMIN]: 100,
+  [UserRole.ADMIN]: 80,
+  [UserRole.PRODUCT_MANAGER]: 60,
+  [UserRole.WHOLESALE_MANAGER]: 60,
+  [UserRole.CUSTOMER_SERVICE]: 50,
+  [UserRole.ANALYST]: 40,
+  [UserRole.WHOLESALE]: 20,
+  [UserRole.CUSTOMER]: 10,
+};
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.SUPER_ADMIN]: 'Super Admin',
+  [UserRole.ADMIN]: 'Admin',
+  [UserRole.PRODUCT_MANAGER]: 'Product Manager',
+  [UserRole.WHOLESALE_MANAGER]: 'Wholesale Manager',
+  [UserRole.CUSTOMER_SERVICE]: 'Customer Service',
+  [UserRole.ANALYST]: 'Analyst',
+  [UserRole.WHOLESALE]: 'Wholesale',
+  [UserRole.CUSTOMER]: 'Customer',
+};
+
+export function hasRole(userRole: UserRole, allowedRoles: UserRole[]): boolean {
+  const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
+  return allowedRoles.some(r => userLevel >= ROLE_HIERARCHY[r]);
 }
 
 export enum SubscriptionStatus {
@@ -78,6 +110,7 @@ export interface UserProfile {
   onboarded: boolean;
   preferences?: UserPreferences;
   avatar?: string;
+  profileImage?: string;
 }
 
 export interface UserPreferences {
@@ -117,9 +150,12 @@ export interface Product {
   sku: string;
   planId?: string;
   barcode?: string;
+  brand?: string;
+  origin?: string;
   weight?: number;
   tags: string[];
   isSubscriptionEligible: boolean;
+  isActive?: boolean;
   wholesalePrice?: number;
   wholesalePriceUsd?: number;
   wholesalePriceLbp?: number;
@@ -145,7 +181,9 @@ export interface CartItem {
   description?: string;
   quantity: number;
   selectedVariant?: ProductVariant;
-}
+  stock?: number;
+  isSubscriptionEligible?: boolean;
+} 
 
 export interface Review {
   id: string;

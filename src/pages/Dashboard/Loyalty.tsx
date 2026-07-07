@@ -24,16 +24,16 @@ export default function LoyaltyRitual() {
         <SEO title="Loyalty" description="Earn and redeem CoffeeCraze loyalty points with every purchase." />
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-12 border-b border-espresso/5 pb-16">
           <div className="space-y-4">
-            <span className="stat-label text-caramel">Earning Protocol</span>
-            <h1 className="text-7xl font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Loyalty <br/><span className="not-italic text-coffee-400">Ritual.</span></h1>
-            <p className="text-xl text-coffee-400 font-serif italic">Every extraction intensifies your node's clearance level.</p>
+            <span className="text-caption text-caramel">Earning Protocol</span>
+            <h1 className="text-7xl font-display font-black text-espresso tracking-tightest leading-none italic uppercase">Loyalty <br/><span className="not-italic text-text-muted">Ritual.</span></h1>
+            <p className="text-xl text-text-muted font-serif italic">Every extraction intensifies your node's clearance level.</p>
           </div>
           <div className="p-10 bg-white shadow-premium-xl border border-white rounded-[3.5rem] flex items-center gap-8 group hover:scale-105 transition-all duration-700">
             <div className="w-20 h-20 bg-cream text-caramel-gold rounded-[1.5rem] flex items-center justify-center shadow-inner group-hover:rotate-12 transition-transform duration-700 border border-white">
               <Star size={36} fill="currentColor" />
             </div>
             <div>
-               <p className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic mb-1">Accumulated Resonance</p>
+               <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] italic mb-1">Accumulated Resonance</p>
                <p className="text-4xl font-display font-black text-espresso italic tracking-tightest">{points} UNITS</p>
             </div>
           </div>
@@ -47,10 +47,10 @@ export default function LoyaltyRitual() {
             <div className="space-y-4">
                <div className="inline-flex items-center gap-4 px-5 py-2 bg-white/5 border border-white/10 rounded-full">
                   <TrendingUp className="text-caramel" size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-coffee-300 italic">Next Milestone Identified</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-text-muted italic">Next Milestone Identified</span>
                </div>
-               <h2 className="text-6xl font-display font-black leading-none tracking-tightest italic italic uppercase">{nextReward.title}</h2>
-               <p className="text-2xl text-coffee-400 font-serif italic leading-relaxed">{nextReward.desc}</p>
+               <h2 className="text-6xl font-display font-black leading-none tracking-tightest italic uppercase">{nextReward.title}</h2>
+               <p className="text-2xl text-text-muted font-serif italic leading-relaxed">{nextReward.desc}</p>
             </div>
             
             <div className="space-y-6">
@@ -68,7 +68,7 @@ export default function LoyaltyRitual() {
               </div>
             </div>
             
-            <p className="text-sm text-coffee-500 italic font-serif">Bridge an additional <span className="text-caramel font-black not-italic font-sans text-xs uppercase tracking-widest">{nextReward.points - points} resonators</span> to unlock this sensory enhancement.</p>
+            <p className="text-sm text-text-muted italic font-serif">Bridge an additional <span className="text-caramel font-black not-italic font-sans text-xs uppercase tracking-widest">{nextReward.points - points} resonators</span> to unlock this sensory enhancement.</p>
           </div>
 
           <div className="absolute bottom-0 right-0 p-16 opacity-5 group-hover:opacity-10 transition-opacity duration-1000 group-hover:scale-110">
@@ -92,17 +92,17 @@ export default function LoyaltyRitual() {
                 </div>
                 <div className="space-y-3">
                   <h4 className="text-3xl font-display font-black text-espresso tracking-tightest leading-tight italic uppercase">{reward.title}</h4>
-                  <p className="text-lg text-coffee-400 font-serif italic leading-relaxed">{reward.desc}</p>
+                  <p className="text-lg text-text-muted font-serif italic leading-relaxed">{reward.desc}</p>
                 </div>
                 <div className="flex items-center justify-between pt-6">
-                  <span className="text-[11px] font-black text-coffee-300 uppercase tracking-[0.4em] italic">{reward.points}_UNITS</span>
+                  <span className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] italic">{reward.points}_UNITS</span>
                   <button 
                     disabled={!isUnlocked}
                     className={cn(
                       "px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-700 italic border shadow-premium",
                       isUnlocked 
-                        ? 'bg-espresso text-white hover:bg-caramel hover:text-white border-espresso/10 hover:border-caramel-gold active:scale-90' 
-                        : 'bg-cream text-coffee-200 cursor-not-allowed border-white'
+                        ? 'bg-espresso text-white hover:bg-caramel hover:text-espresso border-espresso/10 hover:border-caramel-gold active:scale-90' 
+                        : 'bg-cream text-espresso/30 cursor-not-allowed border-white'
                     )}
                   >
                     {isUnlocked ? 'Induct Reward' : 'Dormant'}
@@ -119,13 +119,13 @@ export default function LoyaltyRitual() {
                <div className="w-12 h-12 bg-espresso text-caramel rounded-2xl flex items-center justify-center shadow-premium">
                   <History size={20} strokeWidth={1.5} />
                </div>
-               <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">Accumulation <span className="not-italic text-coffee-400">Log.</span></h3>
+               <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">Accumulation <span className="not-italic text-text-muted">Log.</span></h3>
             </div>
             <div className="py-20 text-center space-y-6">
               <div className="w-16 h-16 bg-cream rounded-[2rem] flex items-center justify-center mx-auto text-coffee-200 shadow-inner">
                 <History size={24} strokeWidth={1} />
               </div>
-              <p className="text-lg text-coffee-300 font-serif italic">No accumulation history yet. Points are earned by completing orders and referring friends.</p>
+              <p className="text-lg text-text-muted font-serif italic">No accumulation history yet. Points are earned by completing orders and referring friends.</p>
             </div>
           </div>
       </div>

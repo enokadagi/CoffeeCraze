@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Plus, Minus, CreditCard, Truck, ShoppingBag, ArrowRight } from 'lucide-react';
@@ -44,11 +44,11 @@ export default function Cart() {
           <Truck size={40} strokeWidth={1} />
         </motion.div>
         <div className="space-y-8 relative z-10">
-          <h1 className="text-fluid-hero font-display font-black text-espresso italic leading-none tracking-tightest">Ritual <br/><span className="not-italic text-caramel">Manifested.</span></h1>
-          <p className="text-coffee-400 text-fluid-body md:text-2xl font-serif italic max-w-md mx-auto leading-relaxed">"The distribution protocol has been initiated. Your sensory harvest is now under elite transit."</p>
+          <h1 className="text-display font-display font-black text-espresso italic leading-none tracking-tightest">Ritual <br/><span className="not-italic text-caramel">Manifested.</span></h1>
+          <p className="text-text-secondary text-body md:text-2xl font-serif italic max-w-md mx-auto leading-relaxed">Your order is confirmed and on its way. Expect roasted coffee delivered with care.</p>
         </div>
         <div className="pt-8 relative z-10">
-          <Link to="/shop" className="btn-premium px-8 md:px-12 py-4 md:py-6 italic group">
+          <Link to="/shop" className="btn btn-primary px-8 md:px-12 py-4 md:py-6 italic group">
             Continue Exploration <ArrowRight size={18} className="group-hover:translate-x-4 transition-transform duration-700" />
           </Link>
         </div>
@@ -57,17 +57,17 @@ export default function Cart() {
   }
 
   return (
-    <div className="pt-40 pb-24 md:pt-56 md:pb-40 grainy-overlay min-h-screen relative overflow-hidden bg-cream">
+    <div className="pt-40 pb-24 md:pt-56 md:pb-40 min-h-screen relative overflow-hidden bg-cream">
       <SEO title="Cart" description="Review your coffee selections and proceed to checkout." />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
         <header className="mb-8 sm:mb-12 lg:mb-16 space-y-4 sm:space-y-6">
-          <span className="stat-label text-caramel">Your Cart</span>
+          <span className="text-caption text-caramel">Your Cart</span>
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 sm:gap-8 border-b border-espresso/5 pb-6 sm:pb-10">
-            <h1 className="text-fluid-hero font-display font-bold text-espresso leading-none tracking-tight uppercase">Your <span className="text-coffee-400">Cart.</span></h1>
+            <h1 className="text-display font-display font-bold text-espresso leading-none tracking-tight uppercase">Your <span className="text-text-muted">Cart.</span></h1>
             <div className="text-right">
-               <span className="text-xs font-semibold text-coffee-400 tracking-wide">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+               <span className="text-xs font-semibold text-text-muted tracking-wide">{items.length} item{items.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
         </header>
@@ -95,11 +95,11 @@ export default function Cart() {
                         <div className="flex justify-between items-start gap-4">
                           <div className="space-y-1">
                             <h3 className="text-lg sm:text-xl lg:text-2xl font-display font-bold text-espresso tracking-tight leading-none uppercase">{item.name}</h3>
-                            <p className="text-xs font-medium text-caramel tracking-wide">{item.category || 'Coffee'} · {item.selectedVariant ? item.selectedVariant.name : 'Standard'}</p>
+                            <p className="text-xs font-medium text-caramel tracking-wide">{item.category || 'Coffee'}  -  {item.selectedVariant ? item.selectedVariant.name : 'Standard'}</p>
                           </div>
                           <div className="text-right shrink-0">
                              <p className="text-xl sm:text-2xl font-display font-bold text-espresso tracking-tight">{formatPrice(item.price)}</p>
-                             {item.priceUsd && item.priceUsd > 0 && <p className="text-xs font-medium text-coffee-500">${item.priceUsd.toFixed(2)} USD</p>}
+                             {item.priceUsd && item.priceUsd > 0 && <p className="text-xs font-medium text-text-muted">${item.priceUsd.toFixed(2)} USD</p>}
                           </div>
                         </div>
                         
@@ -107,14 +107,14 @@ export default function Cart() {
                           <div className="flex items-center gap-3 bg-cream shadow-premium px-3 py-1.5 rounded-full border border-white/60">
                             <button 
                               onClick={() => removeItem(item.id)} 
-                              className="w-8 h-8 flex items-center justify-center text-coffee-400 hover:text-espresso hover:bg-white rounded-xl transition-all duration-400 active:scale-75"
+                              className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-espresso hover:bg-white rounded-xl transition-all duration-400 active:scale-75"
                             >
                               <Minus size={14} />
                             </button>
                             <span className="text-base font-semibold w-6 text-center text-espresso">{item.quantity}</span>
                             <button 
                               onClick={() => addItem(item)} 
-                              className="w-8 h-8 flex items-center justify-center text-coffee-400 hover:text-espresso hover:bg-white rounded-xl transition-all duration-400 active:scale-75"
+                              className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-espresso hover:bg-white rounded-xl transition-all duration-400 active:scale-75"
                             >
                               <Plus size={14} />
                             </button>
@@ -122,7 +122,7 @@ export default function Cart() {
                           
                           <button 
                             onClick={() => removeItem(item.id)} 
-                            className="w-10 h-10 flex items-center justify-center text-coffee-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-400 border border-transparent hover:border-red-100"
+                            className="w-10 h-10 flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-400 border border-transparent hover:border-red-100"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -133,16 +133,16 @@ export default function Cart() {
                 </div>
               ) : (
                 <div className="py-16 md:py-24 text-center flex flex-col items-center justify-center space-y-6 sm:space-y-8 bg-white/60 backdrop-blur-xl rounded-2xl lg:rounded-3xl border-2 border-dashed border-espresso/10 p-8">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center shadow-premium text-coffee-200 border border-white/60">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center shadow-premium text-text-muted border border-white/60">
                     <ShoppingBag size={28} strokeWidth={0.5} />
                   </div>
                   <div className="space-y-3">
                     <h2 className="text-2xl sm:text-3xl font-display font-bold text-espresso tracking-tight">Your Cart is Empty</h2>
-                    <p className="text-sm sm:text-base text-coffee-500 max-w-sm mx-auto leading-relaxed">No items in your cart yet. Browse our collection to find your perfect brew.</p>
+                    <p className="text-sm sm:text-base text-text-secondary max-w-sm mx-auto leading-relaxed">No items in your cart yet. Browse our collection to find your perfect brew.</p>
                   </div>
                   <Link 
                     to="/shop" 
-                    className="btn-premium text-sm"
+                    className="btn btn-primary text-sm"
                   >
                     Browse Products <ArrowRight size={16} />
                   </Link>
@@ -155,16 +155,16 @@ export default function Cart() {
           <div className="lg:col-span-4 sticky top-40 h-fit space-y-4 sm:space-y-6">
             <div className="p-5 sm:p-6 lg:p-8 bg-espresso text-white rounded-2xl lg:rounded-3xl shadow-premium-lg relative overflow-hidden">
               <div className="space-y-1 sm:space-y-2 relative z-10 mb-4 sm:mb-6">
-                <span className="stat-label text-caramel">Order Summary</span>
+                <span className="text-caption text-caramel">Order Summary</span>
                 <h2 className="text-xl sm:text-2xl font-display font-bold tracking-tight">Checkout</h2>
               </div>
               
-              <div className="space-y-3 sm:space-y-4 text-sm text-coffee-400 relative z-10">
+              <div className="space-y-3 sm:space-y-4 text-sm text-cream relative z-10">
                 <div className="flex justify-between items-center py-2">
                   <span>Subtotal</span>
                   <div className="text-right">
                     <span className="text-white font-semibold tracking-tight block">{formatPrice(subtotal)}</span>
-                    {subtotalUsd > 0 && <span className="text-coffee-500 text-xs block mt-0.5">${subtotalUsd.toFixed(2)} USD</span>}
+                    {subtotalUsd > 0 && <span className="text-cream text-xs block mt-0.5">${subtotalUsd.toFixed(2)} USD</span>}
                   </div>
                 </div>
                 <div className="flex justify-between items-center py-2">
@@ -175,7 +175,7 @@ export default function Cart() {
                   <span className="text-white text-sm font-semibold">Total</span>
                   <div className="text-right">
                     <span className="text-xl sm:text-2xl font-display font-bold text-caramel-gold tracking-tight">{formatPrice(grandTotal)}</span>
-                    {grandTotalUsd > 0 && <span className="text-coffee-400 text-xs block mt-0.5">${grandTotalUsd.toFixed(2)} USD</span>}
+                    {grandTotalUsd > 0 && <span className="text-cream text-xs block mt-0.5">${grandTotalUsd.toFixed(2)} USD</span>}
                   </div>
                 </div>
               </div>
@@ -185,20 +185,20 @@ export default function Cart() {
                     <Truck className="text-caramel shrink-0 mt-0.5" size={18} />
                     <div className="space-y-0.5">
                       <p className="text-xs font-semibold text-white tracking-wide">Elite Shipping</p>
-                      <p className="text-[11px] text-coffee-500">24-48h delivery with real-time tracking</p>
+                      <p className="text-[11px] text-cream">24-48h delivery with real-time tracking</p>
                     </div>
                  </div>
                  
                  <button 
                   onClick={handleCheckout}
                   disabled={items.length === 0 || loading}
-                  className="btn-premium w-full text-sm"
+                  className="btn btn-primary w-full text-sm"
                  >
                    {loading ? 'Processing...' : 'Checkout'}
                    <ArrowRight size={16} />
                  </button>
 
-                 <div className="flex items-center justify-center gap-2 text-[11px] text-coffee-500">
+                 <div className="flex items-center justify-center gap-2 text-[11px] text-white/70">
                     <CreditCard size={14} className="text-caramel" />
                     Secure payment
                  </div>
@@ -206,7 +206,7 @@ export default function Cart() {
             </div>
 
             <div className="p-5 sm:p-6 bg-white shadow-premium border border-white/60 rounded-2xl lg:rounded-3xl">
-              <p className="text-xs text-coffee-400 font-semibold tracking-wide mb-4 text-center">Have a discount code?</p>
+              <p className="text-xs text-text-muted font-semibold tracking-wide mb-4 text-center">Have a discount code?</p>
               <div className="flex gap-2">
                 <input 
                   type="text" 

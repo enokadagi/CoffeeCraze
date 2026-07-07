@@ -28,13 +28,13 @@ export default function ReferralSystem() {
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-coffee-500 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-coffee-500/20">
             <Gift size={12} /> Share the Ritual
           </div>
-          <h2 className="text-3xl sm:text-4xl font-display font-bold leading-tight">Gift a Coffee,<br />Get <span className="text-coffee-300">Free Beans</span>.</h2>
+          <h2 className="text-3xl sm:text-4xl font-display font-bold leading-tight">Gift a Coffee,<br />Get <span className="text-text-muted">Free Beans</span>.</h2>
           <p className="text-base sm:text-lg text-white/60 font-light max-w-md">Invite a friend to start their CoffeeCraze ritual. They get 15% off, and you earn 200 loyalty points for every successful referral.</p>
         </div>
 
-        <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-[2rem] space-y-6 text-coffee-950">
+        <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-[2rem] space-y-6 text-text">
           <div className="space-y-4">
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-coffee-400">
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-text-muted">
               <span className="flex items-center gap-2"><Zap size={14} className="text-yellow-500" /> Quick Share</span>
               <span>Your Code: {referralCode}</span>
             </div>
@@ -43,7 +43,7 @@ export default function ReferralSystem() {
                 type="text" 
                 readOnly 
                 value={referralLink}
-                className="w-full pl-4 pr-32 py-3 sm:py-5 bg-coffee-50 border border-coffee-100 rounded-2xl text-xs font-mono font-medium outline-none"
+                className="w-full pl-4 pr-32 py-3 sm:py-5 bg-cream border border-border rounded-2xl text-xs font-mono font-medium outline-none"
               />
               <button 
                 onClick={copyToClipboard}
@@ -55,16 +55,16 @@ export default function ReferralSystem() {
             </div>
           </div>
           
-          <div className="pt-6 border-t border-coffee-50 flex items-center justify-between gap-4">
+          <div className="pt-6 border-t border-border-light flex items-center justify-between gap-4">
             <div className="flex -space-x-3">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-white rounded-full bg-coffee-100" />
+                <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-white rounded-full bg-cream" />
               ))}
               <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-white rounded-full bg-coffee-950 flex items-center justify-center text-[10px] font-bold text-white">
                 +12
               </div>
             </div>
-            <p className="text-[10px] font-bold text-coffee-400 uppercase tracking-widest text-right">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest text-right">
               Join 500+ Ritualists<br />sharing the love.
             </p>
           </div>

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import ImageWithFallback from '../common/ImageWithFallback';
-import { ShoppingCart, Star, Heart, Eye, Plus, Minus, Check, X, ArrowRight, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { ShoppingCart, Star, Heart, Eye, Plus, Check, ArrowRight, Sparkles, Clock, Zap } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -12,12 +12,24 @@ interface ProductCardProps {
   product: Product;
 }
 
+const NEW_DAYS_THRESHOLD = 14;
+
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [isAdded, setIsAdded] = useState(false);
-  
+  const [imgLoaded, setImgLoaded] = useState(false);
+
   const { lbp, usd } = getDualPricing(product);
+
+  const isNew = useMemo(() => {
+    if (!product.createdAt) return false;
+    const daysSinceCreated = (Date.now() - new Date(product.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceCreated <= NEW_DAYS_THRESHOLD;
+  }, [product.createdAt]);
+
+  const stockLabel = product.stock > 10 ? 'In Stock' : product.stock > 0 ? `${product.stock} left` : 'Out of Stock';
+  const stockClass = product.stock > 10 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : product.stock > 0 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200';
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -28,99 +40,141 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       layout
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="group relative bg-white shadow-premium hover:shadow-premium-lg rounded-2xl lg:rounded-3xl overflow-hidden transition-all duration-500 border border-white/80 p-3 sm:p-4 hover:-translate-y-1 hover-lift"
+      viewport={{ once: true, margin: '-40px' }}
+      className="group relative flex flex-col bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-border/60 shadow-sm hover:shadow-xl transition-all duration-500 will-change-transform h-full"
     >
-      <Link to={`/product/${product.id}`} className="block relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden rounded-xl lg:rounded-2xl mb-4 bg-cream">
+      {/* Image Container --- fixed aspect ratio */}
+      <Link to={`/product/${product.id}`} className="relative aspect-[4/5] sm:aspect-[4/5] overflow-hidden bg-cream/50">
         <ImageWithFallback
           src={product.images[0]}
           alt={product.name}
-          className="w-full h-full object-cover transition-all duration-700 scale-100 group-hover:scale-105"
+          className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${imgLoaded ? '' : 'opacity-0'}`}
+          onLoad={() => setImgLoaded(true)}
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-espresso/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-        
-        <div className="absolute top-3 left-3 z-20">
-           <div className="bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/60 shadow-premium flex items-center gap-1.5">
-              <Sparkles size={8} className="text-caramel-gold" />
-              <span className="text-[7px] font-semibold tracking-wider text-espresso uppercase">Premium</span>
-           </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+        {/* Badges row --- top left */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+          {isNew && (
+            <span className="px-2.5 py-1 bg-blue-500 text-white text-[9px] font-bold uppercase tracking-wider rounded-full shadow-sm flex items-center gap-1">
+              <Zap size={10} /> New
+            </span>
+          )}
+          {product.isFeatured && (
+            <span className="px-2.5 py-1 bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider rounded-full shadow-sm flex items-center gap-1">
+              <Sparkles size={10} /> Featured
+            </span>
+          )}
         </div>
 
-        <div className="absolute top-3 right-3 z-20">
-          <button 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleWishlist(product);
-            }}
-            className={cn(
-              "w-8 h-8 rounded-full transition-all duration-500 flex items-center justify-center backdrop-blur-md shadow-premium border",
-              isInWishlist(product.id) 
-                ? "bg-caramel text-white border-caramel" 
-                : "bg-white/70 text-espresso hover:bg-espresso hover:text-white border-white/60"
-            )}
-          >
-            <Heart size={12} className={isInWishlist(product.id) ? "fill-current" : ""} />
-          </button>
+        {/* Wishlist button --- top right */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWishlist(product);
+          }}
+          aria-label={isInWishlist(product.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+          className={cn(
+            'absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm backdrop-blur-sm',
+            isInWishlist(product.id)
+              ? 'bg-red-50 text-red-500 border border-red-200'
+              : 'bg-white/80 text-text-muted border border-white/60 hover:bg-espresso hover:text-white'
+          )}
+        >
+          <Heart size={13} className={isInWishlist(product.id) ? 'fill-current' : ''} />
+        </button>
+
+        {/* Stock badge --- bottom left */}
+        <div className="absolute bottom-3 left-3 z-10">
+          <span className={cn('px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider rounded-full border shadow-sm bg-white/90 backdrop-blur-sm', stockClass)}>
+            {stockLabel}
+          </span>
         </div>
 
-        <div className="absolute bottom-3 left-3 right-3 translate-y-0 opacity-100 sm:translate-y-8 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 transition-all duration-500 z-10">
-          <button 
+        {/* Quick add button --- bottom right */}
+        <div className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+          <button
             onClick={handleAddToCart}
+            disabled={product.stock <= 0}
             className={cn(
-              "w-full py-2.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-semibold tracking-wider transition-all duration-500 shadow-premium border border-white/20 backdrop-blur-md",
-              isAdded ? "bg-emerald-500 text-white" : "bg-white/90 text-espresso hover:bg-espresso hover:text-white"
+              'w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300',
+              isAdded
+                ? 'bg-emerald-500 text-white'
+                : product.stock <= 0
+                  ? 'bg-coffee-200 text-text-muted cursor-not-allowed'
+                  : 'bg-espresso text-white hover:bg-caramel hover:text-espresso'
             )}
           >
             {isAdded ? <Check size={14} /> : <Plus size={14} />}
-            {isAdded ? "Added" : "Quick Add"}
           </button>
         </div>
       </Link>
 
-      <div className="px-3 sm:px-4 pb-2 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-medium text-coffee-400 uppercase tracking-wider">{product.category}</span>
-          <div className="flex items-center gap-1 px-2 py-0.5 bg-white shadow-premium rounded-full">
-            <Star size={9} className="fill-caramel-gold text-caramel-gold" />
+      {/* Content */}
+      <div className="flex flex-col flex-1 p-3.5 sm:p-4 gap-2">
+        {/* Category + Rating */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[9px] font-semibold text-text-muted uppercase tracking-wider truncate">{product.category}</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Star size={9} className="fill-amber-400 text-amber-400" />
             <span className="text-[10px] font-semibold text-espresso">{product.rating.toFixed(1)}</span>
           </div>
         </div>
 
+        {/* Title --- max 2 lines */}
         <Link to={`/product/${product.id}`} className="block">
-          <h3 className="text-fluid-title font-display font-semibold text-espresso leading-[1.08] tracking-tight">
+          <h3 className="text-sm sm:text-base font-semibold text-espresso leading-snug line-clamp-2 min-h-[2.5em]">
             {product.name}
           </h3>
         </Link>
-        
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
-          <div className="flex flex-col min-w-0">
-             <span className="text-fluid-title font-display font-bold text-espresso tracking-tight leading-none">
-               {formatPrice(lbp)}
-             </span>
-             {usd > 0 && (
-               <span className="text-fluid-subtitle font-medium text-coffee-500 leading-none mt-0.5">
-                 ${usd.toFixed(2)} USD
-               </span>
-             )}
+
+        {/* Description --- short */}
+        {product.description && (
+          <p className="text-[11px] text-text-muted leading-relaxed line-clamp-1 hidden sm:block">
+            {product.description}
+          </p>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Price + CTA */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border-light/60">
+          <div className="flex flex-col">
+            <span className="text-sm sm:text-base font-bold text-espresso leading-tight">{formatPrice(lbp)}</span>
+            {usd > 0 && (
+              <span className="text-[10px] font-medium text-text-muted">${usd.toFixed(2)} USD</span>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={cn(
-               "text-[9px] font-semibold tracking-wide px-2 py-0.5 rounded",
-               product.stock > 10 ? "text-emerald-600 bg-emerald-50" : product.stock > 0 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50"
-            )}>
-               {product.stock > 0 ? 'In Stock' : 'Out'}
-            </span>
-            <Link to={`/product/${product.id}`} className="w-8 h-8 bg-cream text-espresso hover:bg-espresso hover:text-white rounded-full flex items-center justify-center transition-all duration-500 shadow-premium">
-              <ArrowRight size={14} />
-            </Link>
-          </div>
+          <button
+            onClick={handleAddToCart}
+            disabled={product.stock <= 0}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 shrink-0',
+              isAdded
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                : product.stock <= 0
+                  ? 'bg-cream text-text-muted cursor-not-allowed'
+                  : 'bg-espresso text-white hover:bg-caramel hover:text-espresso shadow-sm'
+            )}
+          >
+            {isAdded ? 'Added' : product.stock <= 0 ? 'Sold Out' : 'Add'}
+          </button>
         </div>
+
+        {/* Subscription badge */}
+        {product.isSubscriptionEligible && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <Clock size={10} className="text-caramel" />
+            <span className="text-[8px] font-semibold text-caramel uppercase tracking-wider">Subscribe & Save</span>
+          </div>
+        )}
       </div>
     </motion.div>
   );

@@ -1,18 +1,29 @@
+/*
+  ============= DEPLOYMENT GUIDE =============
+  Frontend + API: Cloudflare Pages
+    npm run pages:deploy
+
+  Set secrets in Cloudflare dashboard:
+    GEMINI_API_KEY
+
+  Firebase (backend only — Auth, Firestore, Storage):
+    firebase deploy --only firestore:rules,firestore:indexes,storage:rules
+
+  Add Cloudflare domain to Firebase Auth authorized domains:
+    Firebase Console → Authentication → Settings → Authorized domains
+
+  Local dev:
+    Set VITE_FIREBASE_* vars in .env (copy from .env.example)
+    Set GEMINI_API_KEY in .env
+    npm run dev
+    npm run test
+*/
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "storage": {
     "rules": "storage.rules"
-  },
-  "hosting": {
-    "public": "dist",
-    "ignore": ["firebase.json", ".firebaserc", "**/.*"],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
   }
 }

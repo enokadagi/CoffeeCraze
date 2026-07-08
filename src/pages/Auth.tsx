@@ -79,8 +79,17 @@ export default function Auth() {
               return;
             }
             try {
-              const credential = GoogleAuthProvider.credential(tokenResponse.id_token);
-              await signInWithCredential(auth, credential);
+              const idToken = tokenResponse.id_token;
+              const accessToken = tokenResponse.access_token;
+              if (idToken) {
+                const credential = GoogleAuthProvider.credential(idToken);
+                await signInWithCredential(auth, credential);
+              } else if (accessToken) {
+                const credential = GoogleAuthProvider.credential(null, accessToken);
+                await signInWithCredential(auth, credential);
+              } else {
+                throw new Error('No token returned from Google');
+              }
               toast.success("Welcome back — you're signed in.");
               navigate(getRedirectPath(), { replace: true });
             } catch (credErr) {

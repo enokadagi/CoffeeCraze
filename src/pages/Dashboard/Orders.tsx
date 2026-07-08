@@ -495,7 +495,7 @@ export default function MyOrders() {
                     </h2>
                     <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-2 leading-none">Order UUID: {selectedOrder.id}</p>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 md:w-14 md:h-14 bg-cream rounded-2xl flex items-center justify-center text-text-muted hover:text-text transition-all active:scale-95 ml-8 shrink-0">
+                  <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 md:w-14 md:h-14 bg-cream rounded-2xl flex items-center justify-center text-espresso/60 hover:text-text transition-all active:scale-95 ml-8 shrink-0">
                     <X size={20} />
                   </button>
                 </div>

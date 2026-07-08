@@ -86,7 +86,7 @@ export default function LoyaltyRitual() {
                 
                 <div className={cn(
                   "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-premium transition-all duration-700 group-hover:scale-110 group-hover:rotate-6",
-                  isUnlocked ? 'bg-espresso text-caramel border border-white/10' : 'bg-cream text-coffee-200 border border-white shadow-inner'
+                  isUnlocked ? 'bg-espresso text-caramel border border-white/10' : 'bg-cream text-espresso/40 border border-white shadow-inner'
                 )}>
                   <reward.icon size={28} strokeWidth={1.5} />
                 </div>
@@ -101,8 +101,8 @@ export default function LoyaltyRitual() {
                     className={cn(
                       "px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-700 italic border shadow-premium",
                       isUnlocked 
-                        ? 'bg-espresso text-white hover:bg-caramel hover:text-espresso border-espresso/10 hover:border-caramel-gold active:scale-90' 
-                        : 'bg-cream text-espresso/30 cursor-not-allowed border-white'
+                        ? 'bg-espresso text-white hover:bg-caramel hover:text-white border-espresso/10 hover:border-caramel-gold active:scale-90' 
+                        : 'bg-cream text-espresso/50 cursor-not-allowed border-white'
                     )}
                   >
                     {isUnlocked ? 'Induct Reward' : 'Dormant'}

@@ -197,7 +197,7 @@ export default function DashboardOverview() {
             {!loading && stats.activeSubscriptions === 0 && (
               <Link
                 to="/subscriptions"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-espresso transition-colors shadow-sm"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-white transition-colors shadow-sm"
               >
                 <Coffee size={16} /> Start Subscription
               </Link>
@@ -234,7 +234,7 @@ export default function DashboardOverview() {
               <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
                 <Link
                   to="/subscriptions"
-                  className="px-6 py-3.5 bg-espresso text-white rounded-xl text-sm font-bold text-center hover:bg-caramel hover:text-espresso transition-colors"
+                  className="px-6 py-3.5 bg-espresso text-white rounded-xl text-sm font-bold text-center hover:bg-caramel hover:text-white transition-colors"
                 >
                   View Plans
                 </Link>
@@ -336,7 +336,7 @@ export default function DashboardOverview() {
                       <div className="flex flex-wrap gap-3 pt-2">
                         <Link
                           to="/dashboard/subscriptions"
-                          className="px-5 py-2.5 bg-white text-espresso rounded-xl font-bold text-sm hover:bg-caramel hover:text-espresso transition-all duration-300"
+                          className="px-5 py-2.5 bg-white text-espresso rounded-xl font-bold text-sm hover:bg-caramel hover:text-white transition-all duration-300"
                         >
                           Manage
                         </Link>
@@ -465,7 +465,7 @@ export default function DashboardOverview() {
                         No payments due
                       </p>
                     </div>
-                    <button className="w-full py-2.5 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-espresso transition-colors">
+                    <button className="w-full py-2.5 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-white transition-colors">
                       View Invoices
                     </button>
                   </div>

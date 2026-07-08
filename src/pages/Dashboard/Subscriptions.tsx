@@ -337,7 +337,7 @@ export default function DashboardSubscriptions() {
                     </>
                   )}
                   {sub.status === SubscriptionStatus.CANCELLED && (
-                    <button className="w-full py-3 bg-espresso/5 text-espresso/50 rounded-full text-xs font-semibold tracking-wider uppercase cursor-not-allowed border border-espresso/10">
+                    <button className="w-full py-3 bg-espresso/10 text-espresso/70 rounded-full text-xs font-semibold tracking-wider uppercase cursor-not-allowed border border-espresso/10">
                       Archival Record Only
                     </button>
                   )}
@@ -386,19 +386,19 @@ export default function DashboardSubscriptions() {
                       <div className="flex gap-2 pt-4">
                         <button 
                           onClick={() => setActiveTab('items')}
-                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'items' ? "bg-espresso text-white" : "bg-cream text-text-muted hover:text-espresso")}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'items' ? "bg-espresso text-white" : "bg-cream text-espresso/50 hover:text-espresso")}
                         >
                           Items & Frequency
                         </button>
                         <button 
                           onClick={() => setActiveTab('logistics')}
-                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'logistics' ? "bg-espresso text-white" : "bg-cream text-text-muted hover:text-espresso")}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'logistics' ? "bg-espresso text-white" : "bg-cream text-espresso/50 hover:text-espresso")}
                         >
                           Coordinates
                         </button>
                         <button 
                           onClick={() => setActiveTab('duration')}
-                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'duration' ? "bg-espresso text-white" : "bg-cream text-text-muted hover:text-espresso")}
+                          className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === 'duration' ? "bg-espresso text-white" : "bg-cream text-espresso/50 hover:text-espresso")}
                         >
                           Extend Duration
                         </button>
@@ -614,7 +614,7 @@ export default function DashboardSubscriptions() {
               <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight leading-none uppercase">Modulate Your Harvest Suite</h2>
               <p className="text-white text-xs sm:text-sm leading-relaxed">Any variation in components or logistics coordinates must be committed <span className="text-white font-semibold text-xs uppercase tracking-wider">48 Hours</span> prior to your next scheduled delivery window.</p>
             </div>
-            <Link to="/shop" className="btn btn-primary whitespace-nowrap bg-white text-espresso hover:bg-caramel hover:text-espresso uppercase tracking-widest text-[10px]">
+            <Link to="/shop" className="btn btn-primary whitespace-nowrap bg-white text-espresso hover:bg-caramel hover:text-white uppercase tracking-widest text-[10px]">
               Browse Database Catalog <ArrowRight size={12} className="ml-1.5" />
             </Link>
           </div>

@@ -94,10 +94,10 @@ service cloud.firestore {
 
     // --- Users ---
     match /users/{userId} {
-      allow get: if isOwner(userId) || isStaff();
+      allow get: if isSignedIn() && userId == request.auth.uid;
       allow list: if isStaff();
-      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && incoming().role == 'customer';
-      allow update: if (isOwner(userId) && isOwnerProfileUpdate()) || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'loyaltyPoints']));
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if request.auth.uid == userId || isAdmin();
       allow delete: if isAdmin();
     }
 

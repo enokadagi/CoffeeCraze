@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import SEO from '../components/common/SEO';
 
-const CATEGORIES = ['All', 'Coffee Beans', 'Capsules', 'Espresso Machines', 'Accessories', 'Syrups'];
+const CATEGORIES = ['All', 'Coffee Beans', 'Ground Coffee', 'Capsules', 'Drip Bags', 'Gift Boxes', 'Brewing Equipment', 'Espresso Machines', 'Accessories', 'Syrups', 'Merchandise'];
 
 export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,10 +19,16 @@ export default function Shop() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [filters, setFilters] = useState(() => {
-    const saved = localStorage.getItem('coffee_shop_filters');
-    return saved ? JSON.parse(saved) : {
-      category: 'All', minPrice: 0, maxPrice: 50000000, minRating: 0, selectedTags: [] as string[]
-    };
+    try {
+      const saved = localStorage.getItem('coffee_shop_filters');
+      return saved ? JSON.parse(saved) : {
+        category: 'All', minPrice: 0, maxPrice: 50000000, minRating: 0, selectedTags: [] as string[]
+      };
+    } catch {
+      return {
+        category: 'All', minPrice: 0, maxPrice: 50000000, minRating: 0, selectedTags: [] as string[]
+      };
+    }
   });
 
   useEffect(() => {
@@ -132,7 +138,7 @@ export default function Shop() {
                             onClick={() => setShowSuggestions(false)}
                             className="flex items-center gap-4 p-3 hover:bg-cream rounded-xl transition-all duration-normal"
                           >
-                            <ImageWithFallback src={p.images[0]} alt={p.name} className="w-14 h-14 rounded-lg object-cover border border-border" referrerPolicy="no-referrer" />
+                            <ImageWithFallback src={p.images?.[0] || ''} alt={p.name} className="w-14 h-14 rounded-lg object-cover border border-border" referrerPolicy="no-referrer" />
                             <div>
                               <p className="text-small font-semibold text-text">{p.name}</p>
                               <p className="text-caption text-text-muted">{p.category}</p>

@@ -74,7 +74,17 @@ vi.mock('firebase/auth', () => ({
   })),
   signOut: vi.fn(() => Promise.resolve()),
   sendEmailVerification: vi.fn(() => Promise.resolve()),
-  GoogleAuthProvider: class {},
+  getRedirectResult: vi.fn(() => Promise.resolve(null)),
+  signInWithCredential: vi.fn(() => Promise.resolve({})),
+  signInWithEmailAndPassword: vi.fn(() => Promise.resolve({})),
+  createUserWithEmailAndPassword: vi.fn(() => Promise.resolve({})),
+  sendPasswordResetEmail: vi.fn(() => Promise.resolve()),
+  updateProfile: vi.fn(() => Promise.resolve()),
+  GoogleAuthProvider: class {
+    addScope = vi.fn();
+    setCustomParameters = vi.fn();
+    static credential = vi.fn();
+  },
   onAuthStateChanged: vi.fn(() => vi.fn()),
 }));
 

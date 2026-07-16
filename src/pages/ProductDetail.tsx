@@ -64,7 +64,7 @@ export default function ProductDetail() {
     }
   }
   
-  const currentImage = selectedVariant?.image || product?.images[activeImage];
+  const currentImage = selectedVariant?.image || product?.images?.[activeImage] || '';
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -145,12 +145,10 @@ export default function ProductDetail() {
       const newRating = ((product.rating * (product.reviewCount || 0)) + newReview.rating) / newReviewCount;
       
       setProduct(prev => prev ? { ...prev, rating: parseFloat(newRating.toFixed(1)), reviewCount: newReviewCount } : null);
-      try {
-        await updateDoc(doc(db, 'products', id), {
-          rating: parseFloat(newRating.toFixed(1)),
-          reviewCount: newReviewCount
-        });
-      } catch (e) { /* Ignore sample data */ }
+      updateDoc(doc(db, 'products', id), {
+        rating: parseFloat(newRating.toFixed(1)),
+        reviewCount: newReviewCount
+      }).catch(() => {});
 
       setNewReview({ rating: 5, comment: '' });
     } catch (err) {

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -22,10 +22,16 @@ export default function DashboardSubscriptions() {
   useEffect(() => {
     if (user) {
       const fetchSubs = async () => {
-        const q = query(collection(db, 'subscriptions'), where('userId', '==', user.uid));
-        const snap = await getDocs(q);
-        setSubscriptions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription)));
-        setLoading(false);
+        try {
+          const q = query(collection(db, 'subscriptions'), where('userId', '==', user.uid));
+          const snap = await getDocs(q);
+          setSubscriptions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription)));
+        } catch (err) {
+          console.error('Failed to fetch subscriptions:', err);
+          toast.error('Failed to load subscriptions');
+        } finally {
+          setLoading(false);
+        }
       };
       fetchSubs();
     }
@@ -127,7 +133,8 @@ export default function DashboardSubscriptions() {
     try {
       const currentDate = new Date(sub.nextDelivery || new Date());
       let daysToAdd = 7;
-      if (sub.frequency === 'biweekly') daysToAdd = 14;
+      if (sub.frequency === 'daily') daysToAdd = 1;
+      else if (sub.frequency === 'biweekly') daysToAdd = 14;
       else if (sub.frequency === 'monthly') daysToAdd = 30;
       
       currentDate.setDate(currentDate.getDate() + daysToAdd);
@@ -455,19 +462,19 @@ export default function DashboardSubscriptions() {
 
                         <div className="space-y-3">
                           <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Modulate Supply Speed</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            {['weekly', 'biweekly', 'monthly'].map((freq) => (
-                               <button 
-                                 key={freq}
-                                 onClick={() => updateFrequency(editingSub.id, freq)}
-                                 className={cn(
-                                   "py-3 rounded-xl text-xs font-black uppercase tracking-wider shadow-premium flex items-center justify-center gap-1.5 transition-all",
-                                   editingSub.frequency === freq ? "bg-espresso text-white" : "bg-cream text-espresso hover:bg-white border border-white"
-                                 )}
-                               >
-                                 {freq === 'weekly' ? 'Weekly' : freq === 'biweekly' ? 'Bi-Weekly' : 'Monthly'}
-                               </button>
-                            ))}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                             {(['daily', 'weekly', 'biweekly', 'monthly'] as const).map((freq) => (
+                                <button 
+                                  key={freq}
+                                  onClick={() => updateFrequency(editingSub.id, freq)}
+                                  className={cn(
+                                    "py-3 rounded-xl text-xs font-black uppercase tracking-wider shadow-premium flex items-center justify-center gap-1.5 transition-all",
+                                    editingSub.frequency === freq ? "bg-espresso text-white" : "bg-cream text-espresso hover:bg-white border border-white"
+                                  )}
+                                >
+                                  {freq === 'daily' ? '☀ Daily' : freq === 'weekly' ? 'Weekly' : freq === 'biweekly' ? 'Bi-Weekly' : 'Monthly'}
+                                </button>
+                             ))}
                           </div>
                         </div>
                      </div>

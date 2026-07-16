@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -48,6 +48,7 @@ const AdminBlog = lazy(() => import('./pages/Admin/Blog'));
 const AdminMessages = lazy(() => import('./pages/Admin/Messages'));
 const AdminEmployees = lazy(() => import('./pages/Admin/Employees'));
 const AdminSiteSettings = lazy(() => import('./pages/Admin/SiteSettings'));
+const DriverDashboard = lazy(() => import('./pages/Driver/Dashboard'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-transparent">
@@ -64,19 +65,31 @@ import PageTransition from './components/layout/PageTransition';
 import ScrollToTop from './components/layout/ScrollToTop';
 
 const LazyPage = ({ children }: { children: ReactNode }) => (
-  <Suspense fallback={<PageLoader />}>
-    <PageTransition>{children}</PageTransition>
-  </Suspense>
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>
+      <PageTransition>{children}</PageTransition>
+    </Suspense>
+  </ErrorBoundary>
 );
 
 
 function AppContent() {
   const location = useLocation();
   const siteSettings = useSiteSettings();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (siteSettings) applySiteSettings(siteSettings);
   }, [siteSettings]);
+
+  useEffect(() => {
+    const redirect = sessionStorage.getItem('spa_redirect');
+    if (redirect) {
+      sessionStorage.removeItem('spa_redirect');
+      // Navigate to the correct page using client router, preventing layout refresh issues.
+      navigate(redirect, { replace: true });
+    }
+  }, [navigate]);
 
   return (
     <div className="flex flex-col min-h-screen font-sans">
@@ -89,7 +102,7 @@ function AppContent() {
         <AnimatePresence mode="wait" initial={false}>
           <Routes location={location} key={location.pathname}>
 
-            <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+            <Route path="/" element={<ErrorBoundary><PageTransition><Home /></PageTransition></ErrorBoundary>} />
             <Route path="/shop" element={<LazyPage><Shop /></LazyPage>} />
             <Route path="/category/:category" element={<LazyPage><CategoryProducts /></LazyPage>} />
             <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
@@ -132,6 +145,9 @@ function AppContent() {
             <Route path="/admin/messages" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminMessages /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/employees" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}><LazyPage><AdminEmployees /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}><LazyPage><AdminSiteSettings /></LazyPage></ProtectedRoute>} />
+
+            {/* Driver Route */}
+            <Route path="/driver" element={<ProtectedRoute allowedRoles={[UserRole.DRIVER, UserRole.ADMIN, UserRole.SUPER_ADMIN]}><LazyPage><DriverDashboard /></LazyPage></ProtectedRoute>} />
           </Routes>
         </AnimatePresence>
       </main>

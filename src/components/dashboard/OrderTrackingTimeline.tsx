@@ -7,14 +7,14 @@ interface Props {
   order: Order;
 }
 
-const STATUS_ORDER: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+const STATUS_ORDER: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED];
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Order Received',
-  confirmed: 'Confirmed',
-  processing: 'Preparing',
-  shipped: 'Out for Delivery',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
+  [OrderStatus.PENDING]: 'Order Received',
+  [OrderStatus.CONFIRMED]: 'Confirmed',
+  [OrderStatus.PROCESSING]: 'Preparing',
+  [OrderStatus.SHIPPED]: 'Out for Delivery',
+  [OrderStatus.DELIVERED]: 'Delivered',
+  [OrderStatus.CANCELLED]: 'Cancelled',
 };
 
 export default function OrderTrackingTimeline({ order }: Props) {

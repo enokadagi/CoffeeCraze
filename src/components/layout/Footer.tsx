@@ -60,13 +60,13 @@ export default function Footer() {
               </div>
             </div>
             <div className="col-span-full flex items-center gap-3 mt-2">
-              <a href="https://instagram.com/coffeecraze" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all">
+              <a href="https://www.instagram.com/coffeecraze_lb" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all">
                 <Instagram size={16} />
               </a>
-              <a href="https://twitter.com/coffeecraze" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all">
+              <a href="https://x.com/CoffeeCrazeLB" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all">
                 <Twitter size={16} />
               </a>
-              <a href="https://facebook.com/coffeecraze" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all">
+              <a href="https://www.facebook.com/CoffeeCrazeCC/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all">
                 <Facebook size={16} />
               </a>
             </div>

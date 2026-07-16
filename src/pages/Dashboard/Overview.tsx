@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Coffee, Truck, Star, ArrowRight, Sparkles, Settings,
@@ -86,7 +86,24 @@ export default function DashboardOverview() {
         limit(5)
       );
       const ordersSnap = await getDocs(ordersQ);
-      const orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      const orders = ordersSnap.docs.map(doc => {
+        const data = doc.data();
+        // Safely convert Firestore Timestamps to ISO strings to prevent crashes
+        const createdAt = data.createdAt;
+        const safeCreatedAt = (createdAt && typeof createdAt.toDate === 'function')
+          ? createdAt.toDate().toISOString()
+          : (typeof createdAt === 'string' ? createdAt : new Date().toISOString());
+        const updatedAt = data.updatedAt;
+        const safeUpdatedAt = (updatedAt && typeof updatedAt.toDate === 'function')
+          ? updatedAt.toDate().toISOString()
+          : (typeof updatedAt === 'string' ? updatedAt : undefined);
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: safeCreatedAt,
+          ...(safeUpdatedAt ? { updatedAt: safeUpdatedAt } : {}),
+        } as Order;
+      });
       setRecentOrders(orders);
 
       // Calculate stats
@@ -95,7 +112,7 @@ export default function DashboardOverview() {
         : 0;
 
       setStats({
-        totalSpent: orders.reduce((sum, o) => sum + (o.totalLbp || o.total), 0),
+        totalSpent: orders.reduce((sum, o) => sum + (o.totalLbp ?? o.total), 0),
         activeSubscriptions: subs.length,
         nextDeliveryDays: nextDelivery,
         loyaltyPoints: profile?.loyaltyPoints || 0,
@@ -198,6 +215,7 @@ export default function DashboardOverview() {
               <Link
                 to="/subscriptions"
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-espresso text-white rounded-xl text-sm font-bold hover:bg-caramel hover:text-white transition-colors shadow-sm"
+                style={{ color: '#ffffff' }}
               >
                 <Coffee size={16} /> Start Subscription
               </Link>
@@ -235,6 +253,7 @@ export default function DashboardOverview() {
                 <Link
                   to="/subscriptions"
                   className="px-6 py-3.5 bg-espresso text-white rounded-xl text-sm font-bold text-center hover:bg-caramel hover:text-white transition-colors"
+                  style={{ color: '#ffffff' }}
                 >
                   View Plans
                 </Link>

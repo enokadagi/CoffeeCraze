@@ -6,6 +6,7 @@ export enum UserRole {
   WHOLESALE_MANAGER = 'wholesale_manager',
   CUSTOMER_SERVICE = 'customer_service',
   ANALYST = 'analyst',
+  DRIVER = 'driver',
   WHOLESALE = 'wholesale',
   CUSTOMER = 'customer',
 }
@@ -17,6 +18,7 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   [UserRole.WHOLESALE_MANAGER]: 60,
   [UserRole.CUSTOMER_SERVICE]: 50,
   [UserRole.ANALYST]: 40,
+  [UserRole.DRIVER]: 30,
   [UserRole.WHOLESALE]: 20,
   [UserRole.CUSTOMER]: 10,
 };
@@ -28,6 +30,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.WHOLESALE_MANAGER]: 'Wholesale Manager',
   [UserRole.CUSTOMER_SERVICE]: 'Customer Service',
   [UserRole.ANALYST]: 'Analyst',
+  [UserRole.DRIVER]: 'Driver',
   [UserRole.WHOLESALE]: 'Wholesale',
   [UserRole.CUSTOMER]: 'Customer',
 };
@@ -88,6 +91,7 @@ export interface Address {
   instructions?: string;
   gateCode?: string;
   landmark?: string;
+  gpsCoordinates?: { lat: number; lng: number };
 }
 
 export interface UserProfile {
@@ -111,6 +115,8 @@ export interface UserProfile {
   preferences?: UserPreferences;
   avatar?: string;
   profileImage?: string;
+  status?: 'active' | 'disabled' | 'suspended';
+  permissions?: string[];
 }
 
 export interface UserPreferences {
@@ -213,7 +219,7 @@ export interface Plan {
   features: string[];
   image?: string;
   items: PlanItem[];
-  frequency: 'weekly' | 'biweekly' | 'monthly';
+  frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   minDeliveries: number;
   isFeatured: boolean;
   isCustomizable: boolean;
@@ -224,7 +230,7 @@ export interface Plan {
 export interface SubscriptionPlan {
   planId: string;
   items: PlanItem[];
-  frequency: 'weekly' | 'biweekly' | 'monthly';
+  frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   nextDeliveryDate: string;
   customizations?: string;
 }
@@ -246,7 +252,7 @@ export interface Subscription {
   planId: string;
   status: SubscriptionStatus;
   plan: SubscriptionPlan;
-  frequency?: 'weekly' | 'biweekly' | 'monthly';
+  frequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   items?: OrderItem[];
   address?: Address | string;
   preferredDay?: string;
@@ -300,6 +306,7 @@ export interface Delivery {
   instructions?: string;
   driverName?: string;
   driverPhone?: string;
+  driverId?: string;
   trackingUrl?: string;
   attempts: number;
   failureReason?: string;
@@ -335,6 +342,8 @@ export interface Order {
   createdAt: string;
   updatedAt?: string;
   deliveredAt?: string;
+  driverId?: string;
+  driverName?: string;
 }
 
 // ============= PAYMENTS & LEDGER =============

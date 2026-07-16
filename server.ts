@@ -76,7 +76,7 @@ async function startServer() {
       }
       const { GoogleGenAI } = await import("@google/genai");
       const ai = new GoogleGenAI({ apiKey });
-      const { message, history = [], mode = "chat", answers } = req.body ?? {};
+      const { message, history = [], mode = "chat", answers, context } = req.body ?? {};
 
       if (mode === "quiz" && answers) {
         const prompt = `Based on these coffee preference answers: ${JSON.stringify(answers)}, recommend the perfect coffee profile. Return JSON: { "profile": "Name", "reason": "...", "recommendedCategory": "..." }`;
@@ -90,10 +90,38 @@ async function startServer() {
 
       if (!message) return res.status(400).json({ error: "message is required" });
 
+      // Build personalized instructions using context
+      let systemInstruction = `You are the CoffeeCraze master barista and digital concierge — a sophisticated, warm, and deeply knowledgeable AI assistant for CoffeeCraze, a premium coffee roastery based in Beirut, Lebanon.
+Always be warm, helpful, and concise (under 300 words). Use Markdown for formatting.
+If the customer has items in their cart, gently remind them to complete checkout if relevant.
+If they ask about subscription plans, suggest Daily Essentials (our daily delivery plan), Starter, or Premium plans.`;
+
+      if (context) {
+        const parts: string[] = [];
+        if (context.userName) parts.push(`User's Name: ${context.userName}`);
+        if (context.userEmail) parts.push(`User's Email: ${context.userEmail}`);
+        if (Array.isArray(context.cartItems) && context.cartItems.length > 0) {
+          parts.push(`Current Cart Items: ${JSON.stringify(context.cartItems)}`);
+        }
+        if (Array.isArray(context.recentOrders) && context.recentOrders.length > 0) {
+          parts.push(`Recent Orders: ${JSON.stringify(context.recentOrders.slice(0, 3))}`);
+        }
+        if (context.currentPage) parts.push(`Current Page: ${context.currentPage}`);
+        if (Array.isArray(context.products) && context.products.length > 0) {
+          parts.push(`Available Products: ${context.products.map((p: any) => `${p.name} ($${p.priceUsd || p.price})`).join(', ')}`);
+        }
+        if (Array.isArray(context.plans) && context.plans.length > 0) {
+          parts.push(`Subscription Plans: ${context.plans.map((p: any) => `${p.name} (Frequency: ${p.frequency})`).join(', ')}`);
+        }
+        if (parts.length > 0) {
+          systemInstruction += `\n\nActive Customer Context:\n` + parts.join('\n');
+        }
+      }
+
       const chat = ai.chats.create({
         model: "gemini-2.0-flash",
         config: {
-          systemInstruction: "You are the CoffeeCraze master barista. Be warm, concise, and use Markdown.",
+          systemInstruction,
         },
         history,
       });

@@ -1,4 +1,4 @@
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
 
@@ -59,15 +59,21 @@ export const NotificationService = {
   },
 
   async savePreferences(userId: string, prefs: NotificationPreferences): Promise<void> {
-    await updateDoc(doc(db, 'users', userId), { notificationPreferences: prefs });
+    try {
+      await setDoc(doc(db, 'users', userId), { notificationPreferences: prefs }, { merge: true });
+    } catch (err) {
+      console.error('[Notifications] Failed to save preferences:', err);
+      toast.error('Failed to save notification preferences: ' + (err as Error)?.message);
+      throw err;
+    }
   },
 
   async enablePush(userId: string): Promise<boolean> {
     const granted = await this.requestPermission();
     if (granted) {
-      await updateDoc(doc(db, 'users', userId), {
-        'notificationPreferences.pushEnabled': true,
-      });
+      await setDoc(doc(db, 'users', userId), {
+        notificationPreferences: { pushEnabled: true },
+      }, { merge: true });
       toast.success('Push notifications enabled');
     } else {
       toast.error('Notification permission was denied');
@@ -76,8 +82,8 @@ export const NotificationService = {
   },
 
   async disablePush(userId: string): Promise<void> {
-    await updateDoc(doc(db, 'users', userId), {
-      'notificationPreferences.pushEnabled': false,
-    });
+    await setDoc(doc(db, 'users', userId), {
+      notificationPreferences: { pushEnabled: false },
+    }, { merge: true });
   },
 };

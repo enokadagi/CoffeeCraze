@@ -6,6 +6,7 @@ import { UserRole, hasRole } from '../../types';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
+  requiredPermission?: string;
 }
 
 const SENSITIVE_PATHS = [
@@ -13,6 +14,7 @@ const SENSITIVE_PATHS = [
   '/subscriptions',
   '/dashboard',
   '/admin',
+  '/driver',
   '/orders',
   '/profile',
   '/settings',
@@ -22,7 +24,8 @@ const SENSITIVE_PATHS = [
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  allowedRoles 
+  allowedRoles,
+  requiredPermission
 }) => {
   const { user, profile, loading, isEmailVerified, sendVerificationEmail } = useAuth();
   const location = useLocation();
@@ -38,6 +41,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  if (profile && (profile.status === 'disabled' || profile.status === 'suspended')) {
+    return <Navigate to="/auth" replace />;
   }
 
   const needsVerification = !isEmailVerified && SENSITIVE_PATHS.some(path => location.pathname.startsWith(path));
@@ -72,6 +79,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         </div>
       </div>
     );
+  }
+
+  if (profile && requiredPermission) {
+    const isSuperOrAdmin = profile.role === UserRole.SUPER_ADMIN || profile.role === UserRole.ADMIN;
+    const hasPerm = isSuperOrAdmin || (profile.permissions && profile.permissions.includes(requiredPermission));
+    if (!hasPerm) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-cream">
+          <div className="max-w-md w-full mx-4 p-8 bg-white rounded-lg shadow-lg text-center border border-red-100">
+            <h2 className="text-2xl font-bold text-red-600 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-6">You do not have the required permission ({requiredPermission}) to access this page.</p>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="px-6 py-2 bg-espresso text-white rounded-lg font-bold hover:bg-caramel transition-colors"
+            >
+              Go to Homepage
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
   if (allowedRoles) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { signInWithPopup, signInWithRedirect, signInWithCredential, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, updateProfile } from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
+import { signInWithCredential, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, updateProfile } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -19,11 +19,11 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
 
-  // Support both ?redirect= query param and ProtectedRoute's state.from
   const getRedirectPath = () => {
     const redirectParam = searchParams.get('redirect');
     if (redirectParam) return redirectParam;
@@ -32,28 +32,43 @@ export default function Auth() {
     return '/';
   };
 
-  // If user is already authenticated (e.g. after redirect sign-in), navigate away
   useEffect(() => {
     if (!authLoading && authUser) {
       navigate(getRedirectPath(), { replace: true });
     }
   }, [authUser, authLoading]);
 
-  // Load Google Identity Services script
-  const gsiLoadedRef = useRef(false);
+  const gsiReadyRef = useRef(false);
 
   useEffect(() => {
-    if (typeof google !== 'undefined' && google.accounts) {
-      gsiLoadedRef.current = true;
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+      gsiReadyRef.current = true;
       return;
     }
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client';
     s.async = true;
     s.defer = true;
-    s.onload = () => { gsiLoadedRef.current = true; };
+    s.onload = () => { gsiReadyRef.current = true; };
     document.head.appendChild(s);
   }, []);
+
+  const exchangeGoogleToken = async (tokenResponse: google.accounts.oauth2.TokenResponse) => {
+    const resp = tokenResponse as unknown as { id_token?: string; access_token: string };
+    const idToken = resp.id_token;
+    const accessToken = resp.access_token;
+
+    let credential;
+    if (idToken) {
+      credential = GoogleAuthProvider.credential(idToken);
+    } else if (accessToken) {
+      credential = GoogleAuthProvider.credential(null, accessToken);
+    } else {
+      throw new Error('No id_token or access_token in Google response');
+    }
+
+    await signInWithCredential(auth, credential);
+  };
 
   const handleGoogleLogin = async () => {
     if (!auth) {
@@ -61,83 +76,41 @@ export default function Auth() {
       return;
     }
 
+    if (!gsiReadyRef.current || typeof google === 'undefined' || !google.accounts?.oauth2) {
+      toast.error('Google sign-in not ready. Try again.');
+      return;
+    }
+
     setLoading(true);
 
-    // --- Primary method: GSI (Google Identity Services) popup ---
-    // This bypasses Firebase's own OAuth handler and talks directly to Google.
-    // Works on any domain authorized in the Google OAuth client config.
-    if (gsiLoadedRef.current && typeof google !== 'undefined' && google.accounts) {
-      try {
-        const tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: '571039033130-8e87npd00r57hug1e0pvo0b0a6bl1gl6.apps.googleusercontent.com',
-          scope: 'openid profile email',
-          callback: async (tokenResponse) => {
-            if (tokenResponse.error) {
-              console.error('GSI token error:', tokenResponse.error);
-              setLoading(false);
-              toast.error('Google sign-in failed: ' + tokenResponse.error);
-              return;
-            }
-            try {
-              const idToken = tokenResponse.id_token;
-              const accessToken = tokenResponse.access_token;
-              if (idToken) {
-                const credential = GoogleAuthProvider.credential(idToken);
-                await signInWithCredential(auth, credential);
-              } else if (accessToken) {
-                const credential = GoogleAuthProvider.credential(null, accessToken);
-                await signInWithCredential(auth, credential);
-              } else {
-                throw new Error('No token returned from Google');
-              }
-              toast.success("Welcome back — you're signed in.");
-              navigate(getRedirectPath(), { replace: true });
-            } catch (credErr) {
-              console.error('signInWithCredential error:', credErr);
-              setLoading(false);
-              toast.error('Google sign-in failed. Try again.');
-            }
-          },
-        });
-        tokenClient.requestAccessToken();
-        return; // callback will handle navigation
-      } catch (gsiErr) {
-        console.warn('GSI init failed, falling back to popup:', gsiErr);
-      }
-    }
-
-    // --- Fallback 1: Firebase signInWithPopup ---
-    try {
-      await signInWithPopup(auth, googleProvider);
-      toast.success("Welcome back — you're signed in.");
-      navigate(getRedirectPath(), { replace: true });
-    } catch (popupErr) {
-      const code = (popupErr as any)?.code || '';
-      const message = (popupErr as any)?.message || String(popupErr);
-      console.warn('Popup sign-in failed:', { code, message });
-
-      if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
-        toast.error("Sign in cancelled.");
-        return;
-      }
-      if (code.includes('popup-blocked') || code.includes('unauthorized-domain') ||
-          message.includes('popup-blocked') || message.includes('unauthorized-domain') ||
-          message.includes('cross-origin') || message.includes('DOMException')) {
-        // Fallback 2: redirect
-        console.log('Falling back to signInWithRedirect');
+    // Use GSI token client directly — works on any domain (CSP allows accounts.google.com postMessage)
+    // Avoids Firebase signInWithPopup which hangs on non-authorized domains.
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: '571039033130-8e87npd00r57hug1e0pvo0b0a6bl1gl6.apps.googleusercontent.com',
+      scope: 'openid profile email',
+      include_granted_scopes: true,
+      callback: async (response) => {
         try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr) {
-          console.error('Redirect also failed:', redirectErr);
-          toast.error(`Google sign-in not supported on this domain. Use coffeecraze.nilelink.app instead.`);
+          await exchangeGoogleToken(response);
+          toast.success("Welcome back — you're signed in.");
+          navigate(getRedirectPath(), { replace: true });
+        } catch (credErr) {
+          console.error('GSI credential exchange failed:', credErr);
+          setLoading(false);
+          toast.error('Google sign-in failed. Try again.');
         }
-      } else {
-        toast.error(`Google sign-in error: ${code || message}. Use coffeecraze.nilelink.app.`);
-      }
-    } finally {
-      setLoading(false);
-    }
+      },
+      error_callback: (error) => {
+        console.error('GSI error:', error);
+        setLoading(false);
+        if (error.type === 'popup_closed') {
+          toast.error("Sign in cancelled.");
+        } else {
+          toast.error('Google sign-in error: ' + (error.message || error.type));
+        }
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
   };
 
   const handleResetPassword = async () => {
@@ -169,6 +142,7 @@ export default function Auth() {
           await updateProfile(userCredential.user, { displayName: displayName.trim() });
         }
         await sendEmailVerification(userCredential.user);
+        setJustRegistered(true);
         toast.success("Account created successfully! Please check your email to verify your address.");
       }
       navigate(getRedirectPath(), { replace: true });
@@ -236,7 +210,7 @@ export default function Auth() {
           </div>
         </div>
 
-        {!isLogin && (
+        {!isLogin && justRegistered && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}

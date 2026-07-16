@@ -12,6 +12,7 @@ export type AiContext = {
   currentPage?: string;
   products?: { id: string; name: string; category: string; price: number; priceUsd?: number; description?: string; isSubscriptionEligible?: boolean }[];
   plans?: { id: string; name: string; price: number; description?: string; frequency: string; isFeatured?: boolean }[];
+  wishlistItems?: { id: string; name: string }[];
 };
 
 const FALLBACK_RECOMMENDATIONS = [

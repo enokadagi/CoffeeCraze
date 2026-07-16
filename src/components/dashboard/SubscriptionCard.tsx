@@ -43,7 +43,7 @@ export default function SubscriptionCard({
       case 'pending':
         return '⏳';
       case 'failed':
-        return '✓';
+        return '✗';
       default:
         return '?';
     }
@@ -166,7 +166,7 @@ export default function SubscriptionCard({
 
         <button
           onClick={() => onManage(subscription.id)}
-          className="w-full py-3 px-4 bg-espresso text-white rounded-xl font-semibold text-sm hover:bg-caramel hover:text-espresso transition-colors flex items-center justify-center gap-2 mt-auto"
+          className="w-full py-3 px-4 bg-espresso text-white rounded-xl font-semibold text-sm hover:bg-caramel hover:text-white transition-colors flex items-center justify-center gap-2 mt-auto"
         >
           Manage Plan
           <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />

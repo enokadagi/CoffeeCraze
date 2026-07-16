@@ -1,4 +1,4 @@
-﻿import { motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { ChevronRight, Package, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Order } from '../../types';
 import { cn } from '../../lib/utils';
@@ -77,14 +77,21 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
                     <div className="flex items-center gap-3 text-xs text-text-muted">
                       <span>{order.items.length} items</span>
                       <span>•</span>
-                      <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                      <span>{(() => {
+                        const raw = order.createdAt as any;
+                        // Handle Firestore Timestamp objects that weren't serialised upstream
+                        const date = (raw && typeof raw.toDate === 'function')
+                          ? raw.toDate()
+                          : new Date(raw);
+                        return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
+                      })()}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-espresso text-sm mb-1">
-                    {formatLBP(order.totalLbp || order.total)}
+                    {formatLBP(order.totalLbp ?? order.total)}
                   </p>
                   <p className={cn('text-xs font-semibold', order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600')}>
                     {order.paymentStatus === 'paid' ? '✓ Paid' : 'Pending'}

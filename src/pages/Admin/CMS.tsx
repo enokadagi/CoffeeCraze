@@ -282,7 +282,7 @@ export default function AdminCMS() {
             ) : faqs.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-2xl border border-espresso/5">
                 <p className="text-text-muted">No FAQs yet.</p>
-                <button onClick={() => { setEditingFaq({ question: '', answer: '', order: faqs.length + 1, visible: true }); }} className="btn btn-primary px-6 py-3 text-xs mt-4">Add Your First FAQ</button>
+                <button onClick={() => { setEditingFaq({ id: '', question: '', answer: '', order: faqs.length + 1, visible: true, updatedAt: new Date().toISOString() }); }} className="btn btn-primary px-6 py-3 text-xs mt-4">Add Your First FAQ</button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, ArrowRight, Zap, Coffee, Building2, Utensils, Truck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -12,10 +12,11 @@ import { Address, Plan, PlanItem, SubscriptionStatus, PaymentStatus } from '../t
 import { PlanService, SubscriptionService } from '../services/firestore';
 import { formatUSD } from '../utils/exchange';
 
-const getNextDeliveryDate = (frequency: 'weekly' | 'biweekly' | 'monthly') => {
+const getNextDeliveryDate = (frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly') => {
   const date = new Date();
   let increment = 30;
-  if (frequency === 'weekly') increment = 7;
+  if (frequency === 'daily') increment = 1;
+  else if (frequency === 'weekly') increment = 7;
   else if (frequency === 'biweekly') increment = 14;
   date.setDate(date.getDate() + increment);
   return date.toISOString();
@@ -344,8 +345,8 @@ export default function Subscriptions() {
                     className={cn(
                       'w-full py-3.5 md:py-4 rounded-full font-bold uppercase tracking-[0.2em] text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-md group/btn relative overflow-hidden mt-auto',
                       plan.isFeatured
-                        ? 'bg-caramel text-espresso hover:bg-white hover:text-espresso'
-                        : 'bg-espresso text-white hover:bg-caramel hover:text-espresso',
+                        ? 'bg-caramel text-white hover:bg-white hover:text-espresso'
+                        : 'bg-espresso text-white hover:bg-caramel hover:text-white',
                       creatingPlan !== null && creatingPlan !== plan.id && 'opacity-50 cursor-not-allowed'
                     )}
                   >

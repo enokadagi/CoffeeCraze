@@ -671,6 +671,29 @@ const SEED_PLANS = [
     isRecommended: false,
     isCustomizable: true,
     createdAt: new Date().toISOString()
+  },
+  {
+    id: 'daily-essentials',
+    name: 'Daily',
+    displayName: 'Daily Essentials',
+    description: 'Fresh coffee delivered to your door every single day. Perfect for the dedicated coffee devotee who never compromises.',
+    price: 350000,
+    priceUsd: 3.91,
+    priceLbp: 350000,
+    features: [
+      '1 × 200g Bag per day',
+      'Fresh-roasted daily dispatch',
+      'Daily delivery — 7 days a week',
+      'Priority morning slot guarantee',
+      'Free brewing consultation'
+    ],
+    productIds: ['ethiopian-yirgacheffe'],
+    frequency: 'daily',
+    minDeliveries: 7,
+    isFeatured: true,
+    isRecommended: false,
+    isCustomizable: false,
+    createdAt: new Date().toISOString()
   }
 ];
 

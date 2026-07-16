@@ -28,6 +28,19 @@ service cloud.firestore {
       ];
     }
 
+    // Driver: can view/update only their assigned deliveries
+    function isDriver() {
+      return isSignedIn() && getUserRole() == 'driver';
+    }
+
+    // Granular permission check: reads a 'permissions' string array on the user profile
+    // Usage: hasPermission('orders:write')
+    function hasPermission(perm) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && perm in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', []);
+    }
+
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
 
@@ -38,7 +51,7 @@ service cloud.firestore {
         && data.role in [
           'super_admin', 'admin', 'product_manager',
           'wholesale_manager', 'customer_service', 'analyst',
-          'wholesale', 'customer'
+          'wholesale', 'customer', 'driver'
         ];
     }
 
@@ -77,18 +90,15 @@ service cloud.firestore {
 
     function isOwnerSubscriptionUpdate() {
       return isOwner(existing().userId)
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-          'status', 'nextDelivery', 'frequency', 'items', 'address',
-          'preferredTime', 'preferredTimeSlot', 'preferredDay',
-          'customNotes', 'gateCode', 'durationMonths'
-        ]);
+        && incoming().userId == existing().userId;
     }
 
     function isOwnerProfileUpdate() {
       return incoming().diff(existing()).affectedKeys().hasOnly([
         'displayName', 'onboarded',
         'phone', 'address', 'addresses', 'defaultAddressId',
-        'profileImage', 'preferences'
+        'profileImage', 'preferences',
+        'notificationPreferences', 'emailVerified'
       ]);
     }
 
@@ -96,8 +106,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn() && userId == request.auth.uid;
       allow list: if isStaff();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if request.auth.uid == userId || isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && (!('role' in incoming()) || incoming().role == 'customer');
+      allow update: if isAdmin() || (request.auth.uid == userId && isOwnerProfileUpdate());
       allow delete: if isAdmin();
     }
 
@@ -141,6 +151,9 @@ service cloud.firestore {
     match /contact_messages/{messageId} {
       allow create: if isValidContactMessage(incoming());
       allow get, list, update, delete: if isStaff();
+      match /replies/{replyId} {
+        allow create, read: if isStaff();
+      }
     }
 
     // --- Reviews ---
@@ -160,10 +173,24 @@ service cloud.firestore {
 
     // --- Orders ---
     match /orders/{orderId} {
-      allow get: if isSignedIn() && (isOwner(existing().userId) || isStaff());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      // Customers can read their own; staff can read all; drivers can read orders assigned to them
+      allow get: if isSignedIn() && (
+        isOwner(existing().userId)
+        || isStaff()
+        || (isDriver() && existing().get('driverId', '') == request.auth.uid)
+      );
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid
+        || isStaff()
+        || (isDriver() && resource.data.get('driverId', '') == request.auth.uid)
+      );
       allow create: if isVerified() && isValidOrder(incoming()) && incoming().status == 'pending';
-      allow update: if isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus']);
+      // Staff can update order fields; drivers can only mark as delivered and set paymentStatus
+      allow update: if
+        (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus', 'driverId', 'driverName', 'updatedAt', 'deliveredAt']))
+        || (isDriver() && existing().get('driverId', '') == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus', 'deliveredAt', 'updatedAt'])
+            && incoming().status == 'delivered');
       allow delete: if isStaff();
     }
 

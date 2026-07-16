@@ -66,7 +66,7 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
 .bg-surface { background-color: var(--color-surface) !important; }
 .bg-mocha, .bg-mocha\/5, .bg-mocha\/10, .bg-mocha\/20, .bg-mocha\/80 { background-color: #4A2E1F !important; }
 .hover\:bg-mocha:hover { background-color: #4A2E1F !important; }
-.text-espresso { color: var(--color-espresso) !important; }
+.text-espresso { color: var(--color-espresso); }
 .text-caramel { color: var(--color-caramel) !important; }
 .text-coffee-400 { color: var(--color-text-secondary) !important; }
 .text-coffee-500 { color: var(--color-text-muted) !important; }

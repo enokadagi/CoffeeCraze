@@ -1,14 +1,27 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>CoffeeCraze</title>
-  <script type="text/javascript">
-    var path = window.location.pathname;
-    window.location.replace('/?redirect=' + encodeURIComponent(path));
-  </script>
-</head>
-<body>
-  <p>Redirecting to CoffeeCraze...</p>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/logo192.svg" />
+    <link rel="apple-touch-icon" href="/logo192.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#2d1e16" />
+    <meta name="description" content="CoffeeCraze — Premium coffee ritual delivery in Lebanon. Subscribe for curated beans, capsules, and sensory excellence." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <title>CoffeeCraze | Premium Coffee Ritual</title>
+    <script>
+      // SPA fallback for Cloudflare Pages: when a direct URL hit returns 404,
+      // this page loads and the inline script sets sessionStorage so the main app
+      // can pick up the intended path. This avoids the old /auth?redirect= behaviour
+      // that caused "Redirecting to CoffeeCraze..." errors on page refresh.
+      sessionStorage.setItem('spa_redirect', window.location.pathname + window.location.search + window.location.hash);
+      window.location.replace('/');
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>

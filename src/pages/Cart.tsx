@@ -10,7 +10,7 @@ import { db } from '../lib/firebase';
 import SEO from '../components/common/SEO';
 
 export default function Cart() {
-  const { items, removeItem, addItem, total, totalUsd, clearCart } = useCart();
+  const { items, removeItem, addItem, updateQuantity, total, totalUsd, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -106,14 +106,14 @@ export default function Cart() {
                         <div className="flex items-center justify-between pt-2 border-t border-espresso/5">
                           <div className="flex items-center gap-3 bg-cream shadow-premium px-3 py-1.5 rounded-full border border-white/60">
                             <button 
-                              onClick={() => removeItem(item.id)} 
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)} 
                               className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-espresso hover:bg-white rounded-xl transition-all duration-400 active:scale-75"
                             >
                               <Minus size={14} />
                             </button>
                             <span className="text-base font-semibold w-6 text-center text-espresso">{item.quantity}</span>
                             <button 
-                              onClick={() => addItem(item)} 
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)} 
                               className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-espresso hover:bg-white rounded-xl transition-all duration-400 active:scale-75"
                             >
                               <Plus size={14} />

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, orderBy, query, updateDoc, doc, limit, startAfter, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Order } from '../../types';
@@ -13,30 +13,32 @@ import { logAdminAction } from '../../utils/auditLog';
 
 const PAGE_SIZE = 20;
 
-const StatusBadge = ({ status }: { status: Order['status'] }) => {
-  const styles = {
-    pending: 'bg-yellow-50 text-yellow-600 border-yellow-100 shadow-yellow-500/5',
-    confirmed: 'bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5',
-    shipped: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
-    delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-500/5',
-    cancelled: 'bg-red-50 text-red-600 border-red-100 shadow-red-500/5',
-  };
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-yellow-50 text-yellow-600 border-yellow-100 shadow-yellow-500/5',
+  confirmed: 'bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5',
+  processing: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-500/5',
+  shipped: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
+  delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-500/5',
+  cancelled: 'bg-red-50 text-red-600 border-red-100 shadow-red-500/5',
+};
 
-  const icons = {
-    pending: <Clock size={12} />,
-    confirmed: <CheckCircle size={12} />,
-    shipped: <Truck size={12} />,
-    delivered: <CheckCircle size={12} />,
-    cancelled: <XCircle size={12} />,
-  };
+const STATUS_ICONS: Record<string, React.ReactNode> = {
+  pending: <Clock size={12} />,
+  confirmed: <CheckCircle size={12} />,
+  processing: <Package size={12} />,
+  shipped: <Truck size={12} />,
+  delivered: <CheckCircle size={12} />,
+  cancelled: <XCircle size={12} />,
+};
 
+const StatusBadge = ({ status }: { status: string }) => {
   return (
     <span className={cn(
       "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.4em] border flex items-center gap-3 w-fit italic transition-all duration-700",
-      styles[status]
+      STATUS_STYLES[status] || ''
     )}>
-      {icons[status]}
-      {status}_LOG
+      {STATUS_ICONS[status]}
+      {status}
     </span>
   );
 };
@@ -72,7 +74,15 @@ export default function AdminOrders() {
 
       const snap = await getDocs(q);
       const docs = snap.docs;
-      setOrders(docs.map(d => ({ id: d.id, ...d.data() as object } as Order)));
+      setOrders(docs.map(d => {
+        const data = d.data() as any;
+        // Safely convert Firestore Timestamps to ISO strings
+        const createdAt = data.createdAt;
+        const safeCreatedAt = (createdAt && typeof createdAt.toDate === 'function')
+          ? createdAt.toDate().toISOString()
+          : (typeof createdAt === 'string' ? createdAt : new Date().toISOString());
+        return { id: d.id, ...data, createdAt: safeCreatedAt } as Order;
+      }));
 
       if (docs.length > 0) {
         if (direction === 'next') {
@@ -145,7 +155,7 @@ export default function AdminOrders() {
                 {loading ? (
                   Array(6).fill(0).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="px-10 py-12 h-24 bg-white/50" />
+                      <td colSpan={8} className="px-10 py-12 h-24 bg-white/50" />
                     </tr>
                   ))
                 ) : orders.length === 0 ? (
@@ -189,11 +199,12 @@ export default function AdminOrders() {
                         value={order.status}
                         onChange={(e) => handleStatusChange(order.id, e.target.value as any)}
                       >
-                         <option value="pending">PENDING_STATUS</option>
-                         <option value="confirmed">CONFIRMED_STATUS</option>
-                         <option value="shipped">SHIPPED_STATUS</option>
-                         <option value="delivered">DELIVERED_STATUS</option>
-                         <option value="cancelled">CANCELLED_STATUS</option>
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
                       </select>
                     </td>
                   </tr>
@@ -332,7 +343,7 @@ export default function AdminOrders() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {['pending', 'confirmed', 'shipped', 'delivered'].map((step, i) => {
+                    {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((step, i) => {
                       const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
                       const currentIdx = statusOrder.indexOf(selectedOrder.status);
                       const stepIdx = statusOrder.indexOf(step);
@@ -363,8 +374,9 @@ export default function AdminOrders() {
                         setSelectedOrder({ ...selectedOrder, status: newStatus });
                       }}
                     >
-                      <option value="pending">Pending</option>
+                       <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
+                      <option value="processing">Processing</option>
                       <option value="shipped">Shipped</option>
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>

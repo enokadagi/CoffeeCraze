@@ -1,24 +1,26 @@
 ﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { OrderService } from '../../services/firestore';
-import { Order } from '../../types';
+import { Order, OrderStatus } from '../../types';
 import { formatPrice, cn } from '../../lib/utils';
 import { ShoppingBag, Search, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Filter, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import ReferralSystem from '../../components/dashboard/ReferralSystem';
 import OrderTrackingTimeline from '../../components/dashboard/OrderTrackingTimeline';
 
 const StatusIcon = ({ status }: { status: Order['status'] }) => {
   switch (status) {
-    case 'pending': return <Clock size={16} className="text-yellow-500" />;
-    case 'confirmed': return <Package size={16} className="text-blue-500" />;
-    case 'shipped': return <Truck size={16} className="text-purple-500" />;
-    case 'delivered': return <CheckCircle size={16} className="text-green-500" />;
-    case 'cancelled': return <XCircle size={16} className="text-red-500" />;
+    case OrderStatus.PENDING: return <Clock size={16} className="text-yellow-500" />;
+    case OrderStatus.CONFIRMED: return <Package size={16} className="text-blue-500" />;
+    case OrderStatus.PROCESSING: return <Package size={16} className="text-indigo-500" />;
+    case OrderStatus.SHIPPED: return <Truck size={16} className="text-purple-500" />;
+    case OrderStatus.DELIVERED: return <CheckCircle size={16} className="text-green-500" />;
+    case OrderStatus.CANCELLED: return <XCircle size={16} className="text-red-500" />;
     default: return <Clock size={16} className="text-gray-400" />;
   }
 };
@@ -41,6 +43,10 @@ export default function MyOrders() {
     if (user) {
       OrderService.getByUserId(user.uid).then(data => {
         setOrders(data);
+        setLoading(false);
+      }).catch(err => {
+        console.error('Failed to fetch orders:', err);
+        toast.error('Failed to load orders');
         setLoading(false);
       });
     }
@@ -78,17 +84,6 @@ export default function MyOrders() {
       setSortOrder('desc');
     }
     setCurrentPage(1);
-  };
-
-  const getTrackingSteps = (status: Order['status']) => {
-    const steps = [
-      { label: 'Order Placed', date: 'Oct 24, 10:00 AM', status: 'completed' },
-      { label: 'Processing', date: 'Oct 24, 02:30 PM', status: status === 'pending' ? 'current' : 'completed' },
-      { label: 'Quality Extraction', date: 'Oct 25, 09:15 AM', status: status === 'confirmed' ? 'current' : (['shipped', 'delivered'].includes(status) ? 'completed' : 'pending') },
-      { label: 'In Transit', date: 'Oct 26, 11:00 AM', status: status === 'shipped' ? 'current' : (status === 'delivered' ? 'completed' : 'pending') },
-      { label: 'Delivered', date: 'Oct 27, 04:45 PM', status: status === 'delivered' ? 'current' : 'pending' },
-    ];
-    return steps;
   };
 
   return (
@@ -226,10 +221,11 @@ export default function MyOrders() {
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ 
-                            width: order.status === 'pending' ? '25%' : 
-                                   order.status === 'confirmed' ? '50%' : 
-                                   order.status === 'shipped' ? '75%' : 
-                                   order.status === 'cancelled' ? '0%' : '100%' 
+                            width: order.status === 'cancelled' ? '0%' : 
+                                   order.status === 'pending' ? '20%' : 
+                                   order.status === 'confirmed' ? '40%' : 
+                                   order.status === 'processing' ? '60%' : 
+                                   order.status === 'shipped' ? '80%' : '100%' 
                           }}
                           transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
                           className={cn(
@@ -256,7 +252,7 @@ export default function MyOrders() {
                         "px-6 md:px-10 py-3 md:py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 border shadow-premium italic transition-all duration-700",
                         order.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
                         order.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        order.status === 'confirmed' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                        order.status === 'confirmed' || order.status === 'processing' ? "bg-blue-50 text-blue-600 border-blue-100" :
                         order.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
                         "bg-caramel/10 text-caramel border-caramel/20"
                       )}>
@@ -360,7 +356,7 @@ export default function MyOrders() {
                             >
                               <div className="flex items-center gap-4 md:gap-10">
                                 <div className="relative overflow-hidden w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] shrink-0 border border-cream shadow-inner">
-                                  <ImageWithFallback src={item.images[0]} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
+                                  <ImageWithFallback src={item.images?.[0] || item.image || ''} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
                                   <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[1.5rem]" />
                                 </div>
                                 <div className="space-y-2">
@@ -467,6 +463,7 @@ export default function MyOrders() {
                         "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
                         selectedOrder.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
                         selectedOrder.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' ? "bg-blue-50 text-blue-600 border-blue-100" :
                         selectedOrder.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
                         "bg-cream text-text-secondary border-border"
                       )}>
@@ -474,8 +471,8 @@ export default function MyOrders() {
                       </div>
                     </div>
                     <div className="flex gap-2 h-1.5 w-full">
-                      {['pending', 'confirmed', 'shipped', 'delivered'].map((s, i) => {
-                        const statusOrder = ['pending', 'confirmed', 'shipped', 'delivered'];
+                      {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((s, i) => {
+                        const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
                         const currentIndex = statusOrder.indexOf(selectedOrder.status);
                         const isActive = currentIndex >= i && selectedOrder.status !== 'cancelled';
                         return (
@@ -517,7 +514,7 @@ export default function MyOrders() {
                     "p-6 md:p-10 rounded-[3rem] border transition-all duration-700 group",
                     selectedOrder.status === 'delivered' ? "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-600 hover:text-white" :
                     selectedOrder.status === 'shipped' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
-                    selectedOrder.status === 'confirmed' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
+                    selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
                     selectedOrder.status === 'cancelled' ? "bg-red-50/50 border-red-100 hover:bg-red-600 hover:text-white" :
                     "bg-cream rounded-[3rem] border-border-light hover:bg-coffee-950 hover:text-white"
                   )}>

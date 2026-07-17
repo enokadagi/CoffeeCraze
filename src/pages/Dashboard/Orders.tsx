@@ -1,8 +1,8 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { OrderService } from '../../services/firestore';
 import { Order, OrderStatus } from '../../types';
-import { formatPrice, cn } from '../../lib/utils';
+import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
 import { ShoppingBag, Search, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Filter, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
@@ -104,7 +104,7 @@ export default function MyOrders() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-text-muted italic mb-1">Total Extraction Cycle</p>
-                <p className="text-h2 font-display font-black text-espresso italic tracking-tighter">LBP {formatPrice(orders.reduce((acc, o) => acc + o.total, 0)).split('LBP')[1]}</p>
+                <p className="text-h2 font-display font-black text-espresso italic tracking-tighter">LBP {formatLbpNumeric(orders.reduce((acc, o) => acc + o.total, 0))}</p>
               </div>
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function MyOrders() {
                          {order.items.length} {order.items.length === 1 ? 'Ritual Core' : 'Sensory Primitives'}
                        </h3>
                        <p className="text-body font-serif italic">
-                         Extracted on {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                         Extracted on {safeDate(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                        </p>
                     </div>
                   </div>

@@ -16,6 +16,14 @@ export interface SiteSettings {
   backgroundColor: string;
   ogImageUrl: string;
   updatedAt: string;
+  // Business parameters
+  exchangeRate: number;               // 1 USD = N LBP (default 89500)
+  deliveryFeeLbp: number;             // flat delivery fee in LBP (default 25000)
+  freeDeliveryThresholdLbp: number;   // cart total above which delivery is free (default 1500000)
+  vatPercent: number;                 // VAT percentage 0-100 (default 0)
+  minOrderLbp: number;                // minimum order value in LBP (default 0)
+  supportEmail: string;
+  supportPhone: string;
 }
 
 const DEFAULTS: SiteSettings = {
@@ -31,6 +39,14 @@ const DEFAULTS: SiteSettings = {
   backgroundColor: '#fdfaf7',
   ogImageUrl: '',
   updatedAt: new Date().toISOString(),
+  // Business parameter defaults
+  exchangeRate: 89500,
+  deliveryFeeLbp: 25000,
+  freeDeliveryThresholdLbp: 1500000,
+  vatPercent: 0,
+  minOrderLbp: 0,
+  supportEmail: 'coffeecraze@nilelink.app',
+  supportPhone: '+961 71 972 495',
 };
 
 export const SiteSettingsService = {

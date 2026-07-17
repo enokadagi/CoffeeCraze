@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/firestore';
-import { EXCHANGE_RATE } from '../utils/exchange';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import Seo from '../components/common/SEO';
@@ -27,6 +27,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { items, total, clearCart } = useCart();
   const { user, profile, isEmailVerified } = useAuth();
+  const siteSettings = useSiteSettings();
 
   const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Scheduling, 4: Review
   const [loading, setLoading] = useState(false);
@@ -121,9 +122,13 @@ export default function Checkout() {
     { value: 12, label: '12 Months', discount: 15 },
   ];
 
-  // Pricing (keep existing behavior shape; formatting handled elsewhere)
+  // Pricing — read from site settings with safe fallbacks
+  const exchangeRate = siteSettings?.exchangeRate ?? 89500;
+  const deliveryFeeLbp = siteSettings?.deliveryFeeLbp ?? 25000;
+  const freeDeliveryThresholdLbp = siteSettings?.freeDeliveryThresholdLbp ?? 1500000;
+
   const subtotalLbp = total;
-  const shippingLbp = subtotalLbp > 1500000 ? 0 : 25000;
+  const shippingLbp = subtotalLbp > freeDeliveryThresholdLbp ? 0 : deliveryFeeLbp;
 
   const discountFactor = formData.paymentTiming === 'prepaid' ? 0.9 : 1.0;
   const durationDiscount =
@@ -131,7 +136,7 @@ export default function Checkout() {
 
   const discountAmountLbp = Math.floor((subtotalLbp + shippingLbp) * (durationDiscount / 100));
   const grandTotalLbp = (subtotalLbp + shippingLbp - discountAmountLbp) * discountFactor;
-  const grandTotalUsd = grandTotalLbp / EXCHANGE_RATE;
+  const grandTotalUsd = grandTotalLbp / exchangeRate;
 
   let buttonLabel = 'Continue';
   if (loading) {

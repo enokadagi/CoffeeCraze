@@ -1,1 +1,1 @@
-declare module 'lucide-react';
+/// <reference types="lucide-react" />

@@ -183,6 +183,58 @@ export default function AdminSiteSettings() {
           </div>
         </div>
 
+        {/* Business Rules */}
+        <div className="bg-white border border-border rounded-3xl p-8 space-y-6">
+          <h2 className="text-lg font-display font-bold text-espresso flex items-center gap-3">
+            <Settings size={20} className="text-caramel" /> Business Rules
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Exchange Rate (LBP per 1 USD)</label>
+              <input type="number" min="0" value={settings.exchangeRate ?? 89500}
+                onChange={e => setSettings({ ...settings, exchangeRate: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Delivery Fee (LBP)</label>
+              <input type="number" min="0" value={settings.deliveryFeeLbp ?? 25000}
+                onChange={e => setSettings({ ...settings, deliveryFeeLbp: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Free Delivery Threshold (LBP)</label>
+              <input type="number" min="0" value={settings.freeDeliveryThresholdLbp ?? 1500000}
+                onChange={e => setSettings({ ...settings, freeDeliveryThresholdLbp: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">VAT % (0 = no tax)</label>
+              <input type="number" min="0" max="100" step="0.1" value={settings.vatPercent ?? 0}
+                onChange={e => setSettings({ ...settings, vatPercent: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Minimum Order (LBP, 0 = no minimum)</label>
+              <input type="number" min="0" value={settings.minOrderLbp ?? 0}
+                onChange={e => setSettings({ ...settings, minOrderLbp: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Support Email</label>
+              <input type="email" value={settings.supportEmail ?? ''}
+                onChange={e => setSettings({ ...settings, supportEmail: e.target.value })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Support Phone</label>
+              <input type="tel" value={settings.supportPhone ?? ''}
+                onChange={e => setSettings({ ...settings, supportPhone: e.target.value })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+          </div>
+        </div>
+
+
         {/* Danger Zone */}
         <div className="border border-red-200 rounded-3xl p-8 bg-red-50/30 space-y-5">
           <div className="flex items-center gap-3">

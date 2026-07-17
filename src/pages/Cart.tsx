@@ -1,27 +1,64 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Plus, Minus, CreditCard, Truck, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Trash2, Plus, Minus, CreditCard, Truck, ShoppingBag, ArrowRight, Tag, CheckCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import ImageWithFallback from '../components/common/ImageWithFallback';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, formatLbpNumeric } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, getDocs, query, where, updateDoc, doc, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import SEO from '../components/common/SEO';
+import { useSiteSettings } from '../hooks/useSiteSettings';
+import { toast } from 'sonner';
 
 export default function Cart() {
   const { items, removeItem, addItem, updateQuantity, total, totalUsd, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const siteSettings = useSiteSettings();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1: Cart, 2: Checkout
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercent: number } | null>(null);
+
+  const deliveryFeeLbp = siteSettings?.deliveryFeeLbp ?? 25000;
+  const freeDeliveryThresholdLbp = siteSettings?.freeDeliveryThresholdLbp ?? 1500000;
+
   const subtotal = total;
   const subtotalUsd = totalUsd;
-  const shipping = subtotal > 1500000 ? 0 : 25000;
-  const shippingUsd = subtotalUsd > 16.5 ? 0 : 0.28; // approx
-  const grandTotal = subtotal + shipping;
-  const grandTotalUsd = subtotalUsd + shippingUsd;
+  const shipping = subtotal > freeDeliveryThresholdLbp ? 0 : deliveryFeeLbp;
+  const shippingUsd = shipping > 0 ? shipping / (siteSettings?.exchangeRate ?? 89500) : 0;
+  const couponDiscount = appliedCoupon ? Math.floor(subtotal * (appliedCoupon.discountPercent / 100)) : 0;
+  const grandTotal = subtotal + shipping - couponDiscount;
+  const grandTotalUsd = subtotalUsd + shippingUsd - (couponDiscount / (siteSettings?.exchangeRate ?? 89500));
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    if (!user) { toast.error('Please sign in to apply a coupon'); return; }
+    setCouponLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'coupons'), where('code', '==', code), where('active', '==', true)));
+      if (snap.empty) { toast.error('Invalid or expired coupon code'); return; }
+      const couponDoc = snap.docs[0];
+      const couponData = couponDoc.data();
+      if (couponData.usageLimit > 0 && couponData.usedCount >= couponData.usageLimit) {
+        toast.error('This coupon has reached its usage limit'); return;
+      }
+      setAppliedCoupon({ code, discountPercent: couponData.discountPercent });
+      await updateDoc(doc(db, 'coupons', couponDoc.id), { usedCount: increment(1) });
+      toast.success(`Coupon applied! ${couponData.discountPercent}% off`);
+    } catch (err) {
+      console.error('Coupon error:', err);
+      toast.error('Failed to apply coupon');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
 
   const handleCheckout = () => {
     if (!user) {
@@ -171,6 +208,12 @@ export default function Cart() {
                   <span>Shipping</span>
                   <span className="text-caramel font-semibold">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center py-2 text-emerald-400">
+                    <span className="flex items-center gap-1.5"><CheckCircle size={13} /> Coupon ({appliedCoupon.code})</span>
+                    <span className="font-semibold">-{formatLbpNumeric(couponDiscount)} LBP</span>
+                  </div>
+                )}
                 <div className="pt-4 border-t border-white/10 flex justify-between items-center">
                   <span className="text-white text-sm font-semibold">Total</span>
                   <div className="text-right">
@@ -206,15 +249,36 @@ export default function Cart() {
             </div>
 
             <div className="p-5 sm:p-6 bg-white shadow-premium border border-white/60 rounded-2xl lg:rounded-3xl">
-              <p className="text-xs text-text-muted font-semibold tracking-wide mb-4 text-center">Have a discount code?</p>
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Enter code" 
-                  className="flex-grow bg-cream rounded-full px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-caramel/20 border border-espresso/5 focus:border-caramel transition-all" 
-                />
-                <button className="bg-espresso text-white rounded-full text-xs font-semibold hover:bg-caramel transition-all duration-500 px-5 py-2.5">Apply</button>
-              </div>
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <Tag size={14} />
+                    <span className="text-xs font-bold">{appliedCoupon.code} — {appliedCoupon.discountPercent}% off</span>
+                  </div>
+                  <button onClick={() => { setAppliedCoupon(null); setCouponInput(''); }} className="text-[10px] text-red-400 hover:text-red-600 font-bold uppercase tracking-wider">Remove</button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-text-muted font-semibold tracking-wide mb-4 text-center">Have a discount code?</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter code"
+                      value={couponInput}
+                      onChange={e => setCouponInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+                      className="flex-grow bg-cream rounded-full px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-caramel/20 border border-espresso/5 focus:border-caramel transition-all"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponInput.trim()}
+                      className="bg-espresso text-white rounded-full text-xs font-semibold hover:bg-caramel transition-all duration-500 px-5 py-2.5 disabled:opacity-50"
+                    >
+                      {couponLoading ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

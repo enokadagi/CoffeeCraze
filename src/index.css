@@ -104,10 +104,6 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
   box-shadow: var(--shadow-md);
 }
 
-/* Backward compat with old premium classes */
-.shadow-premium { box-shadow: var(--shadow-sm) !important; }
-.shadow-premium-lg { box-shadow: var(--shadow-md) !important; }
-.shadow-premium-xl { box-shadow: var(--shadow-lg) !important; }
 .hover-premium { transition: all var(--duration-normal) var(--ease-out); }
 .hover-premium:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 

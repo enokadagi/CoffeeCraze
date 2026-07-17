@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, orderBy, query, updateDoc, doc, limit, startAfter, getCountFromServer } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, updateDoc, doc, limit, startAfter, getCountFromServer, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Order } from '../../types';
-import { formatPrice, cn } from '../../lib/utils';
+import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
 import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, Search, Filter, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
@@ -53,6 +53,19 @@ export default function AdminOrders() {
   const [firstDoc, setFirstDoc] = useState<any>(null);
   const [pageStack, setPageStack] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [drivers, setDrivers] = useState<{ id: string; displayName: string; email: string }[]>([]);
+  const [driverAssigning, setDriverAssigning] = useState(false);
+
+  // Fetch available drivers once on mount
+  useEffect(() => {
+    const loadDrivers = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'driver')));
+        setDrivers(snap.docs.map(d => ({ id: d.id, displayName: d.data().displayName || 'Driver', email: d.data().email || '' })));
+      } catch { /* non-critical */ }
+    };
+    loadDrivers();
+  }, []);
 
   const fetchOrders = useCallback(async (direction: 'next' | 'prev' | 'init' = 'init') => {
     setLoading(true);
@@ -107,12 +120,35 @@ export default function AdminOrders() {
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
     try {
       const oldStatus = orders.find(o => o.id === id)?.status;
-      await updateDoc(doc(db, 'orders', id), { status: newStatus });
+      await updateDoc(doc(db, 'orders', id), { status: newStatus, updatedAt: new Date().toISOString() });
       setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
       logAdminAction(user?.uid || '', user?.email || '', 'update_order_status', 'orders', id, { from: oldStatus, to: newStatus });
-      toast.success(`Protocol updated to ${newStatus}`);
+      toast.success(`Order status updated to ${newStatus}`);
     } catch (err) {
-      toast.error("Protocol update failed");
+      toast.error("Failed to update order status");
+    }
+  };
+
+  const handleDriverAssign = async (orderId: string, driverId: string) => {
+    if (!driverId) return;
+    setDriverAssigning(true);
+    try {
+      const driver = drivers.find(d => d.id === driverId);
+      await updateDoc(doc(db, 'orders', orderId), {
+        driverId,
+        driverName: driver?.displayName || '',
+        updatedAt: new Date().toISOString(),
+      });
+      setOrders(orders.map(o => o.id === orderId ? { ...o, driverId, driverName: driver?.displayName || '' } as any : o));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, driverId, driverName: driver?.displayName || '' } as any : prev);
+      }
+      logAdminAction(user?.uid || '', user?.email || '', 'assign_driver', 'orders', orderId, { driverId, driverName: driver?.displayName });
+      toast.success(`Driver ${driver?.displayName} assigned`);
+    } catch (err) {
+      toast.error('Failed to assign driver');
+    } finally {
+      setDriverAssigning(false);
     }
   };
 
@@ -129,8 +165,8 @@ export default function AdminOrders() {
 
           <div className="flex flex-wrap items-center gap-6">
             <div className="px-8 py-5 bg-white shadow-premium rounded-[2rem] flex items-center gap-6 border border-border-light">
-              <ShoppingBag size={18} className="text-gold-500" />
-              <span className="text-[11px] font-black text-text uppercase tracking-[0.4em] italic leading-none">Logs_Count: {orders.length}</span>
+              <ShoppingBag size={18} className="text-caramel" />
+              <span className="text-[11px] font-black text-text uppercase tracking-[0.4em] italic leading-none">Total Orders: {orders.length}</span>
             </div>
           </div>
         </header>
@@ -141,14 +177,14 @@ export default function AdminOrders() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-coffee-950/5 border-b border-border-light font-display italic">
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Log_Identity</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Ritualist_Node</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Extraction_Window</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Items_Manifest</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Extract_Value</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Protocol_Status</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Payment_Gate</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em] text-right">Modulate_Node</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Order ID</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Customer</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Delivery Window</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Items</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Total</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Status</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Payment</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em] text-right">Update Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-coffee-50">
@@ -167,22 +203,22 @@ export default function AdminOrders() {
                 ) : orders.map((order) => (
                   <tr key={order.id} className="hover:bg-cream/30 transition-all duration-700 group/row cursor-pointer" onClick={() => setSelectedOrder(order)}>
                     <td className="px-10 py-8">
-                      <p className="font-display font-black text-text italic text-xl leading-none uppercase tracking-tight">#{order.id.slice(-8).toUpperCase()}_LOG</p>
-                      <p className="text-[10px] font-black text-text-muted tracking-[0.4em] uppercase mt-2 italic leading-none">{new Date(order.createdAt).toLocaleDateString()}_TIMESTAMP</p>
+                      <p className="font-display font-black text-text italic text-xl leading-none uppercase tracking-tight">#{order.id.slice(-8).toUpperCase()}</p>
+                      <p className="text-[10px] font-black text-text-muted tracking-[0.4em] uppercase mt-2 italic leading-none">{safeDate(order.createdAt).toLocaleDateString()}</p>
                     </td>
                     <td className="px-10 py-8">
                       <p className="font-display font-black text-text italic text-lg leading-none uppercase">{order.shippingAddress?.name}</p>
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.shippingAddress?.city}_LOC</p>
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.shippingAddress?.city || '—'}</p>
                     </td>
                     <td className="px-10 py-8">
-                      <p className="font-display font-black text-gold-500 italic text-lg leading-none uppercase">{order.deliveryDate || 'ASAP'}</p>
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.deliveryTime || 'STANDARD_SHIFT'}</p>
+                      <p className="font-display font-black text-caramel italic text-lg leading-none uppercase">{order.deliveryDate || 'ASAP'}</p>
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.deliveryTime || 'Standard'}</p>
                     </td>
                     <td className="px-10 py-8">
                       <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] italic leading-none">{order.items.length} Sensory_Units</p>
                     </td>
                     <td className="px-10 py-8 font-display font-black text-text italic text-2xl tracking-tighter uppercase whitespace-nowrap">
-                       {formatPrice(order.total).split('LBP')[1]} <span className="text-[10px] font-black italic text-text-muted">LBP_VAL</span>
+                       LBP {formatLbpNumeric(order.total)} <span className="text-[10px] font-black italic text-text-muted">LBP</span>
                     </td>
                     <td className="px-10 py-8"><StatusBadge status={order.status} /></td>
                     <td className="px-10 py-8">
@@ -190,7 +226,7 @@ export default function AdminOrders() {
                          "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest italic border",
                          order.paymentStatus === 'paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                        )}>
-                         {order.paymentStatus || 'PENDING'}_TX
+                         {order.paymentStatus || 'pending'}
                        </span>
                     </td>
                     <td className="px-10 py-8 text-right">
@@ -218,7 +254,7 @@ export default function AdminOrders() {
         {!loading && totalCount > 0 && (
           <div className="flex items-center justify-between px-4 py-4 bg-white border border-border-light rounded-[2rem] shadow-premium">
             <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.3em] italic">
-              {totalCount} TOTAL_LOGS  -  Page {pageStack.length + 1}
+              {totalCount} Orders — Page {pageStack.length + 1}
             </p>
             <div className="flex items-center gap-3">
               <button
@@ -251,7 +287,7 @@ export default function AdminOrders() {
             <div className="p-6 sm:p-8 border-b border-border-light flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-xl">
               <div>
                 <h2 className="text-2xl font-display font-black uppercase tracking-tight text-espresso">Order #{selectedOrder.id.slice(-8).toUpperCase()}</h2>
-                <p className="text-xs text-text-muted font-medium mt-1">Created {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                <p className="text-xs text-text-muted font-medium mt-1">Created {safeDate(selectedOrder.createdAt).toLocaleString()}</p>
               </div>
               <button aria-label="Close" onClick={() => setSelectedOrder(null)} className="p-3 bg-cream text-espresso rounded-full hover:bg-espresso hover:text-cream transition-colors">
                 <X size={18} />
@@ -365,6 +401,7 @@ export default function AdminOrders() {
                     <FileText size={14} /> Actions
                   </h3>
                   <div className="space-y-3">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Update Status</label>
                     <select
                       className="w-full px-4 py-3 bg-white border border-border rounded-xl text-xs font-bold text-text uppercase tracking-wider focus:ring-2 focus:ring-caramel/20 focus:border-caramel outline-none"
                       value={selectedOrder.status}
@@ -381,6 +418,25 @@ export default function AdminOrders() {
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
+                    {drivers.length > 0 && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Assign Driver</label>
+                        <select
+                          className="w-full px-4 py-3 bg-white border border-border rounded-xl text-xs font-bold text-text focus:ring-2 focus:ring-caramel/20 focus:border-caramel outline-none"
+                          value={(selectedOrder as any).driverId || ''}
+                          onChange={(e) => handleDriverAssign(selectedOrder.id, e.target.value)}
+                          disabled={driverAssigning}
+                        >
+                          <option value="">— No driver assigned —</option>
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>{d.displayName} ({d.email})</option>
+                          ))}
+                        </select>
+                        {(selectedOrder as any).driverName && (
+                          <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ Assigned: {(selectedOrder as any).driverName}</p>
+                        )}
+                      </div>
+                    )}
                     <button
                       onClick={() => window.print()}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-espresso text-cream rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-espresso/90 transition-colors"

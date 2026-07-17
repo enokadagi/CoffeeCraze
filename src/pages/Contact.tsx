@@ -141,9 +141,9 @@ export default function Contact() {
             </button>
           </form>
           <div className="mt-10 sm:mt-12 flex flex-wrap justify-center gap-4 pt-8 sm:pt-10 border-t border-border-light opacity-70 hover:opacity-100 transition-all duration-700">
-<a href="https://instagram.com/coffeecraze" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-text transition-colors uppercase text-[11px] font-black tracking-widest">Instagram</a>
-              <a href="https://twitter.com/coffeecraze" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-text transition-colors uppercase text-[11px] font-black tracking-widest">Twitter</a>
-              <a href="https://linkedin.com/company/coffeecraze" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-text transition-colors uppercase text-[11px] font-black tracking-widest">LinkedIn</a>
+<a href="https://www.instagram.com/coffeecraze_lb" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-text transition-colors uppercase text-[11px] font-black tracking-widest">Instagram</a>
+              <a href="https://x.com/CoffeeCrazeLB" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-text transition-colors uppercase text-[11px] font-black tracking-widest">X (Twitter)</a>
+              <a href="https://www.facebook.com/CoffeeCrazeCC/" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-text transition-colors uppercase text-[11px] font-black tracking-widest">Facebook</a>
           </div>
         </div>
       </div>

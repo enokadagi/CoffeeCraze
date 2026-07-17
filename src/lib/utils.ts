@@ -50,3 +50,26 @@ export function getDualPricing(product: { price?: number, priceLbp?: number, pri
   
   return { lbp, usd };
 }
+
+/**
+ * Locale-invariant numeric formatter for LBP amounts.
+ * Avoids the `.split('LBP')` crash that occurs when browsers format
+ * the currency symbol differently (e.g. "ل.ل." vs "LBP" vs "L.L.").
+ */
+export function formatLbpNumeric(amount: number): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(amount));
+}
+
+/**
+ * Safely converts a Firestore Timestamp or ISO string to a JS Date.
+ * Returns current date as fallback to prevent "Invalid Date" renders.
+ */
+export function safeDate(value: unknown): Date {
+  if (!value) return new Date();
+  if (typeof value === 'object' && value !== null && 'toDate' in value) {
+    const maybeDate = (value as {toDate?: unknown}).toDate;
+    if (typeof maybeDate === 'function') return maybeDate();
+  }
+  const d = new Date(value as string | number | Date);
+  return isNaN(d.getTime()) ? new Date() : d;
+}

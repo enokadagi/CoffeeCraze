@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Check, ArrowRight, Zap, Coffee, Building2, Utensils, Truck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/common/SEO';
@@ -28,6 +28,16 @@ export default function Subscriptions() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [creatingPlan, setCreatingPlan] = useState<string | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
+  const [preferredTimeSlot, setPreferredTimeSlot] = useState('Morning (9:00 AM - 12:00 PM)');
+  const [deliveryStartDate, setDeliveryStartDate] = useState(
+    (() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().split('T')[0]; })()
+  );
+  const timeSlots = [
+    'Morning (9:00 AM - 12:00 PM)',
+    'Afternoon (12:00 PM - 4:00 PM)',
+    'Evening (4:00 PM - 8:00 PM)'
+  ];
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -63,24 +73,31 @@ export default function Subscriptions() {
       return;
     }
 
-    setCreatingPlan(plan.id);
+    setPendingPlan(plan);
+  };
+
+  const confirmSubscription = async () => {
+    if (!pendingPlan || !user) return;
+    setCreatingPlan(pendingPlan.id);
+    setPendingPlan(null);
 
     try {
       const item: PlanItem = {
-        productId: plan.id,
-        name: plan.name,
-        price: plan.price,
+        productId: pendingPlan.id,
+        name: pendingPlan.name,
+        price: pendingPlan.price,
         quantity: 1,
       };
 
       await SubscriptionService.create({
         userId: user.uid,
-        planId: plan.id,
+        planId: pendingPlan.id,
         status: SubscriptionStatus.ACTIVE,
-        nextDelivery: getNextDeliveryDate(plan.frequency || 'monthly'),
-        frequency: plan.frequency || 'monthly',
+        nextDelivery: deliveryStartDate,
+        frequency: pendingPlan.frequency || 'monthly',
         preferredDay: profile?.address ? new Date().toLocaleDateString('en-US', { weekday: 'long' }) : 'Standard',
-        preferredTime: 'Morning',
+        preferredTime: preferredTimeSlot,
+        preferredTimeSlot: preferredTimeSlot,
         items: [item],
         address: {
           name: profile?.displayName || '',
@@ -93,7 +110,7 @@ export default function Subscriptions() {
       });
 
       toast.success('Subscription initialized successfully.');
-      navigate('/subscription/confirmation', { state: { planName: plan.name } });
+      navigate('/subscription/confirmation', { state: { planName: pendingPlan.name } });
     } catch (error) {
       console.error('Failed to create subscription:', error);
       toast.error('Failed to initiate your subscription. Please try again.');
@@ -391,6 +408,66 @@ export default function Subscriptions() {
           ))}
         </div>
       </div>
+
+      {/* Delivery Time Slot Modal */}
+      <AnimatePresence>
+        {pendingPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPendingPlan(null)}
+              className="absolute inset-0 bg-espresso/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-premium-2xl space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <Truck size={32} className="mx-auto text-caramel" />
+                <h2 className="text-xl font-display font-black text-espresso uppercase">Schedule Delivery</h2>
+                <p className="text-xs text-text-muted">Set your preferred delivery window for {pendingPlan.name}</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Delivery Time Slot</label>
+                  <select
+                    value={preferredTimeSlot}
+                    onChange={e => setPreferredTimeSlot(e.target.value)}
+                    className="w-full px-4 py-3 bg-cream border border-espresso/5 rounded-xl text-sm font-bold focus:bg-white outline-none focus:border-caramel transition-all"
+                  >
+                    {timeSlots.map(slot => (
+                      <option key={slot} value={slot}>{slot}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">First Delivery Date</label>
+                  <input
+                    type="date"
+                    value={deliveryStartDate}
+                    onChange={e => setDeliveryStartDate(e.target.value)}
+                    min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()}
+                    className="w-full px-4 py-3 bg-cream border border-espresso/5 rounded-xl text-sm font-bold focus:bg-white outline-none focus:border-caramel transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setPendingPlan(null)} className="btn-outline flex-1 text-xs py-3">Back</button>
+                <button onClick={confirmSubscription} className="btn btn-primary flex-1 text-xs py-3">
+                  Confirm Subscription
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

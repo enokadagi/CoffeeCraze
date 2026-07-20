@@ -63,11 +63,11 @@ export default function Shop() {
   }, [products]);
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = search.length === 0 || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = search.length === 0 || p.name.toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = filters.category === 'All' || p.category === filters.category;
     const matchesPrice = p.price >= filters.minPrice && p.price <= filters.maxPrice;
     const matchesRating = p.rating >= filters.minRating;
-    const matchesTags = filters.selectedTags.length === 0 || filters.selectedTags.some(t => p.tags.includes(t));
+    const matchesTags = filters.selectedTags.length === 0 || filters.selectedTags.some(t => (p.tags || []).includes(t));
     return matchesSearch && matchesCategory && matchesPrice && matchesRating && matchesTags;
   });
 

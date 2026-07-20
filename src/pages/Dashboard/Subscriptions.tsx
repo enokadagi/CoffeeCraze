@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { SubscriptionService } from '../../services/firestore';
 import { Address, Subscription, SubscriptionStatus } from '../../types';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
-import { Coffee, Calendar, RefreshCw, XCircle, ChevronRight, Package, AlertCircle, ArrowRight, Plus, MapPin, Clock, Edit2, ShieldAlert } from 'lucide-react';
+import { Coffee, Calendar, RefreshCw, XCircle, Package, ArrowRight, Plus, MapPin, Clock, Edit2 } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,33 +19,46 @@ export default function DashboardSubscriptions() {
   const { user } = useAuth();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pauseSub, setPauseSub] = useState<Subscription | null>(null);
+  const [pauseUntilDate, setPauseUntilDate] = useState('');
 
   useEffect(() => {
-    if (user) {
-      const fetchSubs = async () => {
-        try {
-          const q = query(collection(db, 'subscriptions'), where('userId', '==', user.uid));
-          const snap = await getDocs(q);
-          setSubscriptions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription)));
-        } catch (err) {
-          console.error('Failed to fetch subscriptions:', err);
-          toast.error('Failed to load subscriptions');
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchSubs();
-    }
+    if (!user) return;
+    setLoading(true);
+    const unsub = SubscriptionService.subscribeToUserSubscriptions(user.uid, (data) => {
+      setSubscriptions(data);
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
   }, [user]);
 
   const toggleStatus = async (sub: Subscription) => {
-    const newStatus = sub.status === SubscriptionStatus.ACTIVE ? SubscriptionStatus.PAUSED : SubscriptionStatus.ACTIVE;
+    if (sub.status === SubscriptionStatus.ACTIVE) {
+      setPauseSub(sub);
+      const defaultUntil = new Date();
+      defaultUntil.setDate(defaultUntil.getDate() + 7);
+      setPauseUntilDate(defaultUntil.toISOString().split('T')[0]);
+      return;
+    }
     try {
-      await updateDoc(doc(db, 'subscriptions', sub.id), { status: newStatus });
-      setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, status: newStatus } : s));
-      toast.success(`Ritual ${newStatus === SubscriptionStatus.ACTIVE ? 'Resumed' : 'Paused'} successfully!`);
+      await updateDoc(doc(db, 'subscriptions', sub.id), { status: SubscriptionStatus.ACTIVE, pausedUntil: null });
+      toast.success('Ritual Resumed successfully!');
     } catch (err) {
-      toast.error("Failed to update ritual status");
+      toast.error('Failed to resume ritual');
+    }
+  };
+
+  const confirmPause = async () => {
+    if (!pauseSub) return;
+    try {
+      await updateDoc(doc(db, 'subscriptions', pauseSub.id), {
+        status: SubscriptionStatus.PAUSED,
+        pausedUntil: pauseUntilDate || null,
+      });
+      toast.success(`Ritual Paused until ${pauseUntilDate || 'indefinitely'}!`);
+      setPauseSub(null);
+    } catch (err) {
+      toast.error('Failed to pause ritual');
     }
   };
 
@@ -311,6 +325,12 @@ export default function DashboardSubscriptions() {
                         >
                           {sub.status === SubscriptionStatus.ACTIVE ? "Pause Cycle" : "Resume Cycle"}
                         </button>
+                        
+                        {sub.status === SubscriptionStatus.PAUSED && (sub as any).pausedUntil && (
+                          <p className="text-[10px] text-amber-600 font-bold text-center w-full -mt-2">
+                            Auto-resume: {format(new Date((sub as any).pausedUntil), 'MMM dd, yyyy')}
+                          </p>
+                        )}
                         
                         {sub.status === SubscriptionStatus.ACTIVE && (
                           <button 
@@ -627,6 +647,39 @@ export default function DashboardSubscriptions() {
           </div>
         </div>
       </div>
+
+      {/* Pause Date Picker Dialog */}
+      <AnimatePresence>
+        {pauseSub && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPauseSub(null)} className="absolute inset-0 bg-espresso/70 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-premium-2xl space-y-6">
+              <div className="text-center space-y-2">
+                <Clock size={32} className="mx-auto text-amber-500" />
+                <h2 className="text-xl font-display font-black text-espresso uppercase">Pause Ritual</h2>
+                <p className="text-xs text-text-muted">Select when to automatically resume deliveries</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Auto-Resume Date</label>
+                <input
+                  type="date"
+                  value={pauseUntilDate}
+                  onChange={e => setPauseUntilDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 bg-cream border border-espresso/5 rounded-xl text-sm font-bold focus:bg-white outline-none focus:border-caramel transition-all"
+                />
+              </div>
+              <p className="text-[10px] text-text-muted text-center">Leave empty to pause indefinitely (resume manually)</p>
+              <div className="flex gap-3">
+                <button onClick={() => setPauseSub(null)} className="btn-outline flex-1 text-xs py-3">Cancel</button>
+                <button onClick={confirmPause} className="btn btn-primary flex-1 text-xs py-3 bg-amber-600 hover:bg-amber-700 text-white">
+                  Pause Ritual
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={cancelTargetId !== null}

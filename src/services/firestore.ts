@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, Timestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Order, Subscription, Review, UserProfile, Plan } from '../types';
 
@@ -28,6 +28,18 @@ export const ProductService = {
   }
 };
 
+function formatOrderDoc(doc: any): Order {
+  const data = doc.data();
+  const createdAt = data.createdAt;
+  return {
+    id: doc.id,
+    ...data,
+    createdAt: (createdAt && typeof createdAt.toDate === 'function')
+      ? createdAt.toDate().toISOString()
+      : (typeof createdAt === 'string' ? createdAt : new Date().toISOString()),
+  } as Order;
+}
+
 export const OrderService = {
   async create(order: Omit<Order, 'id' | 'createdAt'>): Promise<string> {
     const docRef = await addDoc(collection(db, 'orders'), {
@@ -38,14 +50,51 @@ export const OrderService = {
     return docRef.id;
   },
 
+  async getById(id: string): Promise<Order | null> {
+    const docRef = doc(db, 'orders', id);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? formatOrderDoc(snap) : null;
+  },
+
   async getByUserId(userId: string): Promise<Order[]> {
     const q = query(collection(db, 'orders'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp)?.toDate().toISOString() || new Date().toISOString()
-    } as Order));
+    return snapshot.docs.map(formatOrderDoc);
+  },
+
+  subscribeToOrder(id: string, onData: (order: Order | null) => void, onError?: (err: Error) => void): Unsubscribe {
+    return onSnapshot(
+      doc(db, 'orders', id),
+      (snap) => onData(snap.exists() ? formatOrderDoc(snap) : null),
+      (err) => onError?.(err)
+    );
+  },
+
+  subscribeToUserOrders(userId: string, onData: (orders: Order[]) => void, onError?: (err: Error) => void): Unsubscribe {
+    const q = query(collection(db, 'orders'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+    return onSnapshot(
+      q,
+      (snapshot) => onData(snapshot.docs.map(formatOrderDoc)),
+      (err) => onError?.(err)
+    );
+  },
+
+  subscribeToAllOrders(onData: (orders: Order[]) => void, onError?: (err: Error) => void): Unsubscribe {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    return onSnapshot(
+      q,
+      (snapshot) => onData(snapshot.docs.map(formatOrderDoc)),
+      (err) => onError?.(err)
+    );
+  },
+
+  subscribeToDriverOrders(driverId: string, onData: (orders: Order[]) => void, onError?: (err: Error) => void): Unsubscribe {
+    const q = query(collection(db, 'orders'), where('driverId', '==', driverId));
+    return onSnapshot(
+      q,
+      (snapshot) => onData(snapshot.docs.map(formatOrderDoc)),
+      (err) => onError?.(err)
+    );
   }
 };
 
@@ -82,6 +131,15 @@ export const SubscriptionService = {
   async updateStatus(id: string, status: Subscription['status']): Promise<void> {
     const docRef = doc(db, 'subscriptions', id);
     await updateDoc(docRef, { status });
+  },
+
+  subscribeToUserSubscriptions(userId: string, onData: (subs: Subscription[]) => void, onError?: (err: Error) => void): Unsubscribe {
+    const q = query(collection(db, 'subscriptions'), where('userId', '==', userId));
+    return onSnapshot(
+      q,
+      (snapshot) => onData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription))),
+      (err) => onError?.(err)
+    );
   }
 };
 

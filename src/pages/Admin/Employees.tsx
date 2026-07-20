@@ -228,8 +228,8 @@ export default function Employees() {
 
   const filteredStaff = employees.filter(
     (emp) =>
-      emp.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (emp.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

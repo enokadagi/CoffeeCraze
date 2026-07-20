@@ -1,25 +1,46 @@
 import { Order, OrderStatus } from '../../types';
-import { CheckCircle, Circle, Truck, Package, Clock, XCircle, MapPin, CreditCard } from 'lucide-react';
+import { CheckCircle, Circle, MapPin, CreditCard } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { motion } from 'motion/react';
 
 interface Props {
   order: Order;
 }
 
-const STATUS_ORDER: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED];
-const STATUS_LABELS: Record<OrderStatus, string> = {
+const TIMELINE_STEPS = [
+  OrderStatus.PENDING,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PREPARING,
+  OrderStatus.READY,
+  OrderStatus.OUT_FOR_DELIVERY,
+  OrderStatus.DELIVERED,
+];
+
+const STATUS_TO_INDEX: Record<string, number> = {
+  [OrderStatus.PENDING]: 0,
+  [OrderStatus.CONFIRMED]: 1,
+  [OrderStatus.PROCESSING]: 2,
+  [OrderStatus.PREPARING]: 2,
+  [OrderStatus.READY]: 3,
+  [OrderStatus.SHIPPED]: 4,
+  [OrderStatus.OUT_FOR_DELIVERY]: 4,
+  [OrderStatus.DELIVERED]: 5,
+};
+
+const STATUS_LABELS: Record<string, string> = {
   [OrderStatus.PENDING]: 'Order Received',
   [OrderStatus.CONFIRMED]: 'Confirmed',
   [OrderStatus.PROCESSING]: 'Preparing',
+  [OrderStatus.PREPARING]: 'Preparing',
+  [OrderStatus.READY]: 'Ready',
   [OrderStatus.SHIPPED]: 'Out for Delivery',
+  [OrderStatus.OUT_FOR_DELIVERY]: 'Out for Delivery',
   [OrderStatus.DELIVERED]: 'Delivered',
   [OrderStatus.CANCELLED]: 'Cancelled',
 };
 
 export default function OrderTrackingTimeline({ order }: Props) {
-  const steps = STATUS_ORDER;
-  const currentIdx = STATUS_ORDER.indexOf(order.status);
+  const steps = TIMELINE_STEPS;
+  const currentIdx = STATUS_TO_INDEX[order.status] ?? -1;
   const isCancelled = order.status === 'cancelled';
 
   return (

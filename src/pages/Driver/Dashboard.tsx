@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { OrderService } from '../../services/firestore';
 import { Order, OrderStatus, PaymentStatus } from '../../types';
 import { toast } from 'sonner';
-import { MapPin, Phone, MessageSquare, CheckCircle, Navigation, Package, Check, LogOut, Coffee } from 'lucide-react';
+import { MapPin, Phone, Navigation, Package, CheckCircle, LogOut, Coffee } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { formatLBP } from '../../utils/exchange';
 import { cn } from '../../lib/utils';
@@ -18,44 +19,16 @@ export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
   useEffect(() => {
-    if (user) {
-      fetchDriverOrders();
-    }
-  }, [user]);
-
-  const fetchDriverOrders = async () => {
+    if (!user) return;
     setLoading(true);
-    try {
-      const q = query(
-        collection(db, 'orders'),
-        where('driverId', '==', user!.uid)
-      );
-      const snap = await getDocs(q);
-      const ordersList = snap.docs.map(d => {
-        const data = d.data();
-        // Handle potential Firebase timestamp to ISO string conversion
-        const createdAt = data.createdAt;
-        const formattedCreatedAt = (createdAt && typeof createdAt.toDate === 'function') 
-          ? createdAt.toDate().toISOString() 
-          : (createdAt || new Date().toISOString());
-
-        return {
-          id: d.id,
-          ...data,
-          createdAt: formattedCreatedAt,
-        } as Order;
-      });
-
-      // Sort client-side by date desc
-      ordersList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setOrders(ordersList);
-    } catch (err) {
-      console.error('Error loading driver orders:', err);
-      toast.error('Failed to load assigned deliveries');
-    } finally {
+    const unsub = OrderService.subscribeToDriverOrders(user.uid, (data) => {
+      setOrders(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setLoading(false);
-    }
-  };
+    }, () => {
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [user]);
 
   const handleMarkDelivered = async (orderId: string) => {
     if (!window.confirm('Mark this order as delivered and collect cash payment?')) return;
@@ -70,7 +43,6 @@ export default function DriverDashboard() {
       });
 
       toast.success('Order successfully marked as delivered! Cash collected.');
-      fetchDriverOrders();
     } catch (err) {
       console.error('Failed to update order status:', err);
       toast.error('Failed to update delivery status');

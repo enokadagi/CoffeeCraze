@@ -104,7 +104,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           </div>
           <h2 className="text-2xl font-display font-black text-espresso mb-2 uppercase italic tracking-tightest">{msg.title}</h2>
           <p className="text-text-muted mb-6">{msg.description}</p>
-          {error && process.env.NODE_ENV === 'development' && (
+          {error && import.meta.env.DEV && (
             <pre className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-left text-xs text-red-700 overflow-auto max-h-32">
               {error.name}: {error.message}
             </pre>

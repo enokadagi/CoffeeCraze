@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, orderBy, query, updateDoc, doc, limit, startAfter, getCountFromServer, where } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { OrderService } from '../../services/firestore';
 import { Order } from '../../types';
 import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
 import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, Search, Filter, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer } from 'lucide-react';
@@ -17,7 +18,10 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-50 text-yellow-600 border-yellow-100 shadow-yellow-500/5',
   confirmed: 'bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5',
   processing: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-500/5',
+  preparing: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-500/5',
+  ready: 'bg-teal-50 text-teal-600 border-teal-100 shadow-teal-500/5',
   shipped: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
+  out_for_delivery: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
   delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-500/5',
   cancelled: 'bg-red-50 text-red-600 border-red-100 shadow-red-500/5',
 };
@@ -26,7 +30,10 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock size={12} />,
   confirmed: <CheckCircle size={12} />,
   processing: <Package size={12} />,
+  preparing: <Package size={12} />,
+  ready: <CheckCircle size={12} />,
   shipped: <Truck size={12} />,
+  out_for_delivery: <Truck size={12} />,
   delivered: <CheckCircle size={12} />,
   cancelled: <XCircle size={12} />,
 };
@@ -48,10 +55,6 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [lastDoc, setLastDoc] = useState<any>(null);
-  const [firstDoc, setFirstDoc] = useState<any>(null);
-  const [pageStack, setPageStack] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [drivers, setDrivers] = useState<{ id: string; displayName: string; email: string }[]>([]);
   const [driverAssigning, setDriverAssigning] = useState(false);
@@ -67,54 +70,16 @@ export default function AdminOrders() {
     loadDrivers();
   }, []);
 
-  const fetchOrders = useCallback(async (direction: 'next' | 'prev' | 'init' = 'init') => {
-    setLoading(true);
-    try {
-      if (direction === 'init') {
-        const countSnap = await getCountFromServer(collection(db, 'orders'));
-        setTotalCount(countSnap.data().count);
-      }
-
-      let q;
-      if (direction === 'next' && lastDoc) {
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(PAGE_SIZE));
-      } else if (direction === 'prev' && pageStack.length > 0) {
-        const prevCursor = pageStack[pageStack.length - 1];
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), startAfter(prevCursor), limit(PAGE_SIZE));
-      } else {
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
-      }
-
-      const snap = await getDocs(q);
-      const docs = snap.docs;
-      setOrders(docs.map(d => {
-        const data = d.data() as any;
-        // Safely convert Firestore Timestamps to ISO strings
-        const createdAt = data.createdAt;
-        const safeCreatedAt = (createdAt && typeof createdAt.toDate === 'function')
-          ? createdAt.toDate().toISOString()
-          : (typeof createdAt === 'string' ? createdAt : new Date().toISOString());
-        return { id: d.id, ...data, createdAt: safeCreatedAt } as Order;
-      }));
-
-      if (docs.length > 0) {
-        if (direction === 'next') {
-          setPageStack(prev => [...prev, lastDoc]);
-        } else if (direction === 'prev' && pageStack.length > 0) {
-          setPageStack(prev => prev.slice(0, -1));
-        }
-        setFirstDoc(docs[0]);
-        setLastDoc(docs[docs.length - 1]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch orders:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [lastDoc, pageStack]);
-
+  // Real-time orders subscription
   useEffect(() => {
-    fetchOrders('init');
+    setLoading(true);
+    const unsub = OrderService.subscribeToAllOrders((data) => {
+      setOrders(data);
+      setLoading(false);
+    }, () => {
+      setLoading(false);
+    });
+    return () => unsub();
   }, []);
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
@@ -200,7 +165,7 @@ export default function AdminOrders() {
                       <p className="text-text-muted italic text-lg">No orders yet.</p>
                     </td>
                   </tr>
-                ) : orders.map((order) => (
+                ) : orders.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((order) => (
                   <tr key={order.id} className="hover:bg-cream/30 transition-all duration-700 group/row cursor-pointer" onClick={() => setSelectedOrder(order)}>
                     <td className="px-10 py-8">
                       <p className="font-display font-black text-text italic text-xl leading-none uppercase tracking-tight">#{order.id.slice(-8).toUpperCase()}</p>
@@ -238,7 +203,10 @@ export default function AdminOrders() {
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
                           <option value="processing">Processing</option>
+                          <option value="preparing">Preparing</option>
+                          <option value="ready">Ready</option>
                           <option value="shipped">Shipped</option>
+                          <option value="out_for_delivery">Out for Delivery</option>
                           <option value="delivered">Delivered</option>
                           <option value="cancelled">Cancelled</option>
                       </select>
@@ -251,25 +219,25 @@ export default function AdminOrders() {
         </div>
 
         {/* Pagination */}
-        {!loading && totalCount > 0 && (
+        {!loading && orders.length > 0 && (
           <div className="flex items-center justify-between px-4 py-4 bg-white border border-border-light rounded-[2rem] shadow-premium">
             <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.3em] italic">
-              {totalCount} Orders — Page {pageStack.length + 1}
+              {orders.length} Orders — Page {page + 1}
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setPage(p => p - 1); fetchOrders('prev'); }}
-                disabled={pageStack.length === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
                 className="p-3 bg-cream text-text-secondary rounded-xl hover:bg-cream transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={16} />
               </button>
               <span className="text-xs font-black text-text italic">
-                {pageStack.length + 1} / {Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}
+                {page + 1} / {Math.max(1, Math.ceil(orders.length / PAGE_SIZE))}
               </span>
               <button
-                onClick={() => { setPage(p => p + 1); fetchOrders('next'); }}
-                disabled={orders.length < PAGE_SIZE}
+                onClick={() => setPage(p => p + 1)}
+                disabled={(page + 1) * PAGE_SIZE >= orders.length}
                 className="p-3 bg-cream text-text-secondary rounded-xl hover:bg-cream transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight size={16} />
@@ -379,9 +347,10 @@ export default function AdminOrders() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((step, i) => {
-                      const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-                      const currentIdx = statusOrder.indexOf(selectedOrder.status);
+                    {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((step, i) => {
+                      const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+                      const statusToIndex: Record<string, number> = { pending: 0, confirmed: 1, processing: 2, preparing: 2, ready: 3, shipped: 4, out_for_delivery: 4, delivered: 5 };
+                      const currentIdx = statusToIndex[selectedOrder.status] ?? -1;
                       const stepIdx = statusOrder.indexOf(step);
                       const isComplete = stepIdx <= currentIdx;
                       return (
@@ -414,7 +383,10 @@ export default function AdminOrders() {
                        <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
                       <option value="processing">Processing</option>
+                      <option value="preparing">Preparing</option>
+                      <option value="ready">Ready</option>
                       <option value="shipped">Shipped</option>
+                      <option value="out_for_delivery">Out for Delivery</option>
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>

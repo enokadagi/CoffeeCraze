@@ -9,6 +9,7 @@ import { useSiteSettings } from '../hooks/useSiteSettings';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import Seo from '../components/common/SEO';
+import LocationPicker from '../components/checkout/LocationPicker';
 import { cn } from '../lib/utils';
 import { OrderItem, OrderStatus, PaymentStatus } from '../types';
 import {
@@ -21,8 +22,6 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  Navigation,
-  Loader2,
 } from 'lucide-react';
 
 export default function Checkout() {
@@ -63,30 +62,8 @@ export default function Checkout() {
     gpsCoordinates: null as { lat: number; lng: number } | null,
   });
 
-  const [locationLoading, setLocationLoading] = useState(false);
-
-  const handleShareLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      return;
-    }
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setFormData((prev) => ({
-          ...prev,
-          gpsCoordinates: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-        }));
-        toast.success('Live location pinned successfully!');
-        setLocationLoading(false);
-      },
-      (err) => {
-        console.warn('Geolocation error:', err);
-        toast.error('Could not get your location. Please allow location access and try again.');
-        setLocationLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+  const handleGpsChange = useCallback((pos: { lat: number; lng: number }) => {
+    setFormData((prev) => ({ ...prev, gpsCoordinates: pos }));
   }, []);
 
   useEffect(() => {
@@ -428,40 +405,19 @@ export default function Checkout() {
                     className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                   />
 
-                  {/* Live GPS Location */}
-                  <div className="flex items-center gap-3">
+                  {/* Live GPS Location with map */}
+                  <LocationPicker
+                    position={formData.gpsCoordinates}
+                    onPositionChange={handleGpsChange}
+                  />
+                  {formData.gpsCoordinates && (
                     <button
                       type="button"
-                      onClick={handleShareLocation}
-                      disabled={locationLoading}
-                      className={cn(
-                        'flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-bold transition-all border',
-                        formData.gpsCoordinates
-                          ? 'bg-green-50 border-green-300 text-green-700'
-                          : 'bg-espresso/5 border-espresso/20 text-espresso hover:bg-espresso/10'
-                      )}
+                      onClick={() => setFormData((p) => ({ ...p, gpsCoordinates: null }))}
+                      className="text-xs text-text-muted hover:text-red-500 underline transition-colors"
                     >
-                      {locationLoading ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <Navigation size={16} />
-                      )}
-                      {formData.gpsCoordinates ? 'Location Pinned ✓' : 'Pin My Live Location'}
+                      Clear pinned location
                     </button>
-                    {formData.gpsCoordinates && (
-                      <button
-                        type="button"
-                        onClick={() => setFormData((p) => ({ ...p, gpsCoordinates: null }))}
-                        className="text-xs text-text-muted hover:text-red-500 underline transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {formData.gpsCoordinates && (
-                    <p className="text-xs text-green-700 font-semibold">
-                      📍 {formData.gpsCoordinates.lat.toFixed(5)}, {formData.gpsCoordinates.lng.toFixed(5)}
-                    </p>
                   )}
 
                   <label htmlFor="checkout-instructions" className="sr-only">

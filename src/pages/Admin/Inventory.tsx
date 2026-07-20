@@ -7,12 +7,12 @@ import {
   Package, Plus, Search, Edit2, Trash2, Tag, FileSpreadsheet, Download,
   ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight,
   Star, StarOff, CheckSquare, Square, Minus, AlertTriangle, Filter, X,
-  BarChart3,
+  BarChart3, History, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { doc, deleteDoc, updateDoc, addDoc, collection, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, addDoc, collection, getDocs, query, where, orderBy, limit, arrayRemove, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { db } from '../../lib/firebase';
 import ProductFormModal from '../../components/admin/ProductFormModal';
@@ -20,6 +20,22 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
 import { logAdminAction } from '../../utils/auditLog';
+
+async function logInventoryChange(productId: string, productName: string, previousStock: number, newStock: number, userId: string) {
+  if (previousStock === newStock) return;
+  try {
+    await addDoc(collection(db, 'inventoryLogs'), {
+      productId,
+      productName,
+      previousStock,
+      newStock,
+      change: newStock - previousStock,
+      reason: 'correction',
+      createdBy: userId,
+      createdAt: serverTimestamp(),
+    });
+  } catch { /* non-critical */ }
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type SortField = 'name' | 'category' | 'stock' | 'price' | 'rating';
@@ -70,6 +86,11 @@ export default function AdminInventory() {
 
   // Inline stock edit
   const [inlineEdit, setInlineEdit] = useState<{ id: string; field: 'stock' | 'price'; value: string } | null>(null);
+
+  // Stock history drawer
+  const [stockHistory, setStockHistory] = useState<any[]>([]);
+  const [stockHistoryProduct, setStockHistoryProduct] = useState<Product | null>(null);
+  const [stockHistoryLoading, setStockHistoryLoading] = useState(false);
 
   // Resizable columns states
   const [colWidths, setColWidths] = useState<Record<string, number>>({
@@ -249,14 +270,36 @@ export default function AdminInventory() {
     clearSelection();
   };
 
+  // ── Stock history ─────────────────────────────────────────────────────────
+  const openStockHistory = async (product: Product) => {
+    setStockHistoryProduct(product);
+    setStockHistoryLoading(true);
+    try {
+      const q = query(
+        collection(db, 'inventoryLogs'),
+        where('productId', '==', product.id),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+      const snap = await getDocs(q);
+      setStockHistory(snap.docs.map(d => ({ id: d.id, ...d.data() }) as any));
+    } catch { setStockHistory([]); }
+    finally { setStockHistoryLoading(false); }
+  };
+
   // ── Inline edit ────────────────────────────────────────────────────────────
   const commitInlineEdit = async () => {
     if (!inlineEdit) return;
     const { id, field, value } = inlineEdit;
     const num = Number(value);
     if (isNaN(num) || num < 0) { toast.error('Invalid value'); return; }
+    const product = products.find(p => p.id === id);
+    const prevStock = product?.stock ?? 0;
     await updateDoc(doc(db, 'products', id), { [field]: num });
     setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: num } : p));
+    if (field === 'stock' && user) {
+      logInventoryChange(id, product?.name || '', prevStock, num, user.uid);
+    }
     toast.success(`${field} updated`);
     setInlineEdit(null);
   };
@@ -267,10 +310,14 @@ export default function AdminInventory() {
       const previousPlanId = editingProduct?.planId;
       const newPlanId = productData.planId;
       if (editingProduct) {
+        const prevStock = editingProduct.stock ?? 0;
         await updateDoc(doc(db, 'products', editingProduct.id), productData);
         if (previousPlanId !== newPlanId) {
           if (previousPlanId) await updateDoc(doc(db, 'plans', previousPlanId), { productIds: arrayRemove(editingProduct.id) });
           if (newPlanId) await updateDoc(doc(db, 'plans', newPlanId), { productIds: arrayUnion(editingProduct.id) });
+        }
+        if (productData.stock !== undefined && productData.stock !== prevStock && user) {
+          logInventoryChange(editingProduct.id, editingProduct.name, prevStock, productData.stock, user.uid);
         }
         toast.success('Product updated');
       } else {
@@ -728,6 +775,14 @@ export default function AdminInventory() {
                       <td className="px-4 py-3.5" style={{ width: colWidths.actions }}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                           <button
+                            aria-label="Stock history"
+                            onClick={() => openStockHistory(product)}
+                            className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all border border-transparent hover:border-blue-100"
+                            title="Stock change history"
+                          >
+                            <History size={14} />
+                          </button>
+                          <button
                             aria-label="Edit product"
                             onClick={() => { setEditingProduct(product); setShowModal(true); }}
                             className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-gold-500 hover:bg-cream rounded-lg transition-all border border-transparent hover:border-border"
@@ -779,15 +834,16 @@ export default function AdminInventory() {
                   <div><span className="text-text-muted block text-[9px] uppercase tracking-wider font-bold">Stock</span><span className={cn('font-black', product.stock === 0 ? 'text-red-600' : product.stock < 10 ? 'text-amber-600' : 'text-espresso')}>{product.stock}</span></div>
                   <div><span className="text-text-muted block text-[9px] uppercase tracking-wider font-bold">Price</span><span className="font-black text-espresso">{(product.price || 0).toLocaleString()} LBP</span></div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <button onClick={() => toggleFeatured(product.id, product.isFeatured)} className={cn('px-3 py-1.5 rounded-full text-[9px] font-black uppercase border', product.isFeatured ? 'bg-gold-500 text-white border-gold-400' : 'bg-cream text-text-muted border-border')}>
-                    {product.isFeatured ? '★ Featured' : 'Standard'}
-                  </button>
-                  <div className="flex gap-2">
-                    <button aria-label="Edit" onClick={() => { setEditingProduct(product); setShowModal(true); }} className="p-2 bg-white border border-border rounded-xl text-text-muted hover:text-gold-500 transition-colors"><Edit2 size={14} /></button>
-                    <button aria-label="Delete" onClick={() => setConfirmDeleteId(product.id)} className="p-2 bg-white border border-border rounded-xl text-text-muted hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                  <div className="flex items-center justify-between gap-2">
+                    <button onClick={() => toggleFeatured(product.id, product.isFeatured)} className={cn('px-3 py-1.5 rounded-full text-[9px] font-black uppercase border', product.isFeatured ? 'bg-gold-500 text-white border-gold-400' : 'bg-cream text-text-muted border-border')}>
+                      {product.isFeatured ? '★ Featured' : 'Standard'}
+                    </button>
+                    <div className="flex gap-2">
+                      <button aria-label="History" onClick={() => openStockHistory(product)} className="p-2 bg-white border border-border rounded-xl text-text-muted hover:text-blue-500 transition-colors" title="Stock change history"><History size={14} /></button>
+                      <button aria-label="Edit" onClick={() => { setEditingProduct(product); setShowModal(true); }} className="p-2 bg-white border border-border rounded-xl text-text-muted hover:text-gold-500 transition-colors"><Edit2 size={14} /></button>
+                      <button aria-label="Delete" onClick={() => setConfirmDeleteId(product.id)} className="p-2 bg-white border border-border rounded-xl text-text-muted hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
                   </div>
-                </div>
               </div>
             ))}
           </div>
@@ -868,6 +924,62 @@ export default function AdminInventory() {
         onConfirm={executeDelete}
         onCancel={() => setConfirmDeleteId(null)}
       />
+
+      {/* Stock History Drawer */}
+      {stockHistoryProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-espresso/60 backdrop-blur-sm" onClick={() => setStockHistoryProduct(null)} />
+          <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-premium-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div>
+                <h2 className="text-lg font-display font-black text-espresso uppercase tracking-tight">Stock History</h2>
+                <p className="text-xs text-text-muted mt-0.5">{stockHistoryProduct.name} ({stockHistoryProduct.sku})</p>
+              </div>
+              <button onClick={() => setStockHistoryProduct(null)} className="p-2 hover:bg-cream rounded-xl transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {stockHistoryLoading ? (
+              <div className="space-y-3">
+                {Array(5).fill(0).map((_, i) => <div key={i} className="h-12 bg-cream animate-pulse rounded-xl" />)}
+              </div>
+            ) : stockHistory.length === 0 ? (
+              <div className="text-center py-10 text-text-muted">
+                <Clock size={32} className="mx-auto mb-2 text-coffee-200" />
+                <p className="text-sm font-medium">No stock changes recorded yet.</p>
+                <p className="text-xs mt-1">Changes will be logged automatically when stock is updated.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[10px] font-black text-text-muted uppercase tracking-wider px-3 pb-2 border-b border-border">
+                  <span>Date</span>
+                  <span className="flex-1 text-center">Change</span>
+                  <span className="text-right">Balance</span>
+                </div>
+                {stockHistory.map((log: any) => {
+                  const change = log.change || 0;
+                  const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date(log.createdAt);
+                  return (
+                    <div key={log.id} className="flex items-center justify-between px-3 py-2.5 bg-cream/30 hover:bg-cream rounded-xl transition-colors text-xs">
+                      <span className="text-text-muted font-medium min-w-[100px]">
+                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' })}
+                      </span>
+                      <span className={cn(
+                        'font-black flex-1 text-center',
+                        change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-600' : 'text-text-muted'
+                      )}>
+                        {change > 0 ? '+' : ''}{change}
+                      </span>
+                      <span className="font-bold text-espresso text-right min-w-[50px]">{log.newStock}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

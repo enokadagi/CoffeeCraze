@@ -324,6 +324,7 @@ export default function AdminPlans() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Frequency</label>
                   <select value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))} className="form-select">
+                    <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="biweekly">Bi-Weekly</option>
                     <option value="monthly">Monthly</option>

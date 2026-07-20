@@ -17,8 +17,11 @@ const StatusIcon = ({ status }: { status: Order['status'] }) => {
   switch (status) {
     case OrderStatus.PENDING: return <Clock size={16} className="text-yellow-500" />;
     case OrderStatus.CONFIRMED: return <Package size={16} className="text-blue-500" />;
-    case OrderStatus.PROCESSING: return <Package size={16} className="text-indigo-500" />;
-    case OrderStatus.SHIPPED: return <Truck size={16} className="text-purple-500" />;
+    case OrderStatus.PROCESSING:
+    case OrderStatus.PREPARING: return <Package size={16} className="text-indigo-500" />;
+    case OrderStatus.READY: return <CheckCircle size={16} className="text-teal-500" />;
+    case OrderStatus.SHIPPED:
+    case OrderStatus.OUT_FOR_DELIVERY: return <Truck size={16} className="text-purple-500" />;
     case OrderStatus.DELIVERED: return <CheckCircle size={16} className="text-green-500" />;
     case OrderStatus.CANCELLED: return <XCircle size={16} className="text-red-500" />;
     default: return <Clock size={16} className="text-gray-400" />;
@@ -40,16 +43,17 @@ export default function MyOrders() {
   const itemsPerPage = 5;
 
   useEffect(() => {
-    if (user) {
-      OrderService.getByUserId(user.uid).then(data => {
-        setOrders(data);
-        setLoading(false);
-      }).catch(err => {
-        console.error('Failed to fetch orders:', err);
-        toast.error('Failed to load orders');
-        setLoading(false);
-      });
-    }
+    if (!user) return;
+    setLoading(true);
+    const unsub = OrderService.subscribeToUserOrders(user.uid, (data) => {
+      setOrders(data);
+      setLoading(false);
+    }, (err) => {
+      console.error('Failed to fetch orders:', err);
+      toast.error('Failed to load orders');
+      setLoading(false);
+    });
+    return () => unsub();
   }, [user]);
 
   const filteredAndSortedOrders = orders
@@ -214,18 +218,19 @@ export default function MyOrders() {
                     <div className="space-y-5">
                       <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.5em] text-coffee-200 italic">
                          <span className={cn(order.status !== 'cancelled' ? "text-caramel" : "")}>IDNT</span>
-                         <span className={cn(['confirmed', 'shipped', 'delivered'].includes(order.status) ? "text-caramel" : "")}>CONF</span>
-                         <span className={cn(['shipped', 'delivered'].includes(order.status) ? "text-caramel" : "")}>DSPCH</span>
+                          <span className={cn(['confirmed', 'preparing', 'ready', 'out_for_delivery', 'shipped', 'delivered'].includes(order.status) ? "text-caramel" : "")}>CONF</span>
+                          <span className={cn(['shipped', 'out_for_delivery', 'delivered'].includes(order.status) ? "text-caramel" : "")}>DSPCH</span>
                       </div>
                       <div className="h-2 w-full bg-cream rounded-full overflow-hidden shadow-inner ring-4 ring-cream/30">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ 
                             width: order.status === 'cancelled' ? '0%' : 
-                                   order.status === 'pending' ? '20%' : 
-                                   order.status === 'confirmed' ? '40%' : 
-                                   order.status === 'processing' ? '60%' : 
-                                   order.status === 'shipped' ? '80%' : '100%' 
+                                   order.status === 'pending' ? '16%' : 
+                                   order.status === 'confirmed' ? '32%' : 
+                                   (order.status === 'processing' || order.status === 'preparing') ? '50%' :
+                                   order.status === 'ready' ? '66%' :
+                                   (order.status === 'shipped' || order.status === 'out_for_delivery') ? '84%' : '100%' 
                           }}
                           transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
                           className={cn(
@@ -251,8 +256,8 @@ export default function MyOrders() {
                       <div className={cn(
                         "px-6 md:px-10 py-3 md:py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 border shadow-premium italic transition-all duration-700",
                         order.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                        order.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        order.status === 'confirmed' || order.status === 'processing' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                        order.status === 'shipped' || order.status === 'out_for_delivery' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        order.status === 'confirmed' || order.status === 'processing' || order.status === 'preparing' || order.status === 'ready' ? "bg-blue-50 text-blue-600 border-blue-100" :
                         order.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
                         "bg-caramel/10 text-caramel border-caramel/20"
                       )}>
@@ -336,7 +341,7 @@ export default function MyOrders() {
                         <div className="space-y-6 md:space-y-10">
                           <div className="flex items-center justify-between border-b border-cream pb-6">
                             <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-espresso italic">Primitive Components</h4>
-                            {order.trackingId && (order.status === 'shipped' || order.status === 'delivered') && (
+                            {order.trackingId && (order.status === 'shipped' || order.status === 'out_for_delivery' || order.status === 'delivered') && (
                             <a 
                               href={`https://www.aramex.com/express/track-results?trackNumbers=${order.trackingId}`}
                               target="_blank"
@@ -462,8 +467,8 @@ export default function MyOrders() {
                       <div className={cn(
                         "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
                         selectedOrder.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                        selectedOrder.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                        selectedOrder.status === 'shipped' || selectedOrder.status === 'out_for_delivery' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' || selectedOrder.status === 'preparing' || selectedOrder.status === 'ready' ? "bg-blue-50 text-blue-600 border-blue-100" :
                         selectedOrder.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
                         "bg-cream text-text-secondary border-border"
                       )}>
@@ -471,9 +476,10 @@ export default function MyOrders() {
                       </div>
                     </div>
                     <div className="flex gap-2 h-1.5 w-full">
-                      {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((s, i) => {
-                        const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-                        const currentIndex = statusOrder.indexOf(selectedOrder.status);
+                      {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((s, i) => {
+                        const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+                        const statusToIndex: Record<string, number> = { pending: 0, confirmed: 1, processing: 2, preparing: 2, ready: 3, shipped: 4, out_for_delivery: 4, delivered: 5 };
+                        const currentIndex = statusToIndex[selectedOrder.status] ?? -1;
                         const isActive = currentIndex >= i && selectedOrder.status !== 'cancelled';
                         return (
                           <div 
@@ -513,8 +519,8 @@ export default function MyOrders() {
                   <div className={cn(
                     "p-6 md:p-10 rounded-[3rem] border transition-all duration-700 group",
                     selectedOrder.status === 'delivered' ? "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-600 hover:text-white" :
-                    selectedOrder.status === 'shipped' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
-                    selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
+                    selectedOrder.status === 'shipped' || selectedOrder.status === 'out_for_delivery' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
+                    selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' || selectedOrder.status === 'preparing' || selectedOrder.status === 'ready' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
                     selectedOrder.status === 'cancelled' ? "bg-red-50/50 border-red-100 hover:bg-red-600 hover:text-white" :
                     "bg-cream rounded-[3rem] border-border-light hover:bg-coffee-950 hover:text-white"
                   )}>

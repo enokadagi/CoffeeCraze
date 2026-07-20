@@ -56,7 +56,7 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
             transition={{ delay: idx * 0.05 }}
           >
             <Link
-              to={`/order/${order.id}`}
+              to="/dashboard/orders"
               className="block p-4 bg-white border border-espresso/5 rounded-xl hover:shadow-md hover:border-espresso/10 transition-all duration-300 group"
             >
               <div className="flex items-center justify-between gap-4">

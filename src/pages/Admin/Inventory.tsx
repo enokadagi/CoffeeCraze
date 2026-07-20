@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { ProductService } from '../../services/firestore';
 import { Product } from '../../types';
 import { formatPrice, cn } from '../../lib/utils';
@@ -28,7 +28,14 @@ type SortDir = 'asc' | 'desc';
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const CATEGORIES = ['All', 'Coffee Beans', 'Ground Coffee', 'Capsules', 'Drip Bags', 'Gift Boxes', 'Brewing Equipment', 'Espresso Machines', 'Accessories', 'Syrups', 'Merchandise'];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// Column configuration for resizable columns
+interface Column {
+  id: string;
+  label: string;
+  field?: SortField;
+  minWidth: number;
+}
+
 const SortIcon = ({ field, active, dir }: { field: string; active: boolean; dir: SortDir }) => {
   if (!active) return <ChevronsUpDown size={13} className="text-text-muted/50 group-hover:text-text-muted transition-colors" />;
   return dir === 'asc'
@@ -36,7 +43,6 @@ const SortIcon = ({ field, active, dir }: { field: string; active: boolean; dir:
     : <ChevronDown size={13} className="text-gold-500" />;
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
 export default function AdminInventory() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -65,7 +71,69 @@ export default function AdminInventory() {
   // Inline stock edit
   const [inlineEdit, setInlineEdit] = useState<{ id: string; field: 'stock' | 'price'; value: string } | null>(null);
 
-  useEffect(() => { fetchProducts(); fetchPlans(); }, []);
+  // Resizable columns states
+  const [colWidths, setColWidths] = useState<Record<string, number>>({
+    select: 48,
+    name: 240,
+    category: 140,
+    stock: 100,
+    price: 130,
+    plan: 140,
+    status: 120,
+    actions: 100,
+  });
+
+  const columns: Column[] = [
+    { id: 'select', label: '', minWidth: 48 },
+    { id: 'name', label: 'Product', field: 'name', minWidth: 150 },
+    { id: 'category', label: 'Category', field: 'category', minWidth: 110 },
+    { id: 'stock', label: 'Stock', field: 'stock', minWidth: 80 },
+    { id: 'price', label: 'Price', field: 'price', minWidth: 100 },
+    { id: 'plan', label: 'Plan', minWidth: 100 },
+    { id: 'status', label: 'Status', minWidth: 100 },
+    { id: 'actions', label: 'Actions', minWidth: 80 },
+  ];
+
+  const resizingCol = useRef<string | null>(null);
+  const startX = useRef<number>(0);
+  const startWidth = useRef<number>(0);
+
+  const handleMouseDown = (colId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingCol.current = colId;
+    startX.current = e.clientX;
+    startWidth.current = colWidths[colId] || 100;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!resizingCol.current) return;
+    const diff = e.clientX - startX.current;
+    const col = columns.find(c => c.id === resizingCol.current);
+    const minWidth = col ? col.minWidth : 50;
+    const newWidth = Math.max(minWidth, startWidth.current + diff);
+    
+    setColWidths(prev => ({
+      ...prev,
+      [resizingCol.current!]: newWidth
+    }));
+  };
+
+  const handleMouseUp = () => {
+    resizingCol.current = null;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchPlans();
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -331,9 +399,6 @@ export default function AdminInventory() {
     toast.success('Template downloaded');
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <DashboardLayout>
       <SEO title="Inventory" description="Manage CoffeeCraze product inventory, stock levels, and pricing." />
@@ -483,49 +548,54 @@ export default function AdminInventory() {
 
         {/* ── Data Table ────────────────────────────────────────────────────── */}
         <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-          {/* Desktop Table */}
+          {/* Desktop Table with Resizable Columns */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full text-left border-collapse">
-              <thead className="bg-coffee-950/3 border-b border-border">
+            <table className="table-fixed text-left border-collapse" style={{ width: Object.values(colWidths).reduce((a, b) => a + b, 0) }}>
+              <thead className="bg-coffee-950/3 border-b border-border select-none">
                 <tr>
-                  {/* Checkbox */}
-                  <th className="pl-5 pr-2 py-4 w-10">
-                    <button onClick={toggleSelectAll} className="text-text-muted hover:text-espresso transition-colors">
-                      {allPageSelected ? <CheckSquare size={16} className="text-espresso" /> : <Square size={16} />}
-                    </button>
-                  </th>
-
-                  {/* Product col */}
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">
-                    <button onClick={() => handleSort('name')} className="flex items-center gap-1.5 group">
-                      Product <SortIcon field="name" active={sortField === 'name'} dir={sortDir} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">
-                    <button onClick={() => handleSort('category')} className="flex items-center gap-1.5 group">
-                      Category <SortIcon field="category" active={sortField === 'category'} dir={sortDir} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">
-                    <button onClick={() => handleSort('stock')} className="flex items-center gap-1.5 group">
-                      Stock <SortIcon field="stock" active={sortField === 'stock'} dir={sortDir} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">
-                    <button onClick={() => handleSort('price')} className="flex items-center gap-1.5 group">
-                      Price <SortIcon field="price" active={sortField === 'price'} dir={sortDir} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">Plan</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted">Status</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted text-right">Actions</th>
+                  {columns.map(col => (
+                    <th
+                      key={col.id}
+                      className="relative border-r border-border/40 py-4 px-4 text-[10px] font-black uppercase tracking-[0.35em] text-text-muted group"
+                      style={{ width: colWidths[col.id] }}
+                    >
+                      <div className="flex items-center justify-between">
+                        {col.field ? (
+                          <button onClick={() => handleSort(col.field!)} className="flex items-center gap-1.5 group/btn text-left">
+                            {col.label} <SortIcon field={col.field} active={sortField === col.field} dir={sortDir} />
+                          </button>
+                        ) : (
+                          <span>{col.label}</span>
+                        )}
+                        
+                        {col.id === 'select' && (
+                          <button onClick={toggleSelectAll} className="text-text-muted hover:text-espresso transition-colors">
+                            {allPageSelected ? <CheckSquare size={16} className="text-espresso" /> : <Square size={16} />}
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Resize Handle */}
+                      {col.id !== 'actions' && (
+                        <div
+                          onMouseDown={(e) => handleMouseDown(col.id, e)}
+                          className="absolute top-0 right-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-400/80 active:bg-gold-500 transition-colors z-20"
+                          style={{ touchAction: 'none' }}
+                        />
+                      )}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-border/60">
                 {loading ? (
                   Array(6).fill(0).map((_, i) => (
-                    <tr key={i}><td colSpan={8} className="px-4 py-5"><div className="h-10 bg-cream animate-pulse rounded-xl" /></td></tr>
+                    <tr key={i}>
+                      <td colSpan={8} className="px-4 py-5">
+                        <div className="h-10 bg-cream animate-pulse rounded-xl" />
+                      </td>
+                    </tr>
                   ))
                 ) : paginated.length === 0 ? (
                   <tr>
@@ -534,50 +604,84 @@ export default function AdminInventory() {
                       {searchTerm || categoryFilter !== 'All' ? 'No products match your filters.' : 'No products yet. Click "Add Product" to get started.'}
                     </td>
                   </tr>
-                ) : paginated.map(product => (
-                  <tr
-                    key={product.id}
-                    className={cn(
-                      'group/row hover:bg-cream/30 transition-all duration-300',
-                      selected.has(product.id) && 'bg-gold-50/50'
-                    )}
-                  >
-                    {/* Checkbox */}
-                    <td className="pl-5 pr-2 py-3.5">
-                      <button onClick={() => toggleSelect(product.id)} className="text-text-muted hover:text-espresso transition-colors">
-                        {selected.has(product.id) ? <CheckSquare size={16} className="text-gold-500" /> : <Square size={16} />}
-                      </button>
-                    </td>
+                ) : (
+                  paginated.map(product => (
+                    <tr
+                      key={product.id}
+                      className={cn(
+                        'group/row hover:bg-cream/30 transition-all duration-300',
+                        selected.has(product.id) && 'bg-gold-50/50'
+                      )}
+                    >
+                      {/* Checkbox */}
+                      <td className="px-4 py-3.5 border-r border-border/20" style={{ width: colWidths.select }}>
+                        <button onClick={() => toggleSelect(product.id)} className="text-text-muted hover:text-espresso transition-colors">
+                          {selected.has(product.id) ? <CheckSquare size={16} className="text-gold-500" /> : <Square size={16} />}
+                        </button>
+                      </td>
 
-                    {/* Product */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="relative flex-shrink-0">
-                          <div className="absolute inset-0 bg-gold-500/15 blur-md rounded-xl opacity-0 group-hover/row:opacity-100 transition-opacity duration-500" />
-                          <ImageWithFallback
-                            src={product.images?.[0]}
-                            alt={product.name}
-                            className="w-12 h-12 rounded-xl object-cover bg-cream relative z-10 group-hover/row:scale-105 transition-transform duration-300"
-                          />
+                      {/* Product */}
+                      <td className="px-4 py-3.5 border-r border-border/20 min-w-0" style={{ width: colWidths.name }}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative flex-shrink-0">
+                            <div className="absolute inset-0 bg-gold-500/15 blur-md rounded-xl opacity-0 group-hover/row:opacity-100 transition-opacity duration-500" />
+                            <ImageWithFallback
+                              src={product.images?.[0]}
+                              alt={product.name}
+                              className="w-10 h-10 rounded-lg object-cover bg-cream relative z-10 group-hover/row:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-black text-espresso text-sm truncate" title={product.name}>{product.name}</p>
+                            <p className="text-[10px] text-text-muted font-mono truncate mt-0.5">{product.sku || '—'}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-espresso text-sm truncate max-w-[200px]">{product.name}</p>
-                          <p className="text-[10px] text-text-muted font-mono mt-0.5">{product.sku || '—'}</p>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Category */}
-                    <td className="px-4 py-3.5">
-                      <span className="px-2.5 py-1 bg-cream text-text-muted rounded-lg text-[10px] font-black uppercase tracking-widest border border-border">
-                        {product.category}
-                      </span>
-                    </td>
+                      {/* Category */}
+                      <td className="px-4 py-3.5 border-r border-border/20 truncate" style={{ width: colWidths.category }}>
+                        <span className="px-2 py-0.5 bg-cream text-text-muted rounded text-[10px] font-black uppercase tracking-wider border border-border">
+                          {product.category}
+                        </span>
+                      </td>
 
-                    {/* Stock — inline editable */}
-                    <td className="px-4 py-3.5">
-                      {inlineEdit?.id === product.id && inlineEdit.field === 'stock' ? (
-                        <div className="flex items-center gap-1">
+                      {/* Stock */}
+                      <td className="px-4 py-3.5 border-r border-border/20" style={{ width: colWidths.stock }}>
+                        {inlineEdit?.id === product.id && inlineEdit.field === 'stock' ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={inlineEdit.value}
+                              autoFocus
+                              onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })}
+                              onBlur={commitInlineEdit}
+                              onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }}
+                              className="w-full px-2 py-0.5 border border-espresso/30 rounded text-xs font-bold text-espresso focus:outline-none focus:border-gold-400"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setInlineEdit({ id: product.id, field: 'stock', value: String(product.stock) })}
+                            className={cn(
+                              'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-black uppercase tracking-wider border transition-all',
+                              product.stock === 0
+                                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                : product.stock < 10
+                                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            )}
+                            title="Click to edit stock"
+                          >
+                            <span>{product.stock} Units</span>
+                            {product.stock <= 10 && <AlertTriangle size={10} />}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Price */}
+                      <td className="px-4 py-3.5 border-r border-border/20" style={{ width: colWidths.price }}>
+                        {inlineEdit?.id === product.id && inlineEdit.field === 'price' ? (
                           <input
                             type="number"
                             min="0"
@@ -586,91 +690,62 @@ export default function AdminInventory() {
                             onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })}
                             onBlur={commitInlineEdit}
                             onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }}
-                            className="w-20 px-2 py-1 border border-espresso/30 rounded-lg text-sm font-bold text-espresso focus:outline-none focus:border-gold-400"
+                            className="w-full px-2 py-0.5 border border-espresso/30 rounded text-xs font-bold text-espresso focus:outline-none focus:border-gold-400"
                           />
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setInlineEdit({ id: product.id, field: 'stock', value: String(product.stock) })}
-                          className={cn(
-                            'flex items-center gap-1.5 text-sm font-bold hover:underline transition-colors',
-                            product.stock === 0 ? 'text-red-600' : product.stock < 10 ? 'text-amber-600' : 'text-espresso'
-                          )}
-                          title="Click to edit stock"
-                        >
-                          {product.stock}
-                          {product.stock === 0 && <AlertTriangle size={12} />}
-                          {product.stock > 0 && product.stock < 10 && <AlertTriangle size={12} />}
-                        </button>
-                      )}
-                    </td>
-
-                    {/* Price — inline editable */}
-                    <td className="px-4 py-3.5">
-                      {inlineEdit?.id === product.id && inlineEdit.field === 'price' ? (
-                        <input
-                          type="number"
-                          min="0"
-                          value={inlineEdit.value}
-                          autoFocus
-                          onChange={e => setInlineEdit({ ...inlineEdit, value: e.target.value })}
-                          onBlur={commitInlineEdit}
-                          onKeyDown={e => { if (e.key === 'Enter') commitInlineEdit(); if (e.key === 'Escape') setInlineEdit(null); }}
-                          className="w-28 px-2 py-1 border border-espresso/30 rounded-lg text-sm font-bold text-espresso focus:outline-none focus:border-gold-400"
-                        />
-                      ) : (
-                        <button
-                          onClick={() => setInlineEdit({ id: product.id, field: 'price', value: String(product.price) })}
-                          className="text-sm font-bold text-espresso hover:underline transition-colors"
-                          title="Click to edit price"
-                        >
-                          {(product.price || 0).toLocaleString()} LBP
-                        </button>
-                      )}
-                    </td>
-
-                    {/* Plan */}
-                    <td className="px-4 py-3.5 text-xs font-semibold text-text-muted">
-                      {plans.find(pl => pl.id === product.planId)?.name || <span className="text-text-muted/50 italic">—</span>}
-                    </td>
-
-                    {/* Status / Featured toggle */}
-                    <td className="px-4 py-3.5">
-                      <button
-                        onClick={() => toggleFeatured(product.id, product.isFeatured)}
-                        className={cn(
-                          'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all',
-                          product.isFeatured
-                            ? 'bg-gold-500 text-white border-gold-400'
-                            : 'bg-cream text-text-muted border-border hover:border-gold-300'
+                        ) : (
+                          <button
+                            onClick={() => setInlineEdit({ id: product.id, field: 'price', value: String(product.price) })}
+                            className="text-xs font-black text-espresso hover:underline tracking-wider"
+                            title="Click to edit price"
+                          >
+                            {formatPrice(product.price)}
+                          </button>
                         )}
-                      >
-                        {product.isFeatured ? <Star size={10} className="fill-white" /> : <StarOff size={10} />}
-                        {product.isFeatured ? 'Featured' : 'Standard'}
-                      </button>
-                    </td>
+                      </td>
 
-                    {/* Actions */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                      {/* Plan */}
+                      <td className="px-4 py-3.5 border-r border-border/20 truncate text-xs font-bold text-text-muted" style={{ width: colWidths.plan }}>
+                        {plans.find(pl => pl.id === product.planId)?.name || <span className="text-text-muted/30 italic font-normal">No Plan</span>}
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3.5 border-r border-border/20" style={{ width: colWidths.status }}>
                         <button
-                          aria-label="Edit product"
-                          onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                          className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-gold-500 hover:bg-cream rounded-lg transition-all border border-transparent hover:border-border"
+                          onClick={() => toggleFeatured(product.id, product.isFeatured)}
+                          className={cn(
+                            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all',
+                            product.isFeatured
+                              ? 'bg-gold-500 text-white border-gold-400'
+                              : 'bg-cream text-text-muted border-border hover:border-gold-300'
+                          )}
                         >
-                          <Edit2 size={14} />
+                          {product.isFeatured ? <Star size={10} className="fill-white" /> : <StarOff size={10} />}
+                          {product.isFeatured ? 'Featured' : 'Standard'}
                         </button>
-                        <button
-                          aria-label="Delete product"
-                          onClick={() => setConfirmDeleteId(product.id)}
-                          className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3.5" style={{ width: colWidths.actions }}>
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                          <button
+                            aria-label="Edit product"
+                            onClick={() => { setEditingProduct(product); setShowModal(true); }}
+                            className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-gold-500 hover:bg-cream rounded-lg transition-all border border-transparent hover:border-border"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            aria-label="Delete product"
+                            onClick={() => setConfirmDeleteId(product.id)}
+                            className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

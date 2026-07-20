@@ -221,7 +221,7 @@ export default function ProductDetail() {
             </div>
 
             <div className="flex flex-wrap md:flex-nowrap gap-4 md:gap-8 px-4 md:px-8">
-              {product.images.map((img, i) => (
+              {(product.images || []).map((img, i) => (
                 <button 
                   key={i} 
                   onClick={() => {
@@ -249,7 +249,7 @@ export default function ProductDetail() {
                   <span className="text-caption text-caramel-gold uppercase">{product.category} COLLECTION</span>
                   <div className="flex items-center gap-3 px-4 md:px-6 py-2 md:py-2.5 bg-white shadow-premium rounded-full">
                      <Star size={14} className="fill-caramel-gold text-caramel-gold" />
-                     <span className="text-sm font-black text-espresso tracking-tighter italic">{product.rating.toFixed(1)}</span>
+                     <span className="text-sm font-black text-espresso tracking-tighter italic">{(product.rating || 0).toFixed(1)}</span>
                   </div>
                </div>
                
@@ -261,9 +261,9 @@ export default function ProductDetail() {
                   <div className="flex items-center gap-4 mb-2">
                      <span className={cn(
                        "px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full italic",
-                       product.stock > 10 ? "bg-emerald-500/10 text-emerald-600" : product.stock > 0 ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"
+                       (product.stock ?? 0) > 10 ? "bg-emerald-500/10 text-emerald-600" : (product.stock ?? 0) > 0 ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"
                      )}>
-                       {product.stock > 10 ? 'In Stock' : product.stock > 0 ? `Low Stock (${product.stock} left)` : 'Out of Stock'}
+                        {(product.stock ?? 0) > 10 ? 'In Stock' : (product.stock ?? 0) > 0 ? `Low Stock (${product.stock} left)` : 'Out of Stock'}
                      </span>
                   </div>
                   <div className="flex flex-col md:flex-row items-start md:items-end gap-2 md:gap-4 text-espresso">
@@ -342,10 +342,12 @@ export default function ProductDetail() {
                     setQuantity(1);
                     toast.success("Added to cart.");
                   }}
-                  className="btn btn-primary flex-grow w-full md:w-auto py-4 md:py-5 text-sm uppercase tracking-wide"
+                  disabled={(product.stock ?? 0) === 0}
+                  className="btn btn-primary flex-grow w-full md:w-auto py-4 md:py-5 text-sm uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShoppingCart size={18} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform duration-700" /> 
-                  Add {quantity} to Cart
+                  {(product.stock ?? 0) === 0 ? 'Sold Out' : (
+                    <><ShoppingCart size={18} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform duration-700" /> Add {quantity} to Cart</>
+                  )}
                 </button>
               </div>
 
@@ -395,11 +397,11 @@ export default function ProductDetail() {
             </div>
             <div className="relative z-10 flex items-center gap-12 lg:gap-32 w-full lg:w-auto justify-center">
                <div className="text-center">
-                   <span className="block text-4xl sm:text-5xl font-display font-bold text-caramel-gold tracking-tight">{product.rating}</span>
+                    <span className="block text-4xl sm:text-5xl font-display font-bold text-caramel-gold tracking-tight">{product.rating || '-'}</span>
                    <span className="text-[10px] font-medium text-text-muted uppercase tracking-wide leading-none block mt-2">Rating</span>
                 </div>
                 <div className="text-center">
-                   <span className="block text-4xl sm:text-5xl font-display font-bold text-white tracking-tight">{product.reviewCount}</span>
+                    <span className="block text-4xl sm:text-5xl font-display font-bold text-white tracking-tight">{product.reviewCount || 0}</span>
                    <span className="text-[10px] font-medium text-text-muted uppercase tracking-wide leading-none block mt-2">Logs</span>
                </div>
             </div>
@@ -542,9 +544,10 @@ export default function ProductDetail() {
                 setQuantity(1);
                 toast.success("Added to cart.");
               }}
-              className="btn btn-primary px-6 py-3 text-xs whitespace-nowrap"
+              disabled={(product.stock ?? 0) === 0}
+              className="btn btn-primary px-6 py-3 text-xs whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ShoppingCart size={16} /> Add
+              {(product.stock ?? 0) === 0 ? 'Sold Out' : <><ShoppingCart size={16} /> Add</>}
             </button>
           </div>
         </div>

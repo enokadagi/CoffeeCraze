@@ -525,11 +525,20 @@ export default function Employees() {
                     className="w-full px-4 py-3 border border-border rounded-xl text-sm outline-none focus:border-caramel bg-white font-semibold text-espresso"
                   >
                     <option value={UserRole.ADMIN}>Admin</option>
+                    <option value={UserRole.OWNER}>Owner</option>
+                    <option value={UserRole.MANAGER}>Manager</option>
+                    <option value={UserRole.ACCOUNTING}>Accounting</option>
                     <option value={UserRole.PRODUCT_MANAGER}>Product Manager</option>
                     <option value={UserRole.WHOLESALE_MANAGER}>Wholesale Manager</option>
                     <option value={UserRole.CUSTOMER_SERVICE}>Customer Service</option>
-                    <option value={UserRole.ANALYST}>Analyst</option>
+                    <option value={UserRole.INVENTORY}>Inventory</option>
+                    <option value={UserRole.WAREHOUSE}>Warehouse</option>
+                    <option value={UserRole.BARISTA}>Barista</option>
+                    <option value={UserRole.MARKETING}>Marketing</option>
+                    <option value={UserRole.SUPPLIER_MANAGER}>Supplier Manager</option>
                     <option value={UserRole.DRIVER}>Driver / Dispatch</option>
+                    <option value={UserRole.SUPPORT}>Support</option>
+                    <option value={UserRole.ANALYST}>Analyst</option>
                   </select>
                 </div>
 
@@ -617,11 +626,20 @@ export default function Employees() {
                     className="w-full px-4 py-3 border border-border rounded-xl text-sm outline-none focus:border-caramel bg-white font-semibold text-espresso"
                   >
                     <option value={UserRole.ADMIN}>Admin</option>
+                    <option value={UserRole.OWNER}>Owner</option>
+                    <option value={UserRole.MANAGER}>Manager</option>
+                    <option value={UserRole.ACCOUNTING}>Accounting</option>
                     <option value={UserRole.PRODUCT_MANAGER}>Product Manager</option>
                     <option value={UserRole.WHOLESALE_MANAGER}>Wholesale Manager</option>
                     <option value={UserRole.CUSTOMER_SERVICE}>Customer Service</option>
-                    <option value={UserRole.ANALYST}>Analyst</option>
+                    <option value={UserRole.INVENTORY}>Inventory</option>
+                    <option value={UserRole.WAREHOUSE}>Warehouse</option>
+                    <option value={UserRole.BARISTA}>Barista</option>
+                    <option value={UserRole.MARKETING}>Marketing</option>
+                    <option value={UserRole.SUPPLIER_MANAGER}>Supplier Manager</option>
                     <option value={UserRole.DRIVER}>Driver</option>
+                    <option value={UserRole.SUPPORT}>Support</option>
+                    <option value={UserRole.ANALYST}>Analyst</option>
                   </select>
                 </div>
 

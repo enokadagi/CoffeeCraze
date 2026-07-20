@@ -69,6 +69,12 @@ async function startServer() {
     if (!rateLimit(ip, 30, 60000)) {
       return res.status(429).json({ error: 'Too many requests. Please slow down.' });
     }
+    // Security hardening: reject large payloads
+    const contentLength = req.headers['content-length'];
+    if (contentLength && parseInt(contentLength, 10) > 1024 * 100) { // 100 KB limit
+      return res.status(413).json({ error: 'Payload too large.' });
+    }
+
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
@@ -93,8 +99,12 @@ async function startServer() {
       // Build personalized instructions using context
       let systemInstruction = `You are the CoffeeCraze master barista and digital concierge — a sophisticated, warm, and deeply knowledgeable AI assistant for CoffeeCraze, a premium coffee roastery based in Beirut, Lebanon.
 Always be warm, helpful, and concise (under 300 words). Use Markdown for formatting.
-If the customer has items in their cart, gently remind them to complete checkout if relevant.
-If they ask about subscription plans, suggest Daily Essentials (our daily delivery plan), Starter, or Premium plans.`;
+If the customer has items in their cart, gently remind them to complete checkout if relevant (cart recovery).
+If they ask about subscription plans, suggest Daily Essentials (our daily delivery plan), Starter, or Premium plans.
+Make context-aware product suggestions:
+- Cross-sell related items: if they have coffee beans, suggest brewing accessories or syrups.
+- If they frequently order single bags of beans, recommend monthly/weekly bean subscriptions or bean bundles for better rates.
+- Suggest specific products matching their taste preferences based on their query or cart contents.`;
 
       if (context) {
         const parts: string[] = [];

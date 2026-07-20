@@ -87,11 +87,15 @@ export const GeminiService = {
       if (context) payload.context = context;
       const data = await postAi<ChatResponse>(payload);
       if (data.text) return data.text;
+      const errMsg = data.error || 'Gemini returned an empty response';
       console.warn('[AiBarista] Gemini returned error:', data.error, data.details);
-      return getFallbackRecommendation(message);
-    } catch (error) {
+      toast.error(`AI Barista error: ${errMsg}`);
+      return `I'm having trouble retrieving details right now (${errMsg}). Here is a recommendation instead:\n\n${getFallbackRecommendation(message)}`;
+    } catch (error: any) {
       console.error('[AiBarista] Request failed:', error);
-      return getFallbackRecommendation(message);
+      const messageText = error instanceof Error ? error.message : 'Unknown communication failure';
+      toast.error(`Service unreachable: ${messageText}`);
+      return `I couldn't contact the roastery AI at this moment. Here is a recommendation instead:\n\n${getFallbackRecommendation(message)}`;
     }
   },
 

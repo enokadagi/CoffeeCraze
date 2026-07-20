@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/firestore';
@@ -97,11 +99,22 @@ export default function Checkout() {
     if (!profile) return;
 
     const [firstName = '', ...lastNameParts] = profile.displayName?.split(' ') || [];
+    
+    // Find default saved address or fallback to first saved address
+    const defaultAddress = profile.addresses?.find(a => a.isDefault || a.id === profile.defaultAddressId) || profile.addresses?.[0];
+
     setFormData((prev) => ({
       ...prev,
-      firstName,
-      lastName: lastNameParts.join(' '),
-      phone: profile.phone || prev.phone,
+      firstName: prev.firstName || firstName,
+      lastName: prev.lastName || lastNameParts.join(' '),
+      phone: prev.phone || profile.phone || '',
+      street: prev.street || defaultAddress?.street || defaultAddress?.address || '',
+      building: prev.building || defaultAddress?.building || '',
+      floor: prev.floor || defaultAddress?.floor || '',
+      city: prev.city || defaultAddress?.city || 'Beirut',
+      gateCode: prev.gateCode || defaultAddress?.gateCode || '',
+      customNotes: prev.customNotes || defaultAddress?.instructions || '',
+      gpsCoordinates: prev.gpsCoordinates || defaultAddress?.gpsCoordinates || null,
     }));
   }, [profile]);
 
@@ -219,6 +232,25 @@ export default function Checkout() {
     setLoading(true);
     try {
       const orderId = await OrderService.create(orderPayload);
+
+      // Save shippingAddress to user profile if not already present
+      const userRef = doc(db, 'users', user.uid);
+      const existingAddresses = profile?.addresses || [];
+      const isAlreadySaved = existingAddresses.some(
+        (a) => a.street === shippingAddress.street && a.city === shippingAddress.city && a.building === shippingAddress.building
+      );
+
+      if (!isAlreadySaved) {
+        const addressToSave = {
+          ...shippingAddress,
+          id: `addr-${Date.now()}`,
+          isDefault: existingAddresses.length === 0, // set default if it's their first address
+        };
+        await updateDoc(userRef, {
+          addresses: [...existingAddresses, addressToSave],
+          address: profile?.address || `${shippingAddress.street}, ${shippingAddress.city}`,
+        });
+      }
 
       toast.success('Order placed successfully!');
       clearCart();

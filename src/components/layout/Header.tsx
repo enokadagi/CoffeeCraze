@@ -75,7 +75,7 @@ export default function Header() {
   const navLinks = [
     { name: 'Collections', path: '/shop' },
     { name: 'Subscriptions', path: '/subscriptions' },
-    { name: 'Journal', path: '/about' },
+    { name: 'About', path: '/about' },
     { name: 'Blog', path: '/blog' },
     { name: 'FAQ', path: '/faq' },
   ];

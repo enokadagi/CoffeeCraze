@@ -82,7 +82,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (profile && requiredPermission) {
-    const isSuperOrAdmin = profile.role === UserRole.SUPER_ADMIN || profile.role === UserRole.ADMIN;
+    const isSuperOrAdmin = profile.role === UserRole.OWNER || profile.role === UserRole.SUPER_ADMIN || profile.role === UserRole.ADMIN;
     const hasPerm = isSuperOrAdmin || (profile.permissions && profile.permissions.includes(requiredPermission));
     if (!hasPerm) {
       return (

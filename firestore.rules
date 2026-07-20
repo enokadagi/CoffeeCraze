@@ -15,16 +15,18 @@ service cloud.firestore {
         : null;
     }
 
-    // Strict admin: only super_admin and admin roles
+    // Strict admin: only owner, super_admin and admin roles
     function isAdmin() {
-      return isSignedIn() && getUserRole() in ['super_admin', 'admin'];
+      return isSignedIn() && getUserRole() in ['owner', 'super_admin', 'admin'];
     }
 
     // Any back-office staff role (all non-customer, non-wholesale)
     function isStaff() {
       return isSignedIn() && getUserRole() in [
-        'super_admin', 'admin', 'product_manager',
-        'wholesale_manager', 'customer_service', 'analyst'
+        'owner', 'super_admin', 'admin', 'manager', 'accounting',
+        'customer_service', 'inventory', 'warehouse', 'barista',
+        'marketing', 'supplier_manager', 'support', 'analyst',
+        'product_manager', 'wholesale_manager'
       ];
     }
 
@@ -49,8 +51,10 @@ service cloud.firestore {
         && data.email is string && data.email.size() <= 256
         && data.displayName is string && data.displayName.size() <= 100
         && data.role in [
-          'super_admin', 'admin', 'product_manager',
-          'wholesale_manager', 'customer_service', 'analyst',
+          'owner', 'super_admin', 'admin', 'manager', 'accounting',
+          'customer_service', 'inventory', 'warehouse', 'barista',
+          'marketing', 'supplier_manager', 'support', 'analyst',
+          'product_manager', 'wholesale_manager',
           'wholesale', 'customer', 'driver'
         ];
     }
@@ -81,25 +85,6 @@ service cloud.firestore {
       return data.question is string && data.question.size() > 0
         && data.answer is string && data.answer.size() > 0
         && data.order is number;
-    }
-
-    function isBlogEngagementUpdate() {
-      return incoming().diff(existing()).affectedKeys()
-        .hasOnly(['likes', 'dislikes', 'likedBy', 'dislikedBy', 'comments']);
-    }
-
-    function isOwnerSubscriptionUpdate() {
-      return isOwner(existing().userId)
-        && incoming().userId == existing().userId;
-    }
-
-    function isOwnerProfileUpdate() {
-      return incoming().diff(existing()).affectedKeys().hasOnly([
-        'displayName', 'onboarded',
-        'phone', 'address', 'addresses', 'defaultAddressId',
-        'profileImage', 'preferences',
-        'notificationPreferences'
-      ]);
     }
 
     // --- Users ---
@@ -265,6 +250,17 @@ service cloud.firestore {
       allow create: if isStaff();
       allow update: if isStaff();
       allow delete: if isAdmin();
+    }
+
+    // --- Coupons ---
+    match /coupons/{couponId} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+
+    // --- Employee Invites ---
+    match /employee_invites/{email} {
+      allow read, write: if isStaff();
     }
   }
 }

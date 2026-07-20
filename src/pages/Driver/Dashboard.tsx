@@ -253,6 +253,33 @@ export default function DriverDashboard() {
                         <Navigation size={14} /> Route
                       </button>
                     </div>
+
+                    {/* Order Items Details Section */}
+                    {order.items && order.items.length > 0 && (
+                      <details className="group/details border border-border rounded-xl bg-cream/20">
+                        <summary className="flex items-center justify-between p-3 text-xs font-bold text-espresso cursor-pointer hover:bg-cream/40 transition-colors list-none">
+                          <span className="flex items-center gap-1.5">
+                            <Package size={14} className="text-caramel" />
+                            Package Contents ({order.items.reduce((acc, item) => acc + item.quantity, 0)})
+                          </span>
+                          <span className="text-[10px] text-caramel uppercase group-open/details:hidden">Show</span>
+                          <span className="text-[10px] text-text-muted uppercase hidden group-open/details:inline">Hide</span>
+                        </summary>
+                        <div className="p-3 border-t border-border space-y-2 max-h-48 overflow-y-auto">
+                          {order.items.map((item, index) => (
+                            <div key={index} className="flex items-center justify-between text-xs gap-3">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-bold text-espresso block truncate">{item.name}</span>
+                                {item.sku && <span className="text-[9px] text-text-muted font-mono">{item.sku}</span>}
+                              </div>
+                              <span className="px-2 py-0.5 bg-espresso text-white rounded font-mono text-[10px] font-black">
+                                x{item.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </div>
 
                   {/* Action button */}

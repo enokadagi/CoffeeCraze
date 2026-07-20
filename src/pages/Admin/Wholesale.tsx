@@ -45,7 +45,7 @@ export default function AdminWholesale() {
   };
 
   const filteredAccounts = accounts.filter(a => 
-    a.businessName.toLowerCase().includes(searchTerm.toLowerCase())
+    (a.businessName || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

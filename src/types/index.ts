@@ -1,33 +1,63 @@
 // ============= ENUMS =============
 export enum UserRole {
+  OWNER = 'owner',
   SUPER_ADMIN = 'super_admin',
   ADMIN = 'admin',
+  MANAGER = 'manager',
+  ACCOUNTING = 'accounting',
+  CUSTOMER_SERVICE = 'customer_service',
+  INVENTORY = 'inventory',
+  WAREHOUSE = 'warehouse',
+  BARISTA = 'barista',
+  MARKETING = 'marketing',
+  SUPPLIER_MANAGER = 'supplier_manager',
+  DRIVER = 'driver',
+  SUPPORT = 'support',
+  ANALYST = 'analyst',
   PRODUCT_MANAGER = 'product_manager',
   WHOLESALE_MANAGER = 'wholesale_manager',
-  CUSTOMER_SERVICE = 'customer_service',
-  ANALYST = 'analyst',
   WHOLESALE = 'wholesale',
   CUSTOMER = 'customer',
 }
 
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
+  [UserRole.OWNER]: 110,
   [UserRole.SUPER_ADMIN]: 100,
   [UserRole.ADMIN]: 80,
+  [UserRole.MANAGER]: 70,
+  [UserRole.ACCOUNTING]: 60,
   [UserRole.PRODUCT_MANAGER]: 60,
   [UserRole.WHOLESALE_MANAGER]: 60,
+  [UserRole.SUPPLIER_MANAGER]: 60,
   [UserRole.CUSTOMER_SERVICE]: 50,
+  [UserRole.INVENTORY]: 50,
+  [UserRole.WAREHOUSE]: 40,
+  [UserRole.BARISTA]: 40,
+  [UserRole.MARKETING]: 40,
+  [UserRole.SUPPORT]: 40,
   [UserRole.ANALYST]: 40,
+  [UserRole.DRIVER]: 30,
   [UserRole.WHOLESALE]: 20,
   [UserRole.CUSTOMER]: 10,
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.OWNER]: 'Owner',
   [UserRole.SUPER_ADMIN]: 'Super Admin',
   [UserRole.ADMIN]: 'Admin',
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.ACCOUNTING]: 'Accounting',
   [UserRole.PRODUCT_MANAGER]: 'Product Manager',
   [UserRole.WHOLESALE_MANAGER]: 'Wholesale Manager',
+  [UserRole.SUPPLIER_MANAGER]: 'Supplier Manager',
   [UserRole.CUSTOMER_SERVICE]: 'Customer Service',
+  [UserRole.INVENTORY]: 'Inventory',
+  [UserRole.WAREHOUSE]: 'Warehouse',
+  [UserRole.BARISTA]: 'Barista',
+  [UserRole.MARKETING]: 'Marketing',
+  [UserRole.SUPPORT]: 'Support',
   [UserRole.ANALYST]: 'Analyst',
+  [UserRole.DRIVER]: 'Driver',
   [UserRole.WHOLESALE]: 'Wholesale',
   [UserRole.CUSTOMER]: 'Customer',
 };
@@ -54,7 +84,10 @@ export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
   PROCESSING = 'processing',
+  PREPARING = 'preparing',
+  READY = 'ready',
   SHIPPED = 'shipped',
+  OUT_FOR_DELIVERY = 'out_for_delivery',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
 }
@@ -88,6 +121,7 @@ export interface Address {
   instructions?: string;
   gateCode?: string;
   landmark?: string;
+  gpsCoordinates?: { lat: number; lng: number };
 }
 
 export interface UserProfile {
@@ -111,6 +145,8 @@ export interface UserProfile {
   preferences?: UserPreferences;
   avatar?: string;
   profileImage?: string;
+  status?: 'active' | 'disabled' | 'suspended';
+  permissions?: string[];
 }
 
 export interface UserPreferences {
@@ -213,7 +249,7 @@ export interface Plan {
   features: string[];
   image?: string;
   items: PlanItem[];
-  frequency: 'weekly' | 'biweekly' | 'monthly';
+  frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   minDeliveries: number;
   isFeatured: boolean;
   isCustomizable: boolean;
@@ -224,7 +260,7 @@ export interface Plan {
 export interface SubscriptionPlan {
   planId: string;
   items: PlanItem[];
-  frequency: 'weekly' | 'biweekly' | 'monthly';
+  frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   nextDeliveryDate: string;
   customizations?: string;
 }
@@ -246,7 +282,7 @@ export interface Subscription {
   planId: string;
   status: SubscriptionStatus;
   plan: SubscriptionPlan;
-  frequency?: 'weekly' | 'biweekly' | 'monthly';
+  frequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   items?: OrderItem[];
   address?: Address | string;
   preferredDay?: string;
@@ -300,6 +336,7 @@ export interface Delivery {
   instructions?: string;
   driverName?: string;
   driverPhone?: string;
+  driverId?: string;
   trackingUrl?: string;
   attempts: number;
   failureReason?: string;
@@ -335,6 +372,8 @@ export interface Order {
   createdAt: string;
   updatedAt?: string;
   deliveredAt?: string;
+  driverId?: string;
+  driverName?: string;
 }
 
 // ============= PAYMENTS & LEDGER =============

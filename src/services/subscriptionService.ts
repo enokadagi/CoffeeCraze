@@ -31,7 +31,7 @@ export class SubscriptionService {
     planId: string,
     items: PlanItem[],
     deliveryAddress: Address,
-    frequency: 'weekly' | 'biweekly' | 'monthly',
+    frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly',
     paymentType: 'prepaid' | 'monthly' | 'deferred',
     startDate?: string
   ): Promise<string> {
@@ -202,7 +202,7 @@ export class SubscriptionService {
    */
   static async updateFrequency(
     subscriptionId: string,
-    frequency: 'weekly' | 'biweekly' | 'monthly'
+    frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly'
   ): Promise<void> {
     const subscription = await this.getById(subscriptionId);
     if (!subscription) throw new Error('Subscription not found');
@@ -278,7 +278,7 @@ export class SubscriptionService {
    */
   private static getNextDeliveryDate(currentDate: string, frequency: string): string {
     const date = new Date(currentDate);
-    const days = frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : 30;
+    const days = frequency === 'daily' ? 1 : frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : 30;
     date.setDate(date.getDate() + days);
     return date.toISOString().split('T')[0];
   }

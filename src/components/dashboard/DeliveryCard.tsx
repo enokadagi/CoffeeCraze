@@ -150,7 +150,7 @@ export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
         )}
         {isFailed && (
           <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
-            ✓ Delivery Failed
+            ✗ Delivery Failed
           </span>
         )}
         {delivery.attempts > 0 && !isCompleted && (

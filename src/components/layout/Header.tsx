@@ -75,13 +75,14 @@ export default function Header() {
   const navLinks = [
     { name: 'Collections', path: '/shop' },
     { name: 'Subscriptions', path: '/subscriptions' },
-    { name: 'Journal', path: '/about' },
+    { name: 'About', path: '/about' },
     { name: 'Blog', path: '/blog' },
     { name: 'FAQ', path: '/faq' },
   ];
 
+  const isDriver = profile?.role === UserRole.DRIVER;
   const isStaff = profile?.role === UserRole.ADMIN || profile?.role === UserRole.SUPER_ADMIN || profile?.role === UserRole.PRODUCT_MANAGER || profile?.role === UserRole.WHOLESALE_MANAGER || profile?.role === UserRole.CUSTOMER_SERVICE || profile?.role === UserRole.ANALYST;
-  const dashboardPath = isStaff ? '/admin' : '/dashboard';
+  const dashboardPath = isDriver ? '/driver' : isStaff ? '/admin' : '/dashboard';
 
   return (
     <>

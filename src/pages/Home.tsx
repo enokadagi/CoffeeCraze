@@ -251,10 +251,10 @@ export default function Home() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {[
-              { name: 'Single Origin Beans', img: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1200', link: 'beans', tag: 'Single Origin' },
-              { name: 'Signature Capsules', img: 'https://images.unsplash.com/photo-1521302080487-3c5e29734232?w=1200', link: 'capsules', tag: 'Capsules' },
-              { name: 'Precision Brewers', img: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=1200', link: 'machines', tag: 'Brewers' },
-              { name: 'Ritual Accessories', img: 'https://images.unsplash.com/photo-1521305878185-3c8946ea66b7?w=1200', link: 'accessories', tag: 'Accessories' }
+              { name: 'Single Origin Beans', img: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1200', link: 'Coffee Beans', tag: 'Coffee Beans' },
+              { name: 'Signature Capsules', img: 'https://images.unsplash.com/photo-1521302080487-3c5e29734232?w=1200', link: 'Capsules', tag: 'Capsules' },
+              { name: 'Precision Brewers', img: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=1200', link: 'Espresso Machines', tag: 'Espresso Machines' },
+              { name: 'Ritual Accessories', img: 'https://images.unsplash.com/photo-1521305878185-3c8946ea66b7?w=1200', link: 'Accessories', tag: 'Accessories' }
             ].map((cat, i) => (
               <motion.div
                 key={cat.name}

@@ -1,24 +1,29 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { OrderService } from '../../services/firestore';
-import { Order } from '../../types';
-import { formatPrice, cn } from '../../lib/utils';
+import { Order, OrderStatus } from '../../types';
+import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
 import { ShoppingBag, Search, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Filter, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import ReferralSystem from '../../components/dashboard/ReferralSystem';
 import OrderTrackingTimeline from '../../components/dashboard/OrderTrackingTimeline';
 
 const StatusIcon = ({ status }: { status: Order['status'] }) => {
   switch (status) {
-    case 'pending': return <Clock size={16} className="text-yellow-500" />;
-    case 'confirmed': return <Package size={16} className="text-blue-500" />;
-    case 'shipped': return <Truck size={16} className="text-purple-500" />;
-    case 'delivered': return <CheckCircle size={16} className="text-green-500" />;
-    case 'cancelled': return <XCircle size={16} className="text-red-500" />;
+    case OrderStatus.PENDING: return <Clock size={16} className="text-yellow-500" />;
+    case OrderStatus.CONFIRMED: return <Package size={16} className="text-blue-500" />;
+    case OrderStatus.PROCESSING:
+    case OrderStatus.PREPARING: return <Package size={16} className="text-indigo-500" />;
+    case OrderStatus.READY: return <CheckCircle size={16} className="text-teal-500" />;
+    case OrderStatus.SHIPPED:
+    case OrderStatus.OUT_FOR_DELIVERY: return <Truck size={16} className="text-purple-500" />;
+    case OrderStatus.DELIVERED: return <CheckCircle size={16} className="text-green-500" />;
+    case OrderStatus.CANCELLED: return <XCircle size={16} className="text-red-500" />;
     default: return <Clock size={16} className="text-gray-400" />;
   }
 };
@@ -38,12 +43,17 @@ export default function MyOrders() {
   const itemsPerPage = 5;
 
   useEffect(() => {
-    if (user) {
-      OrderService.getByUserId(user.uid).then(data => {
-        setOrders(data);
-        setLoading(false);
-      });
-    }
+    if (!user) return;
+    setLoading(true);
+    const unsub = OrderService.subscribeToUserOrders(user.uid, (data) => {
+      setOrders(data);
+      setLoading(false);
+    }, (err) => {
+      console.error('Failed to fetch orders:', err);
+      toast.error('Failed to load orders');
+      setLoading(false);
+    });
+    return () => unsub();
   }, [user]);
 
   const filteredAndSortedOrders = orders
@@ -80,17 +90,6 @@ export default function MyOrders() {
     setCurrentPage(1);
   };
 
-  const getTrackingSteps = (status: Order['status']) => {
-    const steps = [
-      { label: 'Order Placed', date: 'Oct 24, 10:00 AM', status: 'completed' },
-      { label: 'Processing', date: 'Oct 24, 02:30 PM', status: status === 'pending' ? 'current' : 'completed' },
-      { label: 'Quality Extraction', date: 'Oct 25, 09:15 AM', status: status === 'confirmed' ? 'current' : (['shipped', 'delivered'].includes(status) ? 'completed' : 'pending') },
-      { label: 'In Transit', date: 'Oct 26, 11:00 AM', status: status === 'shipped' ? 'current' : (status === 'delivered' ? 'completed' : 'pending') },
-      { label: 'Delivered', date: 'Oct 27, 04:45 PM', status: status === 'delivered' ? 'current' : 'pending' },
-    ];
-    return steps;
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-8 md:space-y-16 relative">
@@ -109,7 +108,7 @@ export default function MyOrders() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-text-muted italic mb-1">Total Extraction Cycle</p>
-                <p className="text-h2 font-display font-black text-espresso italic tracking-tighter">LBP {formatPrice(orders.reduce((acc, o) => acc + o.total, 0)).split('LBP')[1]}</p>
+                <p className="text-h2 font-display font-black text-espresso italic tracking-tighter">LBP {formatLbpNumeric(orders.reduce((acc, o) => acc + o.total, 0))}</p>
               </div>
             </div>
           </div>
@@ -210,7 +209,7 @@ export default function MyOrders() {
                          {order.items.length} {order.items.length === 1 ? 'Ritual Core' : 'Sensory Primitives'}
                        </h3>
                        <p className="text-body font-serif italic">
-                         Extracted on {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                         Extracted on {safeDate(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                        </p>
                     </div>
                   </div>
@@ -219,17 +218,19 @@ export default function MyOrders() {
                     <div className="space-y-5">
                       <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.5em] text-coffee-200 italic">
                          <span className={cn(order.status !== 'cancelled' ? "text-caramel" : "")}>IDNT</span>
-                         <span className={cn(['confirmed', 'shipped', 'delivered'].includes(order.status) ? "text-caramel" : "")}>CONF</span>
-                         <span className={cn(['shipped', 'delivered'].includes(order.status) ? "text-caramel" : "")}>DSPCH</span>
+                          <span className={cn(['confirmed', 'preparing', 'ready', 'out_for_delivery', 'shipped', 'delivered'].includes(order.status) ? "text-caramel" : "")}>CONF</span>
+                          <span className={cn(['shipped', 'out_for_delivery', 'delivered'].includes(order.status) ? "text-caramel" : "")}>DSPCH</span>
                       </div>
                       <div className="h-2 w-full bg-cream rounded-full overflow-hidden shadow-inner ring-4 ring-cream/30">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ 
-                            width: order.status === 'pending' ? '25%' : 
-                                   order.status === 'confirmed' ? '50%' : 
-                                   order.status === 'shipped' ? '75%' : 
-                                   order.status === 'cancelled' ? '0%' : '100%' 
+                            width: order.status === 'cancelled' ? '0%' : 
+                                   order.status === 'pending' ? '16%' : 
+                                   order.status === 'confirmed' ? '32%' : 
+                                   (order.status === 'processing' || order.status === 'preparing') ? '50%' :
+                                   order.status === 'ready' ? '66%' :
+                                   (order.status === 'shipped' || order.status === 'out_for_delivery') ? '84%' : '100%' 
                           }}
                           transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
                           className={cn(
@@ -255,8 +256,8 @@ export default function MyOrders() {
                       <div className={cn(
                         "px-6 md:px-10 py-3 md:py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-4 border shadow-premium italic transition-all duration-700",
                         order.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                        order.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        order.status === 'confirmed' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                        order.status === 'shipped' || order.status === 'out_for_delivery' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        order.status === 'confirmed' || order.status === 'processing' || order.status === 'preparing' || order.status === 'ready' ? "bg-blue-50 text-blue-600 border-blue-100" :
                         order.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
                         "bg-caramel/10 text-caramel border-caramel/20"
                       )}>
@@ -340,7 +341,7 @@ export default function MyOrders() {
                         <div className="space-y-6 md:space-y-10">
                           <div className="flex items-center justify-between border-b border-cream pb-6">
                             <h4 className="text-[12px] font-black uppercase tracking-[0.5em] text-espresso italic">Primitive Components</h4>
-                            {order.trackingId && (order.status === 'shipped' || order.status === 'delivered') && (
+                            {order.trackingId && (order.status === 'shipped' || order.status === 'out_for_delivery' || order.status === 'delivered') && (
                             <a 
                               href={`https://www.aramex.com/express/track-results?trackNumbers=${order.trackingId}`}
                               target="_blank"
@@ -360,7 +361,7 @@ export default function MyOrders() {
                             >
                               <div className="flex items-center gap-4 md:gap-10">
                                 <div className="relative overflow-hidden w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] shrink-0 border border-cream shadow-inner">
-                                  <ImageWithFallback src={item.images[0]} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
+                                  <ImageWithFallback src={item.images?.[0] || item.image || ''} alt={item.name} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-1000 grayscale group-hover/item:grayscale-0" referrerPolicy="no-referrer" />
                                   <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[1.5rem]" />
                                 </div>
                                 <div className="space-y-2">
@@ -466,7 +467,8 @@ export default function MyOrders() {
                       <div className={cn(
                         "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
                         selectedOrder.status === 'delivered' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                        selectedOrder.status === 'shipped' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        selectedOrder.status === 'shipped' || selectedOrder.status === 'out_for_delivery' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' || selectedOrder.status === 'preparing' || selectedOrder.status === 'ready' ? "bg-blue-50 text-blue-600 border-blue-100" :
                         selectedOrder.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
                         "bg-cream text-text-secondary border-border"
                       )}>
@@ -474,9 +476,10 @@ export default function MyOrders() {
                       </div>
                     </div>
                     <div className="flex gap-2 h-1.5 w-full">
-                      {['pending', 'confirmed', 'shipped', 'delivered'].map((s, i) => {
-                        const statusOrder = ['pending', 'confirmed', 'shipped', 'delivered'];
-                        const currentIndex = statusOrder.indexOf(selectedOrder.status);
+                      {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((s, i) => {
+                        const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+                        const statusToIndex: Record<string, number> = { pending: 0, confirmed: 1, processing: 2, preparing: 2, ready: 3, shipped: 4, out_for_delivery: 4, delivered: 5 };
+                        const currentIndex = statusToIndex[selectedOrder.status] ?? -1;
                         const isActive = currentIndex >= i && selectedOrder.status !== 'cancelled';
                         return (
                           <div 
@@ -516,8 +519,8 @@ export default function MyOrders() {
                   <div className={cn(
                     "p-6 md:p-10 rounded-[3rem] border transition-all duration-700 group",
                     selectedOrder.status === 'delivered' ? "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-600 hover:text-white" :
-                    selectedOrder.status === 'shipped' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
-                    selectedOrder.status === 'confirmed' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
+                    selectedOrder.status === 'shipped' || selectedOrder.status === 'out_for_delivery' ? "bg-amber-50/50 border-amber-100 hover:bg-amber-600 hover:text-white" :
+                    selectedOrder.status === 'confirmed' || selectedOrder.status === 'processing' || selectedOrder.status === 'preparing' || selectedOrder.status === 'ready' ? "bg-blue-50/50 border-blue-100 hover:bg-blue-600 hover:text-white" :
                     selectedOrder.status === 'cancelled' ? "bg-red-50/50 border-red-100 hover:bg-red-600 hover:text-white" :
                     "bg-cream rounded-[3rem] border-border-light hover:bg-coffee-950 hover:text-white"
                   )}>

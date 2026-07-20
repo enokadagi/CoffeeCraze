@@ -671,6 +671,29 @@ const SEED_PLANS = [
     isRecommended: false,
     isCustomizable: true,
     createdAt: new Date().toISOString()
+  },
+  {
+    id: 'daily-essentials',
+    name: 'Daily',
+    displayName: 'Daily Essentials',
+    description: 'Fresh coffee delivered to your door every single day. Perfect for the dedicated coffee devotee who never compromises.',
+    price: 350000,
+    priceUsd: 3.91,
+    priceLbp: 350000,
+    features: [
+      '1 × 200g Bag per day',
+      'Fresh-roasted daily dispatch',
+      'Daily delivery — 7 days a week',
+      'Priority morning slot guarantee',
+      'Free brewing consultation'
+    ],
+    productIds: ['ethiopian-yirgacheffe'],
+    frequency: 'daily',
+    minDeliveries: 7,
+    isFeatured: true,
+    isRecommended: false,
+    isCustomizable: false,
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -1001,6 +1024,23 @@ export const dbSeeder = {
       } else {
         console.log(`[Seeder] Blog posts already exist (${blogSnap.size} found), skipping.`);
       }
+
+      // 5. Seed Coupons
+      const couponsSnap = await getDocs(collection(db, 'coupons'));
+      if (couponsSnap.empty) {
+        console.log('[Seeder] Seeding coupons...');
+        const coupons = [
+          { code: 'RITUAL15', discountPercent: 15, isActive: true, description: '15% off your morning ritual' },
+          { code: 'WELCOME10', discountPercent: 10, isActive: true, description: '10% welcome discount' },
+          { code: 'CRAZE20', discountPercent: 20, isActive: true, description: '20% off special offer' }
+        ];
+        for (const c of coupons) {
+          await setDoc(doc(db, 'coupons', c.code), c);
+        }
+        console.log('[Seeder] Coupons seeded successfully.');
+      } else {
+        console.log(`[Seeder] Coupons already exist (${couponsSnap.size} found), skipping.`);
+      }
     } catch (error) {
       console.error('[Seeder] Seeding error:', error);
       throw error;
@@ -1026,6 +1066,14 @@ export const dbSeeder = {
       }
       for (const post of SEED_BLOG) {
         await setDoc(doc(db, 'blog_posts', post.id), post);
+      }
+      const coupons = [
+        { code: 'RITUAL15', discountPercent: 15, isActive: true, description: '15% off your morning ritual' },
+        { code: 'WELCOME10', discountPercent: 10, isActive: true, description: '10% welcome discount' },
+        { code: 'CRAZE20', discountPercent: 20, isActive: true, description: '20% off special offer' }
+      ];
+      for (const c of coupons) {
+        await setDoc(doc(db, 'coupons', c.code), c);
       }
       console.log('[Seeder] All collections re-seeded successfully.');
     } catch (error) {

@@ -22,12 +22,14 @@ export default function CategoryProducts() {
         toast.error('Failed to load products for this category.');
         setLoading(false);
       });
+    } else {
+      setLoading(false);
     }
   }, [category]);
 
   return (
     <div className="pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 min-h-screen relative overflow-hidden bg-cream">
-      <SEO title={category ? `${category} Coffee` : 'Category'} description={category ? `Browse our ${category} coffee collection at CoffeeCraze.` : 'Browse coffee products by category at CoffeeCraze.'} />
+      <SEO title={category || 'Category'} description={category ? `Browse our ${category} collection at CoffeeCraze.` : 'Browse coffee products by category at CoffeeCraze.'} />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">

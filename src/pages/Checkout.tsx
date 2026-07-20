@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/firestore';
-import { EXCHANGE_RATE } from '../utils/exchange';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import Seo from '../components/common/SEO';
+import LocationPicker from '../components/checkout/LocationPicker';
 import { cn } from '../lib/utils';
 import { OrderItem, OrderStatus, PaymentStatus } from '../types';
 import {
@@ -25,6 +28,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { items, total, clearCart } = useCart();
   const { user, profile, isEmailVerified } = useAuth();
+  const siteSettings = useSiteSettings();
 
   const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Scheduling, 4: Review
   const [loading, setLoading] = useState(false);
@@ -53,7 +57,14 @@ export default function Checkout() {
     // Additional
     customNotes: '',
     gateCode: '',
+
+    // Geolocation
+    gpsCoordinates: null as { lat: number; lng: number } | null,
   });
+
+  const handleGpsChange = useCallback((pos: { lat: number; lng: number }) => {
+    setFormData((prev) => ({ ...prev, gpsCoordinates: pos }));
+  }, []);
 
   useEffect(() => {
     if (!items.length) {
@@ -65,11 +76,22 @@ export default function Checkout() {
     if (!profile) return;
 
     const [firstName = '', ...lastNameParts] = profile.displayName?.split(' ') || [];
+    
+    // Find default saved address or fallback to first saved address
+    const defaultAddress = profile.addresses?.find(a => a.isDefault || a.id === profile.defaultAddressId) || profile.addresses?.[0];
+
     setFormData((prev) => ({
       ...prev,
-      firstName,
-      lastName: lastNameParts.join(' '),
-      phone: profile.phone || prev.phone,
+      firstName: prev.firstName || firstName,
+      lastName: prev.lastName || lastNameParts.join(' '),
+      phone: prev.phone || profile.phone || '',
+      street: prev.street || defaultAddress?.street || defaultAddress?.address || '',
+      building: prev.building || defaultAddress?.building || '',
+      floor: prev.floor || defaultAddress?.floor || '',
+      city: prev.city || defaultAddress?.city || 'Beirut',
+      gateCode: prev.gateCode || defaultAddress?.gateCode || '',
+      customNotes: prev.customNotes || defaultAddress?.instructions || '',
+      gpsCoordinates: prev.gpsCoordinates || defaultAddress?.gpsCoordinates || null,
     }));
   }, [profile]);
 
@@ -90,9 +112,13 @@ export default function Checkout() {
     { value: 12, label: '12 Months', discount: 15 },
   ];
 
-  // Pricing (keep existing behavior shape; formatting handled elsewhere)
+  // Pricing — read from site settings with safe fallbacks
+  const exchangeRate = siteSettings?.exchangeRate ?? 89500;
+  const deliveryFeeLbp = siteSettings?.deliveryFeeLbp ?? 25000;
+  const freeDeliveryThresholdLbp = siteSettings?.freeDeliveryThresholdLbp ?? 1500000;
+
   const subtotalLbp = total;
-  const shippingLbp = subtotalLbp > 1500000 ? 0 : 25000;
+  const shippingLbp = subtotalLbp > freeDeliveryThresholdLbp ? 0 : deliveryFeeLbp;
 
   const discountFactor = formData.paymentTiming === 'prepaid' ? 0.9 : 1.0;
   const durationDiscount =
@@ -100,7 +126,7 @@ export default function Checkout() {
 
   const discountAmountLbp = Math.floor((subtotalLbp + shippingLbp) * (durationDiscount / 100));
   const grandTotalLbp = (subtotalLbp + shippingLbp - discountAmountLbp) * discountFactor;
-  const grandTotalUsd = grandTotalLbp / EXCHANGE_RATE;
+  const grandTotalUsd = grandTotalLbp / exchangeRate;
 
   let buttonLabel = 'Continue';
   if (loading) {
@@ -142,18 +168,21 @@ export default function Checkout() {
 
     const shippingAddress = {
       id: `${user.uid}-shipping`,
+      fullName: `${formData.firstName} ${formData.lastName}`.trim(),
       street: formData.street,
       building: formData.building,
       floor: formData.floor,
       apartment: '',
       city: formData.city,
       country: 'Lebanon',
+      phone: formData.phone,
       phoneNumber: formData.phone,
       isDefault: true,
       instructions: formData.customNotes,
       gateCode: formData.gateCode,
       landmark: '',
       postalCode: '',
+      ...(formData.gpsCoordinates ? { gpsCoordinates: formData.gpsCoordinates } : {}),
     };
 
     const orderPayload = {
@@ -180,6 +209,25 @@ export default function Checkout() {
     setLoading(true);
     try {
       const orderId = await OrderService.create(orderPayload);
+
+      // Save shippingAddress to user profile if not already present
+      const userRef = doc(db, 'users', user.uid);
+      const existingAddresses = profile?.addresses || [];
+      const isAlreadySaved = existingAddresses.some(
+        (a) => a.street === shippingAddress.street && a.city === shippingAddress.city && a.building === shippingAddress.building
+      );
+
+      if (!isAlreadySaved) {
+        const addressToSave = {
+          ...shippingAddress,
+          id: `addr-${Date.now()}`,
+          isDefault: existingAddresses.length === 0, // set default if it's their first address
+        };
+        await updateDoc(userRef, {
+          addresses: [...existingAddresses, addressToSave],
+          address: profile?.address || `${shippingAddress.street}, ${shippingAddress.city}`,
+        });
+      }
 
       toast.success('Order placed successfully!');
       clearCart();
@@ -356,6 +404,21 @@ export default function Checkout() {
                     onChange={(e) => setFormData({ ...formData, gateCode: e.target.value })}
                     className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                   />
+
+                  {/* Live GPS Location with map */}
+                  <LocationPicker
+                    position={formData.gpsCoordinates}
+                    onPositionChange={handleGpsChange}
+                  />
+                  {formData.gpsCoordinates && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p) => ({ ...p, gpsCoordinates: null }))}
+                      className="text-xs text-text-muted hover:text-red-500 underline transition-colors"
+                    >
+                      Clear pinned location
+                    </button>
+                  )}
 
                   <label htmlFor="checkout-instructions" className="sr-only">
                     Delivery Instructions

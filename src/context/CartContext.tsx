@@ -116,7 +116,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       isSyncing.current = true;
       const cartRef = doc(db, 'carts', user.uid);
       setDoc(cartRef, { items, updatedAt: serverTimestamp() }, { merge: true })
-        .catch((err) => console.error('Cart sync error:', err))
+        .catch((err) => {
+          console.error('Cart sync error:', err);
+          toast.error('Failed to sync cart. Please try again.');
+        })
         .finally(() => {
           isSyncing.current = false;
         });
@@ -149,9 +152,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             : i
         );
       }
+      const variantKey = product.selectedVariant?.id ? `_${product.selectedVariant.id}` : '';
+      const baseProductId = product.productId || product.id;
       const newCartItem: CartItem = {
-        id: product.id,
-        productId: product.productId || product.id,
+        id: `${baseProductId}${variantKey}`,
+        productId: baseProductId,
         name: product.name,
         price: product.price,
         priceUsd: product.priceUsd,
@@ -171,18 +176,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     toast.success(`${product.name} added to your ritual cart!`);
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== id));
+  const removeItem = (cartItemId: string) => {
+    setItems((prev) =>
+      prev.filter((i) => i.id !== cartItemId && i.productId !== cartItemId)
+    );
     toast.info("Item removed from cart.");
   };
 
-  const updateQuantity = (id: string, qty: number) => {
+  const updateQuantity = (cartItemId: string, qty: number) => {
     if (qty <= 0) {
-      removeItem(id);
+      removeItem(cartItemId);
       return;
     }
     setItems((prev) =>
-      prev.map((i) => (i.productId === id ? { ...i, quantity: qty } : i))
+      prev.map((i) => (i.id === cartItemId || i.productId === cartItemId ? { ...i, quantity: qty } : i))
     );
   };
 

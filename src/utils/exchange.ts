@@ -1,4 +1,5 @@
-export const EXCHANGE_RATE = 89500; // 1 USD = 89,500 LBP
+import { OFFICIAL_EXCHANGE_RATE } from '@/lib/utils';
+export const EXCHANGE_RATE = OFFICIAL_EXCHANGE_RATE;
 
 export function formatUSD(amount: number): string {
   return new Intl.NumberFormat('en-US', {

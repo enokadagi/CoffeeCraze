@@ -5,15 +5,17 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db } from '../../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { Settings, Save, Upload, Image } from 'lucide-react';
+import { Settings, Save, Upload, Image, AlertTriangle, RefreshCw, Database } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { dbSeeder } from '../../utils/dbSeeder';
 
 export default function AdminSiteSettings() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     SiteSettingsService.get().then(s => {
@@ -55,6 +57,22 @@ export default function AdminSiteSettings() {
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleForceSeed = async () => {
+    if (!window.confirm(
+      'WARNING: This will overwrite all seeded collections (products, plans, blog posts, etc.) with fresh demo data.\n\nExisting user orders and accounts will NOT be deleted.\n\nProceed?'
+    )) return;
+    setSeeding(true);
+    try {
+      await dbSeeder.reseedAll();
+      toast.success('Database re-seeded successfully! Refresh the page to see updated data.');
+    } catch (err) {
+      console.error('Seed failed:', err);
+      toast.error('Seeding failed. Check the console for details.');
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -162,6 +180,92 @@ export default function AdminSiteSettings() {
               <ImageField label="PWA Icon 512x512" field="icon512Url" />
               <ImageField label="OG Image (Social Share)" field="ogImageUrl" />
             </div>
+          </div>
+        </div>
+
+        {/* Business Rules */}
+        <div className="bg-white border border-border rounded-3xl p-8 space-y-6">
+          <h2 className="text-lg font-display font-bold text-espresso flex items-center gap-3">
+            <Settings size={20} className="text-caramel" /> Business Rules
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Exchange Rate (LBP per 1 USD)</label>
+              <input type="number" min="0" value={settings.exchangeRate ?? 89500}
+                onChange={e => setSettings({ ...settings, exchangeRate: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Delivery Fee (LBP)</label>
+              <input type="number" min="0" value={settings.deliveryFeeLbp ?? 25000}
+                onChange={e => setSettings({ ...settings, deliveryFeeLbp: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Free Delivery Threshold (LBP)</label>
+              <input type="number" min="0" value={settings.freeDeliveryThresholdLbp ?? 1500000}
+                onChange={e => setSettings({ ...settings, freeDeliveryThresholdLbp: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">VAT % (0 = no tax)</label>
+              <input type="number" min="0" max="100" step="0.1" value={settings.vatPercent ?? 0}
+                onChange={e => setSettings({ ...settings, vatPercent: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Minimum Order (LBP, 0 = no minimum)</label>
+              <input type="number" min="0" value={settings.minOrderLbp ?? 0}
+                onChange={e => setSettings({ ...settings, minOrderLbp: Number(e.target.value) })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Support Email</label>
+              <input type="email" value={settings.supportEmail ?? ''}
+                onChange={e => setSettings({ ...settings, supportEmail: e.target.value })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Support Phone</label>
+              <input type="tel" value={settings.supportPhone ?? ''}
+                onChange={e => setSettings({ ...settings, supportPhone: e.target.value })}
+                className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
+            </div>
+          </div>
+        </div>
+
+
+        {/* Danger Zone */}
+        <div className="border border-red-200 rounded-3xl p-8 bg-red-50/30 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-xl">
+              <AlertTriangle size={20} className="text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
+              <p className="text-xs text-red-600/70">Destructive operations — use with caution</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-white border border-red-200 rounded-2xl">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Database size={16} className="text-red-600" />
+                <p className="font-bold text-red-700 text-sm">Force Re-Seed Database</p>
+              </div>
+              <p className="text-xs text-red-600/80 leading-relaxed max-w-md">
+                Resets all demo data (products, plans, blog posts, FAQs) to factory defaults.
+                User accounts and real orders are preserved.
+              </p>
+            </div>
+            <button
+              onClick={handleForceSeed}
+              disabled={seeding}
+              className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shrink-0"
+            >
+              <RefreshCw size={14} className={seeding ? 'animate-spin' : ''} />
+              {seeding ? 'Seeding…' : 'Re-Seed Now'}
+            </button>
           </div>
         </div>
       </div>

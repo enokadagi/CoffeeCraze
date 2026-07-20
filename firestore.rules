@@ -15,17 +15,32 @@ service cloud.firestore {
         : null;
     }
 
-    // Strict admin: only super_admin and admin roles
+    // Strict admin: only owner, super_admin and admin roles
     function isAdmin() {
-      return isSignedIn() && getUserRole() in ['super_admin', 'admin'];
+      return isSignedIn() && getUserRole() in ['owner', 'super_admin', 'admin'];
     }
 
     // Any back-office staff role (all non-customer, non-wholesale)
     function isStaff() {
       return isSignedIn() && getUserRole() in [
-        'super_admin', 'admin', 'product_manager',
-        'wholesale_manager', 'customer_service', 'analyst'
+        'owner', 'super_admin', 'admin', 'manager', 'accounting',
+        'customer_service', 'inventory', 'warehouse', 'barista',
+        'marketing', 'supplier_manager', 'support', 'analyst',
+        'product_manager', 'wholesale_manager'
       ];
+    }
+
+    // Driver: can view/update only their assigned deliveries
+    function isDriver() {
+      return isSignedIn() && getUserRole() == 'driver';
+    }
+
+    // Granular permission check: reads a 'permissions' string array on the user profile
+    // Usage: hasPermission('orders:write')
+    function hasPermission(perm) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && perm in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('permissions', []);
     }
 
     function incoming() { return request.resource.data; }
@@ -36,9 +51,11 @@ service cloud.firestore {
         && data.email is string && data.email.size() <= 256
         && data.displayName is string && data.displayName.size() <= 100
         && data.role in [
-          'super_admin', 'admin', 'product_manager',
-          'wholesale_manager', 'customer_service', 'analyst',
-          'wholesale', 'customer'
+          'owner', 'super_admin', 'admin', 'manager', 'accounting',
+          'customer_service', 'inventory', 'warehouse', 'barista',
+          'marketing', 'supplier_manager', 'support', 'analyst',
+          'product_manager', 'wholesale_manager',
+          'wholesale', 'customer', 'driver'
         ];
     }
 
@@ -47,7 +64,7 @@ service cloud.firestore {
         && data.items is list && data.items.size() > 0
         && data.total is number && data.total >= 0
         && data.status in ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
-        && data.paymentMethod == 'cash_on_delivery';
+        && data.paymentMethod in ['cash_on_delivery', 'card', 'bank_transfer'];
     }
 
     function isValidContactMessage(data) {
@@ -70,34 +87,12 @@ service cloud.firestore {
         && data.order is number;
     }
 
-    function isBlogEngagementUpdate() {
-      return incoming().diff(existing()).affectedKeys()
-        .hasOnly(['likes', 'dislikes', 'likedBy', 'dislikedBy', 'comments']);
-    }
-
-    function isOwnerSubscriptionUpdate() {
-      return isOwner(existing().userId)
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-          'status', 'nextDelivery', 'frequency', 'items', 'address',
-          'preferredTime', 'preferredTimeSlot', 'preferredDay',
-          'customNotes', 'gateCode', 'durationMonths'
-        ]);
-    }
-
-    function isOwnerProfileUpdate() {
-      return incoming().diff(existing()).affectedKeys().hasOnly([
-        'displayName', 'onboarded',
-        'phone', 'address', 'addresses', 'defaultAddressId',
-        'profileImage', 'preferences'
-      ]);
-    }
-
     // --- Users ---
     match /users/{userId} {
       allow get: if isSignedIn() && userId == request.auth.uid;
       allow list: if isStaff();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if request.auth.uid == userId || isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && (!('role' in incoming()) || incoming().role == 'customer');
+      allow update: if isAdmin() || (request.auth.uid == userId && isOwnerProfileUpdate());
       allow delete: if isAdmin();
     }
 
@@ -141,6 +136,9 @@ service cloud.firestore {
     match /contact_messages/{messageId} {
       allow create: if isValidContactMessage(incoming());
       allow get, list, update, delete: if isStaff();
+      match /replies/{replyId} {
+        allow create, read: if isStaff();
+      }
     }
 
     // --- Reviews ---
@@ -160,10 +158,24 @@ service cloud.firestore {
 
     // --- Orders ---
     match /orders/{orderId} {
-      allow get: if isSignedIn() && (isOwner(existing().userId) || isStaff());
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      // Customers can read their own; staff can read all; drivers can read orders assigned to them
+      allow get: if isSignedIn() && (
+        isOwner(existing().userId)
+        || isStaff()
+        || (isDriver() && existing().get('driverId', '') == request.auth.uid)
+      );
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid
+        || isStaff()
+        || (isDriver() && resource.data.get('driverId', '') == request.auth.uid)
+      );
       allow create: if isVerified() && isValidOrder(incoming()) && incoming().status == 'pending';
-      allow update: if isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus']);
+      // Staff can update order fields; drivers can only mark as delivered and set paymentStatus
+      allow update: if
+        (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus', 'driverId', 'driverName', 'updatedAt', 'deliveredAt']))
+        || (isDriver() && existing().get('driverId', '') == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus', 'deliveredAt', 'updatedAt'])
+            && incoming().status == 'delivered');
       allow delete: if isStaff();
     }
 
@@ -187,7 +199,10 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow get: if isSignedIn() && (existing().userId == request.auth.uid || isStaff());
       allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isVerified() && incoming().userId == request.auth.uid;
+      allow create: if isVerified() && incoming().userId == request.auth.uid
+        && incoming().amount is number && incoming().amount >= 0
+        && incoming().currency in ['LBP', 'USD']
+        && incoming().method in ['cash_on_delivery', 'card', 'bank_transfer'];
       allow update, delete: if isStaff();
     }
 
@@ -195,7 +210,9 @@ service cloud.firestore {
     match /paymentLedgers/{ledgerId} {
       allow get: if isSignedIn() && (existing().userId == request.auth.uid || isStaff());
       allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isVerified() && incoming().userId == request.auth.uid;
+      allow create: if isVerified() && incoming().userId == request.auth.uid
+        && incoming().amount is number && incoming().amount >= 0
+        && incoming().currency in ['LBP', 'USD'];
       allow update, delete: if isStaff();
     }
 
@@ -233,6 +250,17 @@ service cloud.firestore {
       allow create: if isStaff();
       allow update: if isStaff();
       allow delete: if isAdmin();
+    }
+
+    // --- Coupons ---
+    match /coupons/{couponId} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+
+    // --- Employee Invites ---
+    match /employee_invites/{email} {
+      allow read, write: if isStaff();
     }
   }
 }

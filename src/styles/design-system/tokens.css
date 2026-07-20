@@ -1,6 +1,6 @@
 ﻿:root {
   /* Typography */
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
   /* 8-pt Grid Spacing */
   --space-1: 4px;

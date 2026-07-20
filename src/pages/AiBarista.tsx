@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, User, Sparkles, Loader2 } from 'lucide-react';
 import { GeminiService, AiContext } from '../services/gemini';
@@ -42,7 +42,8 @@ export default function AiBarista() {
         currentPage: 'AI Barista',
       };
       try {
-        const productsSnap = await getDocs(query(collection(db, 'products'), where('isActive', '==', true), fLimit(30)));
+        // Load all products (seeder does not set isActive, so we omit the filter)
+        const productsSnap = await getDocs(query(collection(db, 'products'), fLimit(50)));
         ctx.products = productsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
         const plansSnap = await getDocs(query(collection(db, 'plans'), fLimit(10)));
         ctx.plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
@@ -54,8 +55,24 @@ export default function AiBarista() {
         const ordersSnap = await getDocs(query(collection(db, 'orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), fLimit(5)));
         ctx.recentOrders = ordersSnap.docs.map(d => {
           const o = d.data() as any;
-          return { id: d.id, status: o.status, total: o.total, createdAt: o.createdAt };
+          // Safely handle Firestore Timestamps
+          const createdAt = o.createdAt;
+          const safeCreatedAt = (createdAt && typeof createdAt.toDate === 'function')
+            ? createdAt.toDate().toISOString()
+            : (createdAt || '');
+          return { id: d.id, status: o.status, total: o.total, createdAt: safeCreatedAt };
         });
+        // Enrich with wishlist from user profile
+        const profileSnap = await getDoc(doc(db, 'users', user.uid));
+        if (profileSnap.exists()) {
+          const profileData = profileSnap.data();
+          if (profileData.wishlist?.length) {
+            ctx.wishlistItems = profileData.wishlist.map((id: string) => {
+              const product = ctx.products?.find((p: any) => p.id === id);
+              return product ? { id, name: product.name } : { id, name: 'Unknown' };
+            });
+          }
+        }
       } catch (e) {
         console.warn('Failed to load AI context:', e);
       }

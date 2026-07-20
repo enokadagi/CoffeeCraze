@@ -1,8 +1,9 @@
-﻿import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, orderBy, query, updateDoc, doc, limit, startAfter, getCountFromServer } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { OrderService } from '../../services/firestore';
 import { Order } from '../../types';
-import { formatPrice, cn } from '../../lib/utils';
+import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
 import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, Search, Filter, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
@@ -13,30 +14,38 @@ import { logAdminAction } from '../../utils/auditLog';
 
 const PAGE_SIZE = 20;
 
-const StatusBadge = ({ status }: { status: Order['status'] }) => {
-  const styles = {
-    pending: 'bg-yellow-50 text-yellow-600 border-yellow-100 shadow-yellow-500/5',
-    confirmed: 'bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5',
-    shipped: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
-    delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-500/5',
-    cancelled: 'bg-red-50 text-red-600 border-red-100 shadow-red-500/5',
-  };
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-yellow-50 text-yellow-600 border-yellow-100 shadow-yellow-500/5',
+  confirmed: 'bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5',
+  processing: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-500/5',
+  preparing: 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-500/5',
+  ready: 'bg-teal-50 text-teal-600 border-teal-100 shadow-teal-500/5',
+  shipped: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
+  out_for_delivery: 'bg-purple-50 text-purple-600 border-purple-100 shadow-purple-500/5',
+  delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-500/5',
+  cancelled: 'bg-red-50 text-red-600 border-red-100 shadow-red-500/5',
+};
 
-  const icons = {
-    pending: <Clock size={12} />,
-    confirmed: <CheckCircle size={12} />,
-    shipped: <Truck size={12} />,
-    delivered: <CheckCircle size={12} />,
-    cancelled: <XCircle size={12} />,
-  };
+const STATUS_ICONS: Record<string, React.ReactNode> = {
+  pending: <Clock size={12} />,
+  confirmed: <CheckCircle size={12} />,
+  processing: <Package size={12} />,
+  preparing: <Package size={12} />,
+  ready: <CheckCircle size={12} />,
+  shipped: <Truck size={12} />,
+  out_for_delivery: <Truck size={12} />,
+  delivered: <CheckCircle size={12} />,
+  cancelled: <XCircle size={12} />,
+};
 
+const StatusBadge = ({ status }: { status: string }) => {
   return (
     <span className={cn(
       "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.4em] border flex items-center gap-3 w-fit italic transition-all duration-700",
-      styles[status]
+      STATUS_STYLES[status] || ''
     )}>
-      {icons[status]}
-      {status}_LOG
+      {STATUS_ICONS[status]}
+      {status}
     </span>
   );
 };
@@ -46,63 +55,65 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [lastDoc, setLastDoc] = useState<any>(null);
-  const [firstDoc, setFirstDoc] = useState<any>(null);
-  const [pageStack, setPageStack] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [drivers, setDrivers] = useState<{ id: string; displayName: string; email: string }[]>([]);
+  const [driverAssigning, setDriverAssigning] = useState(false);
 
-  const fetchOrders = useCallback(async (direction: 'next' | 'prev' | 'init' = 'init') => {
-    setLoading(true);
-    try {
-      if (direction === 'init') {
-        const countSnap = await getCountFromServer(collection(db, 'orders'));
-        setTotalCount(countSnap.data().count);
-      }
-
-      let q;
-      if (direction === 'next' && lastDoc) {
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(PAGE_SIZE));
-      } else if (direction === 'prev' && pageStack.length > 0) {
-        const prevCursor = pageStack[pageStack.length - 1];
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), startAfter(prevCursor), limit(PAGE_SIZE));
-      } else {
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
-      }
-
-      const snap = await getDocs(q);
-      const docs = snap.docs;
-      setOrders(docs.map(d => ({ id: d.id, ...d.data() as object } as Order)));
-
-      if (docs.length > 0) {
-        if (direction === 'next') {
-          setPageStack(prev => [...prev, lastDoc]);
-        } else if (direction === 'prev' && pageStack.length > 0) {
-          setPageStack(prev => prev.slice(0, -1));
-        }
-        setFirstDoc(docs[0]);
-        setLastDoc(docs[docs.length - 1]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch orders:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [lastDoc, pageStack]);
-
+  // Fetch available drivers once on mount
   useEffect(() => {
-    fetchOrders('init');
+    const loadDrivers = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'driver')));
+        setDrivers(snap.docs.map(d => ({ id: d.id, displayName: d.data().displayName || 'Driver', email: d.data().email || '' })));
+      } catch { /* non-critical */ }
+    };
+    loadDrivers();
+  }, []);
+
+  // Real-time orders subscription
+  useEffect(() => {
+    setLoading(true);
+    const unsub = OrderService.subscribeToAllOrders((data) => {
+      setOrders(data);
+      setLoading(false);
+    }, () => {
+      setLoading(false);
+    });
+    return () => unsub();
   }, []);
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
     try {
       const oldStatus = orders.find(o => o.id === id)?.status;
-      await updateDoc(doc(db, 'orders', id), { status: newStatus });
+      await updateDoc(doc(db, 'orders', id), { status: newStatus, updatedAt: new Date().toISOString() });
       setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
       logAdminAction(user?.uid || '', user?.email || '', 'update_order_status', 'orders', id, { from: oldStatus, to: newStatus });
-      toast.success(`Protocol updated to ${newStatus}`);
+      toast.success(`Order status updated to ${newStatus}`);
     } catch (err) {
-      toast.error("Protocol update failed");
+      toast.error("Failed to update order status");
+    }
+  };
+
+  const handleDriverAssign = async (orderId: string, driverId: string) => {
+    if (!driverId) return;
+    setDriverAssigning(true);
+    try {
+      const driver = drivers.find(d => d.id === driverId);
+      await updateDoc(doc(db, 'orders', orderId), {
+        driverId,
+        driverName: driver?.displayName || '',
+        updatedAt: new Date().toISOString(),
+      });
+      setOrders(orders.map(o => o.id === orderId ? { ...o, driverId, driverName: driver?.displayName || '' } as any : o));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, driverId, driverName: driver?.displayName || '' } as any : prev);
+      }
+      logAdminAction(user?.uid || '', user?.email || '', 'assign_driver', 'orders', orderId, { driverId, driverName: driver?.displayName });
+      toast.success(`Driver ${driver?.displayName} assigned`);
+    } catch (err) {
+      toast.error('Failed to assign driver');
+    } finally {
+      setDriverAssigning(false);
     }
   };
 
@@ -119,8 +130,8 @@ export default function AdminOrders() {
 
           <div className="flex flex-wrap items-center gap-6">
             <div className="px-8 py-5 bg-white shadow-premium rounded-[2rem] flex items-center gap-6 border border-border-light">
-              <ShoppingBag size={18} className="text-gold-500" />
-              <span className="text-[11px] font-black text-text uppercase tracking-[0.4em] italic leading-none">Logs_Count: {orders.length}</span>
+              <ShoppingBag size={18} className="text-caramel" />
+              <span className="text-[11px] font-black text-text uppercase tracking-[0.4em] italic leading-none">Total Orders: {orders.length}</span>
             </div>
           </div>
         </header>
@@ -131,21 +142,21 @@ export default function AdminOrders() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-coffee-950/5 border-b border-border-light font-display italic">
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Log_Identity</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Ritualist_Node</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Extraction_Window</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Items_Manifest</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Extract_Value</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Protocol_Status</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Payment_Gate</th>
-                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em] text-right">Modulate_Node</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Order ID</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Customer</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Delivery Window</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Items</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Total</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Status</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em]">Payment</th>
+                  <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.4em] text-right">Update Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-coffee-50">
                 {loading ? (
                   Array(6).fill(0).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="px-10 py-12 h-24 bg-white/50" />
+                      <td colSpan={8} className="px-10 py-12 h-24 bg-white/50" />
                     </tr>
                   ))
                 ) : orders.length === 0 ? (
@@ -154,25 +165,25 @@ export default function AdminOrders() {
                       <p className="text-text-muted italic text-lg">No orders yet.</p>
                     </td>
                   </tr>
-                ) : orders.map((order) => (
+                ) : orders.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((order) => (
                   <tr key={order.id} className="hover:bg-cream/30 transition-all duration-700 group/row cursor-pointer" onClick={() => setSelectedOrder(order)}>
                     <td className="px-10 py-8">
-                      <p className="font-display font-black text-text italic text-xl leading-none uppercase tracking-tight">#{order.id.slice(-8).toUpperCase()}_LOG</p>
-                      <p className="text-[10px] font-black text-text-muted tracking-[0.4em] uppercase mt-2 italic leading-none">{new Date(order.createdAt).toLocaleDateString()}_TIMESTAMP</p>
+                      <p className="font-display font-black text-text italic text-xl leading-none uppercase tracking-tight">#{order.id.slice(-8).toUpperCase()}</p>
+                      <p className="text-[10px] font-black text-text-muted tracking-[0.4em] uppercase mt-2 italic leading-none">{safeDate(order.createdAt).toLocaleDateString()}</p>
                     </td>
                     <td className="px-10 py-8">
                       <p className="font-display font-black text-text italic text-lg leading-none uppercase">{order.shippingAddress?.name}</p>
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.shippingAddress?.city}_LOC</p>
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.shippingAddress?.city || '—'}</p>
                     </td>
                     <td className="px-10 py-8">
-                      <p className="font-display font-black text-gold-500 italic text-lg leading-none uppercase">{order.deliveryDate || 'ASAP'}</p>
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.deliveryTime || 'STANDARD_SHIFT'}</p>
+                      <p className="font-display font-black text-caramel italic text-lg leading-none uppercase">{order.deliveryDate || 'ASAP'}</p>
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.deliveryTime || 'Standard'}</p>
                     </td>
                     <td className="px-10 py-8">
                       <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] italic leading-none">{order.items.length} Sensory_Units</p>
                     </td>
                     <td className="px-10 py-8 font-display font-black text-text italic text-2xl tracking-tighter uppercase whitespace-nowrap">
-                       {formatPrice(order.total).split('LBP')[1]} <span className="text-[10px] font-black italic text-text-muted">LBP_VAL</span>
+                       LBP {formatLbpNumeric(order.total)} <span className="text-[10px] font-black italic text-text-muted">LBP</span>
                     </td>
                     <td className="px-10 py-8"><StatusBadge status={order.status} /></td>
                     <td className="px-10 py-8">
@@ -180,7 +191,7 @@ export default function AdminOrders() {
                          "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest italic border",
                          order.paymentStatus === 'paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                        )}>
-                         {order.paymentStatus || 'PENDING'}_TX
+                         {order.paymentStatus || 'pending'}
                        </span>
                     </td>
                     <td className="px-10 py-8 text-right">
@@ -189,11 +200,15 @@ export default function AdminOrders() {
                         value={order.status}
                         onChange={(e) => handleStatusChange(order.id, e.target.value as any)}
                       >
-                         <option value="pending">PENDING_STATUS</option>
-                         <option value="confirmed">CONFIRMED_STATUS</option>
-                         <option value="shipped">SHIPPED_STATUS</option>
-                         <option value="delivered">DELIVERED_STATUS</option>
-                         <option value="cancelled">CANCELLED_STATUS</option>
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="processing">Processing</option>
+                          <option value="preparing">Preparing</option>
+                          <option value="ready">Ready</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="out_for_delivery">Out for Delivery</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
                       </select>
                     </td>
                   </tr>
@@ -204,25 +219,25 @@ export default function AdminOrders() {
         </div>
 
         {/* Pagination */}
-        {!loading && totalCount > 0 && (
+        {!loading && orders.length > 0 && (
           <div className="flex items-center justify-between px-4 py-4 bg-white border border-border-light rounded-[2rem] shadow-premium">
             <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.3em] italic">
-              {totalCount} TOTAL_LOGS  -  Page {pageStack.length + 1}
+              {orders.length} Orders — Page {page + 1}
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setPage(p => p - 1); fetchOrders('prev'); }}
-                disabled={pageStack.length === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
                 className="p-3 bg-cream text-text-secondary rounded-xl hover:bg-cream transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={16} />
               </button>
               <span className="text-xs font-black text-text italic">
-                {pageStack.length + 1} / {Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}
+                {page + 1} / {Math.max(1, Math.ceil(orders.length / PAGE_SIZE))}
               </span>
               <button
-                onClick={() => { setPage(p => p + 1); fetchOrders('next'); }}
-                disabled={orders.length < PAGE_SIZE}
+                onClick={() => setPage(p => p + 1)}
+                disabled={(page + 1) * PAGE_SIZE >= orders.length}
                 className="p-3 bg-cream text-text-secondary rounded-xl hover:bg-cream transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight size={16} />
@@ -240,7 +255,7 @@ export default function AdminOrders() {
             <div className="p-6 sm:p-8 border-b border-border-light flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-xl">
               <div>
                 <h2 className="text-2xl font-display font-black uppercase tracking-tight text-espresso">Order #{selectedOrder.id.slice(-8).toUpperCase()}</h2>
-                <p className="text-xs text-text-muted font-medium mt-1">Created {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                <p className="text-xs text-text-muted font-medium mt-1">Created {safeDate(selectedOrder.createdAt).toLocaleString()}</p>
               </div>
               <button aria-label="Close" onClick={() => setSelectedOrder(null)} className="p-3 bg-cream text-espresso rounded-full hover:bg-espresso hover:text-cream transition-colors">
                 <X size={18} />
@@ -332,9 +347,10 @@ export default function AdminOrders() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {['pending', 'confirmed', 'shipped', 'delivered'].map((step, i) => {
-                      const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-                      const currentIdx = statusOrder.indexOf(selectedOrder.status);
+                    {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((step, i) => {
+                      const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+                      const statusToIndex: Record<string, number> = { pending: 0, confirmed: 1, processing: 2, preparing: 2, ready: 3, shipped: 4, out_for_delivery: 4, delivered: 5 };
+                      const currentIdx = statusToIndex[selectedOrder.status] ?? -1;
                       const stepIdx = statusOrder.indexOf(step);
                       const isComplete = stepIdx <= currentIdx;
                       return (
@@ -354,6 +370,7 @@ export default function AdminOrders() {
                     <FileText size={14} /> Actions
                   </h3>
                   <div className="space-y-3">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Update Status</label>
                     <select
                       className="w-full px-4 py-3 bg-white border border-border rounded-xl text-xs font-bold text-text uppercase tracking-wider focus:ring-2 focus:ring-caramel/20 focus:border-caramel outline-none"
                       value={selectedOrder.status}
@@ -363,12 +380,35 @@ export default function AdminOrders() {
                         setSelectedOrder({ ...selectedOrder, status: newStatus });
                       }}
                     >
-                      <option value="pending">Pending</option>
+                       <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
+                      <option value="processing">Processing</option>
+                      <option value="preparing">Preparing</option>
+                      <option value="ready">Ready</option>
                       <option value="shipped">Shipped</option>
+                      <option value="out_for_delivery">Out for Delivery</option>
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
+                    {drivers.length > 0 && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Assign Driver</label>
+                        <select
+                          className="w-full px-4 py-3 bg-white border border-border rounded-xl text-xs font-bold text-text focus:ring-2 focus:ring-caramel/20 focus:border-caramel outline-none"
+                          value={(selectedOrder as any).driverId || ''}
+                          onChange={(e) => handleDriverAssign(selectedOrder.id, e.target.value)}
+                          disabled={driverAssigning}
+                        >
+                          <option value="">— No driver assigned —</option>
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>{d.displayName} ({d.email})</option>
+                          ))}
+                        </select>
+                        {(selectedOrder as any).driverName && (
+                          <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ Assigned: {(selectedOrder as any).driverName}</p>
+                        )}
+                      </div>
+                    )}
                     <button
                       onClick={() => window.print()}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-espresso text-cream rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-espresso/90 transition-colors"

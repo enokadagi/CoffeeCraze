@@ -45,7 +45,7 @@ export default function CustomPlanBuilder() {
       try {
         const allProducts = await ProductService.getAll();
         // Filter products that are eligible for subscription (e.g. Coffee Category or tagged)
-        const subEligible = allProducts.filter(p => p.isSubscriptionEligible || p.category.toLowerCase().includes('coffee'));
+        const subEligible = allProducts.filter(p => p.isSubscriptionEligible || (p.category || '').toLowerCase().includes('coffee'));
         setProducts(subEligible);
       } catch (err) {
         console.error("Failed to load products for custom box:", err);

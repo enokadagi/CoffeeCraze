@@ -50,7 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           async (docSnap) => {
             try {
               if (docSnap.exists()) {
-                setProfile(docSnap.data() as UserProfile);
+                const profileData = docSnap.data() as UserProfile;
+                if (profileData.status === 'disabled' || profileData.status === 'suspended') {
+                  toast.error(`Your account has been ${profileData.status}. Logged out.`);
+                  await signOut(auth);
+                  setProfile(null);
+                  setUser(null);
+                  return;
+                }
+                setProfile(profileData);
               } else {
                 // Create initial profile if it somehow doesn't exist
                 const emailPrefix = user.email ? user.email.split('@')[0] : 'Guest';
@@ -72,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   emailVerified: user.emailVerified,
                   profileImage: user.photoURL || undefined,
                 };
-                await setDoc(docRef, newProfile).catch((err) => console.error('Profile creation error:', err));
+                await setDoc(docRef, newProfile, { merge: true }).catch((err) => console.error('Profile creation error:', err));
                 setProfile(newProfile);
               }
               setLoading(false);

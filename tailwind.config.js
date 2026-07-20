@@ -68,9 +68,9 @@ export default {
         'premium-xl': '0 28px 90px rgba(0, 0, 0, 0.20)',
       },
       fontFamily: {
-        sans: ['Google Sans', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Google Sans', 'system-ui', '-apple-system', 'sans-serif'],
-        serif: ['Google Sans', 'Georgia', 'serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        serif: ['Inter', 'Georgia', 'serif'],
       },
       keyframes: {
         'pulse-slow': {

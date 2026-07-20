@@ -50,7 +50,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Image Container --- fixed aspect ratio */}
       <Link to={`/product/${product.id}`} className="relative aspect-[4/5] sm:aspect-[4/5] overflow-hidden bg-cream/50">
         <ImageWithFallback
-          src={product.images[0]}
+          src={product.images?.[0] || ''}
           alt={product.name}
           className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${imgLoaded ? '' : 'opacity-0'}`}
           onLoad={() => setImgLoaded(true)}
@@ -123,7 +123,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <span className="text-[9px] font-semibold text-text-muted uppercase tracking-wider truncate">{product.category}</span>
           <div className="flex items-center gap-1 shrink-0">
             <Star size={9} className="fill-amber-400 text-amber-400" />
-            <span className="text-[10px] font-semibold text-espresso">{product.rating.toFixed(1)}</span>
+            <span className="text-[10px] font-semibold text-espresso">{(product.rating ?? 0).toFixed(1)}</span>
           </div>
         </div>
 

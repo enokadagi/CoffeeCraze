@@ -169,6 +169,8 @@ export default function Checkout() {
     const shippingAddress = {
       id: `${user.uid}-shipping`,
       fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+      name: `${formData.firstName} ${formData.lastName}`.trim(),
+      email: user.email || '',
       street: formData.street,
       building: formData.building,
       floor: formData.floor,

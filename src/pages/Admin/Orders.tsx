@@ -172,7 +172,7 @@ export default function AdminOrders() {
                       <p className="text-[10px] font-black text-text-muted tracking-[0.4em] uppercase mt-2 italic leading-none">{safeDate(order.createdAt).toLocaleDateString()}</p>
                     </td>
                     <td className="px-10 py-8">
-                      <p className="font-display font-black text-text italic text-lg leading-none uppercase">{order.shippingAddress?.name}</p>
+                      <p className="font-display font-black text-text italic text-lg leading-none uppercase">{order.shippingAddress?.name || order.shippingAddress?.fullName || '—'}</p>
                       <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.4em] italic mt-2">{order.shippingAddress?.city || '—'}</p>
                     </td>
                     <td className="px-10 py-8">
@@ -270,12 +270,12 @@ export default function AdminOrders() {
                     <User size={14} /> Customer
                   </h3>
                   <div className="space-y-3">
-                    <p className="font-bold text-espresso text-lg">{selectedOrder.shippingAddress?.name || 'N/A'}</p>
+                    <p className="font-bold text-espresso text-lg">{selectedOrder.shippingAddress?.name || selectedOrder.shippingAddress?.fullName || 'N/A'}</p>
                     <p className="text-sm text-text-secondary flex items-center gap-2">
                       <Mail size={14} className="text-text-muted" /> {selectedOrder.shippingAddress?.email || 'N/A'}
                     </p>
                     <p className="text-sm text-text-secondary flex items-center gap-2">
-                      <Phone size={14} className="text-text-muted" /> {selectedOrder.shippingAddress?.phone || 'N/A'}
+                      <Phone size={14} className="text-text-muted" /> {selectedOrder.shippingAddress?.phone || selectedOrder.shippingAddress?.phoneNumber || 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -293,6 +293,15 @@ export default function AdminOrders() {
                     {selectedOrder.shippingAddress?.building && <p>Building: {selectedOrder.shippingAddress.building}</p>}
                     {selectedOrder.shippingAddress?.apartment && <p>Apt: {selectedOrder.shippingAddress.apartment}</p>}
                     {selectedOrder.gateCode && <p className="font-mono text-caramel">Gate Code: {selectedOrder.gateCode}</p>}
+                    {(selectedOrder.shippingAddress?.gpsCoordinates || (selectedOrder as any).gpsCoordinates) && (
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${(selectedOrder.shippingAddress?.gpsCoordinates || (selectedOrder as any).gpsCoordinates)?.lat},${(selectedOrder.shippingAddress?.gpsCoordinates || (selectedOrder as any).gpsCoordinates)?.lng}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-caramel hover:text-espresso underline mt-1"
+                      >
+                        <MapPin size={14} /> View on Google Maps
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

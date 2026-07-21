@@ -24,10 +24,15 @@ export default function AdminCustomers() {
 
   const fetchCustomers = async () => {
     setLoading(true);
-    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
-    setCustomers(snap.docs.map(doc => ({ ...doc.data() } as Profile)));
-    setLoading(false);
+    try {
+      const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      setCustomers(snap.docs.map(d => ({ ...d.data() } as Profile)));
+    } catch (err) {
+      toast.error('Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const canManage = currentUser && (currentUser.uid === confirmTarget?.uid ? false : true);
@@ -113,7 +118,7 @@ export default function AdminCustomers() {
                     <td className="px-10 py-8">
                       <div className="flex items-center gap-10">
                         <div className="w-16 h-16 bg-white border border-border rounded-2xl flex items-center justify-center font-display font-black text-xl italic text-coffee-200 shadow-premium transition-transform duration-700 group-hover/row:scale-110 group-hover/row:text-gold-500">
-                          {customer.displayName[0].toUpperCase()}
+                          {(customer.displayName?.[0] || '?').toUpperCase()}
                         </div>
                         <div>
                           <p className="font-display font-black text-text italic text-xl leading-none uppercase tracking-tight">{customer.displayName}</p>

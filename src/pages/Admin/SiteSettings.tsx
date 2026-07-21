@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { SiteSettingsService, SiteSettings } from '../../services/siteSettings';
 import { applySiteSettings, invalidateSettingsCache } from '../../hooks/useSiteSettings';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db } from '../../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Settings, Save, Upload, Image, AlertTriangle, RefreshCw, Database } from 'lucide-react';
 import SEO from '../../components/common/SEO';
@@ -48,8 +46,6 @@ export default function AdminSiteSettings() {
     setSaving(true);
     try {
       await SiteSettingsService.save(settings);
-      const ref = doc(db, 'site_settings', 'app');
-      await setDoc(ref, { ...settings, updatedAt: new Date().toISOString() }, { merge: true });
       invalidateSettingsCache();
       applySiteSettings(settings);
       toast.success('Settings saved');

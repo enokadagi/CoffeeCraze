@@ -63,7 +63,7 @@ service cloud.firestore {
       return data.userId == request.auth.uid
         && data.items is list && data.items.size() > 0
         && data.total is number && data.total >= 0
-        && data.status in ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
+        && data.status in ['pending', 'confirmed', 'processing', 'preparing', 'ready', 'shipped', 'out_for_delivery', 'delivered', 'cancelled']
         && data.paymentMethod in ['cash_on_delivery', 'card', 'bank_transfer'];
     }
 
@@ -87,9 +87,34 @@ service cloud.firestore {
         && data.order is number;
     }
 
+    // Owner updating own profile: only profile fields, never role/permissions/status
+    function isOwnerProfileUpdate() {
+      return !('role' in incoming())
+        && !('permissions' in incoming())
+        && !('status' in incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'phone', 'address', 'addresses', 'defaultAddressId',
+          'avatar', 'profileImage', 'preferences', 'onboarded', 'updatedAt'
+        ]);
+    }
+
+    // Non-staff blog engagement: only counters
+    function isBlogEngagementUpdate() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'likesCount', 'sharesCount', 'commentsCount'
+      ]);
+    }
+
+    // Subscription owner pausing/cancelling
+    function isOwnerSubscriptionUpdate() {
+      return request.auth.uid == resource.data.userId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && incoming().status in ['paused', 'cancelled'];
+    }
+
     // --- Users ---
     match /users/{userId} {
-      allow get: if isSignedIn() && userId == request.auth.uid;
+      allow get: if isSignedIn() && (userId == request.auth.uid || isStaff());
       allow list: if isStaff();
       allow create: if isSignedIn() && request.auth.uid == userId && (!('role' in incoming()) || incoming().role == 'customer');
       allow update: if isAdmin() || (request.auth.uid == userId && isOwnerProfileUpdate());
@@ -261,6 +286,12 @@ service cloud.firestore {
     // --- Employee Invites ---
     match /employee_invites/{email} {
       allow read, write: if isStaff();
+    }
+
+    // --- Employees ---
+    match /employees/{employeeId} {
+      allow read: if isStaff();
+      allow create, update, delete: if isAdmin();
     }
   }
 }

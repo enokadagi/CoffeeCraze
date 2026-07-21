@@ -44,44 +44,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (user) {
         const docRef = doc(db, 'users', user.uid);
+
+        // Ensure profile doc exists (fire-and-forget to avoid race with onSnapshot)
+        getDoc(docRef).then(async (snap) => {
+          if (!snap.exists()) {
+            const emailPrefix = user.email ? user.email.split('@')[0] : 'Guest';
+            const capitalizedName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+            const finalDisplayName = user.displayName && !user.displayName.toLowerCase().includes('coffee')
+              ? user.displayName
+              : capitalizedName;
+            const newProfile: UserProfile = {
+              uid: user.uid,
+              email: user.email || '',
+              displayName: finalDisplayName,
+              role: UserRole.CUSTOMER,
+              loyaltyPoints: 0,
+              totalSpent: 0,
+              createdAt: new Date().toISOString(),
+              onboarded: false,
+              emailVerified: user.emailVerified,
+              profileImage: user.photoURL || undefined,
+            };
+            await setDoc(docRef, newProfile, { merge: true }).catch((err) => console.error('Profile creation error:', err));
+          }
+        }).catch((err) => console.error('Profile check error:', err));
         
         // Listen to real-time changes so profile updates immediately when modified
         unsubscribeSnapshot = onSnapshot(docRef,
-          async (docSnap) => {
+          (docSnap) => {
             try {
               if (docSnap.exists()) {
                 const profileData = docSnap.data() as UserProfile;
                 if (profileData.status === 'disabled' || profileData.status === 'suspended') {
                   toast.error(`Your account has been ${profileData.status}. Logged out.`);
-                  await signOut(auth);
+                  signOut(auth).catch(() => {});
                   setProfile(null);
                   setUser(null);
                   return;
                 }
                 setProfile(profileData);
-              } else {
-                // Create initial profile if it somehow doesn't exist
-                const emailPrefix = user.email ? user.email.split('@')[0] : 'Guest';
-                const capitalizedName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
-
-                const finalDisplayName = user.displayName && !user.displayName.toLowerCase().includes('coffee')
-                  ? user.displayName
-                  : capitalizedName;
-
-                const newProfile: UserProfile = {
-                  uid: user.uid,
-                  email: user.email || '',
-                  displayName: finalDisplayName,
-                  role: UserRole.CUSTOMER,
-                  loyaltyPoints: 0,
-                  totalSpent: 0,
-                  createdAt: new Date().toISOString(),
-                  onboarded: false,
-                  emailVerified: user.emailVerified,
-                  profileImage: user.photoURL || undefined,
-                };
-                await setDoc(docRef, newProfile, { merge: true }).catch((err) => console.error('Profile creation error:', err));
-                setProfile(newProfile);
               }
               setLoading(false);
             } catch (err) {

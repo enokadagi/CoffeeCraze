@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Profile, UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { Users, Search, Shield, Star, Ban } from 'lucide-react';
+import { Users, Search, Shield, Star, Ban, ExternalLink } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
@@ -12,6 +13,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { logAdminAction } from '../../utils/auditLog';
 
 export default function AdminCustomers() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,7 +116,7 @@ export default function AdminCustomers() {
                     </td>
                   </tr>
                 ) : filteredCustomers.map((customer) => (
-                  <tr key={customer.uid} className="hover:bg-cream/30 transition-all duration-700 group/row">
+                  <tr key={customer.uid} onClick={() => navigate(`/admin/customers/${customer.uid}`)} className="hover:bg-cream/30 transition-all duration-700 group/row cursor-pointer">
                     <td className="px-10 py-8">
                       <div className="flex items-center gap-10">
                         <div className="w-16 h-16 bg-white border border-border rounded-2xl flex items-center justify-center font-display font-black text-xl italic text-coffee-200 shadow-premium transition-transform duration-700 group-hover/row:scale-110 group-hover/row:text-gold-500">
@@ -147,7 +149,7 @@ export default function AdminCustomers() {
                     <td className="px-10 py-8 text-right">
                       <div className="flex items-center justify-end gap-6">
                         <button 
-                          onClick={() => setConfirmTarget({ uid: customer.uid, action: 'toggleAdmin', role: customer.role })}
+                          onClick={(e) => { e.stopPropagation(); setConfirmTarget({ uid: customer.uid, action: 'toggleAdmin', role: customer.role }) }}
                           disabled={customer.uid === currentUser?.uid}
                           className={cn(
                             "w-14 h-14 border rounded-2xl flex items-center justify-center transition-all duration-700 shadow-premium italic",
@@ -160,7 +162,7 @@ export default function AdminCustomers() {
                           <Shield size={22} strokeWidth={1.5} />
                         </button>
                         <button
-                          onClick={() => setConfirmTarget({ uid: customer.uid, action: 'delete', role: customer.role })}
+                          onClick={(e) => { e.stopPropagation(); setConfirmTarget({ uid: customer.uid, action: 'delete', role: customer.role }) }}
                           disabled={customer.uid === currentUser?.uid}
                           className={cn(
                             "w-14 h-14 border rounded-2xl flex items-center justify-center transition-all duration-700 shadow-premium italic",

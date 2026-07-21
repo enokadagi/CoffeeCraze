@@ -49,6 +49,8 @@ const AdminMessages = lazy(() => import('./pages/Admin/Messages'));
 const AdminEmployees = lazy(() => import('./pages/Admin/Employees'));
 const AdminSiteSettings = lazy(() => import('./pages/Admin/SiteSettings'));
 const DriverDashboard = lazy(() => import('./pages/Driver/Dashboard'));
+const AdminCustomerDetail = lazy(() => import('./pages/Admin/CustomerDetail'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-transparent">
@@ -114,6 +116,7 @@ function AppContent() {
             <Route path="/contact" element={<LazyPage><Contact /></LazyPage>} />
             <Route path="/auth" element={<LazyPage><Auth /></LazyPage>} />
             <Route path="/cart" element={<LazyPage><Cart /></LazyPage>} />
+            <Route path="/onboarding" element={<ProtectedRoute><LazyPage><Onboarding /></LazyPage></ProtectedRoute>} />
             <Route path="/checkout" element={<ProtectedRoute><LazyPage><Checkout /></LazyPage></ProtectedRoute>} />
             <Route path="/order-success/:id" element={<ProtectedRoute><LazyPage><OrderSuccess /></LazyPage></ProtectedRoute>} />
             <Route path="/subscription/confirmation" element={<ProtectedRoute><LazyPage><SubscriptionConfirmation /></LazyPage></ProtectedRoute>} />
@@ -137,6 +140,7 @@ function AppContent() {
             <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminOrders /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.ANALYST, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminAnalytics /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/customers" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminCustomers /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/customers/:id" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminCustomerDetail /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/wholesale" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.WHOLESALE_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminWholesale /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/subscriptions" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminSubscriptions /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/plans" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminPlans /></LazyPage></ProtectedRoute>} />

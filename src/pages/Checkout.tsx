@@ -12,6 +12,7 @@ import Seo from '../components/common/SEO';
 import LocationPicker from '../components/checkout/LocationPicker';
 import { cn } from '../lib/utils';
 import { OrderItem, OrderStatus, PaymentStatus } from '../types';
+import { LEBANON_CITIES } from '../data/lebanonCities';
 import {
   CreditCard,
   ShieldCheck,
@@ -22,6 +23,7 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
 
 export default function Checkout() {
@@ -43,7 +45,7 @@ export default function Checkout() {
     street: '',
     building: '',
     floor: '',
-    city: 'Beirut',
+    city: '',
 
     // Delivery Scheduling
     deliveryDate: '',
@@ -88,7 +90,7 @@ export default function Checkout() {
       street: prev.street || defaultAddress?.street || defaultAddress?.address || '',
       building: prev.building || defaultAddress?.building || '',
       floor: prev.floor || defaultAddress?.floor || '',
-      city: prev.city || defaultAddress?.city || 'Beirut',
+      city: prev.city || defaultAddress?.city || '',
       gateCode: prev.gateCode || defaultAddress?.gateCode || '',
       customNotes: prev.customNotes || defaultAddress?.instructions || '',
       gpsCoordinates: prev.gpsCoordinates || defaultAddress?.gpsCoordinates || null,
@@ -235,8 +237,15 @@ export default function Checkout() {
       clearCart();
       navigate(`/order-success/${orderId}`);
     } catch (err) {
-      console.error('Checkout error:', err);
-      toast.error('Failed to place order. Please try again.');
+      const msg = (err as Error)?.message || 'Unknown error';
+      console.error('[Checkout] Order creation failed:', msg, err);
+      if (msg.includes('permission') || msg.includes('denied') || msg.includes('Missing or insufficient')) {
+        toast.error('Order rejected by security rules. Contact support.');
+      } else if (msg.includes('network') || msg.includes('unavailable')) {
+        toast.error('Network error. Check your connection and try again.');
+      } else {
+        toast.error(msg.includes('Error: ') ? msg : `Failed to place order: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -386,13 +395,20 @@ export default function Checkout() {
                       onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
                       className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
                     />
-                    <input
-                      type="text"
-                      placeholder="City"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso"
-                    />
+                    <div className="relative">
+                      <select
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full px-4 py-3 border border-espresso/10 rounded-lg font-semibold text-espresso appearance-none bg-white"
+                        required
+                      >
+                        <option value="">Select City *</option>
+                        {LEBANON_CITIES.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+                    </div>
                   </div>
 
                   <label htmlFor="checkout-gate-code" className="sr-only">

@@ -141,6 +141,23 @@ export default function Auth() {
         if (displayName.trim()) {
           await updateProfile(userCredential.user, { displayName: displayName.trim() });
         }
+        // Immediately create the Firestore profile doc so it exists before any navigation
+        const { doc, setDoc } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        const { UserRole } = await import('../types');
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userRef, {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email || '',
+          displayName: displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest',
+          role: UserRole.CUSTOMER,
+          loyaltyPoints: 0,
+          totalSpent: 0,
+          createdAt: new Date().toISOString(),
+          onboarded: false,
+          emailVerified: false,
+        }, { merge: true });
+        console.log('[Auth] Profile doc created for', userCredential.user.uid);
         await sendEmailVerification(userCredential.user);
         setJustRegistered(true);
         toast.success("Account created successfully! Please check your email to verify your address.");

@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
-import { User, Phone, MapPin, ArrowRight, Coffee, UserCheck } from 'lucide-react';
+import { User, Phone, MapPin, ArrowRight, Coffee, UserCheck, ChevronDown } from 'lucide-react';
+import { LEBANON_CITIES } from '../data/lebanonCities';
 
 export default function Onboarding() {
   const { profile } = useAuth();
@@ -17,7 +18,7 @@ export default function Onboarding() {
     street: '',
     building: '',
     floor: '',
-    city: 'Beirut',
+    city: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,10 +27,24 @@ export default function Onboarding() {
     setLoading(true);
     try {
       const docRef = doc(db, 'users', profile.uid);
+      const newAddress = {
+        id: `addr-${Date.now()}`,
+        name: 'Home',
+        fullName: form.displayName,
+        street: form.street,
+        building: form.building,
+        floor: form.floor,
+        city: form.city,
+        country: 'Lebanon',
+        phone: form.phone,
+        isDefault: true,
+      };
       await updateDoc(docRef, {
         displayName: form.displayName,
         phone: form.phone,
-        address: `${form.street}, Bldg ${form.building}, Fl ${form.floor}, ${form.city}`,
+        address: `${form.street}, ${form.city}`,
+        addresses: [newAddress],
+        defaultAddressId: newAddress.id,
         onboarded: true,
         updatedAt: new Date().toISOString(),
       });
@@ -122,10 +137,15 @@ export default function Onboarding() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-text-muted ml-1">City</label>
-                  <input type="text" required value={form.city}
-                    onChange={e => setForm({ ...form, city: e.target.value })}
-                    placeholder="Beirut"
-                    className="w-full px-5 py-4 bg-cream border border-border rounded-2xl text-sm font-bold text-espresso outline-none focus:border-caramel focus:bg-white transition-all" />
+                  <div className="relative">
+                    <select required value={form.city}
+                      onChange={e => setForm({ ...form, city: e.target.value })}
+                      className="w-full px-5 py-4 bg-cream border border-border rounded-2xl text-sm font-bold text-espresso outline-none focus:border-caramel focus:bg-white transition-all appearance-none">
+                      <option value="">Select your city *</option>
+                      {LEBANON_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+                  </div>
                 </div>
               </div>
             )}

@@ -39,7 +39,7 @@ function saveLocalCart(items: CartItem[]) {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => loadLocalCart());
   const [initialized, setInitialized] = useState(false);
   const isSyncing = useRef(false);
   const prevUserRef = useRef<string | null>(null);
@@ -127,17 +127,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, user?.uid, initialized]);
 
   const addItem = (product: any, qty = 1) => {
+    if (!product || typeof product !== 'object') {
+      toast.error('Invalid product data');
+      return;
+    }
+    if (!initialized) {
+      toast.error('Cart is loading. Please try again in a moment.');
+      return;
+    }
     if (product.stock !== undefined && product.stock <= 0) {
-      toast.error(`${product.name} is currently out of stock.`);
+      toast.error(`${product.name || 'Product'} is currently out of stock.`);
       return;
     }
     if (product.stock !== undefined && qty > product.stock) {
-      toast.error(`Only ${product.stock} units of ${product.name} available.`);
+      toast.error(`Only ${product.stock} units of ${product.name || 'Product'} available.`);
+      return;
+    }
+    const productId = product.productId || product.id;
+    if (!productId) {
+      toast.error('Cannot add product: missing product ID');
       return;
     }
     setItems((prev) => {
       const existing = prev.find((i) =>
-        i.productId === product.id &&
+        i.productId === productId &&
         i.selectedVariant?.id === product.selectedVariant?.id
       );
       if (existing) {
@@ -147,33 +160,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           return prev;
         }
         return prev.map((i) =>
-          (i.productId === product.id && i.selectedVariant?.id === product.selectedVariant?.id)
+          (i.productId === productId && i.selectedVariant?.id === product.selectedVariant?.id)
             ? { ...i, quantity: newQty }
             : i
         );
       }
       const variantKey = product.selectedVariant?.id ? `_${product.selectedVariant.id}` : '';
-      const baseProductId = product.productId || product.id;
       const newCartItem: CartItem = {
-        id: `${baseProductId}${variantKey}`,
-        productId: baseProductId,
-        name: product.name,
-        price: product.price,
-        priceUsd: product.priceUsd,
-        priceLbp: product.priceLbp,
-        image: product.image || product.images?.[0] || '',
-        images: product.images,
-        category: product.category,
-        sku: product.sku,
-        description: product.description,
+        id: `${productId}${variantKey}`,
+        productId,
+        name: String(product.name || productId),
+        price: Number(product.price) || 0,
+        priceUsd: Number(product.priceUsd) || 0,
+        priceLbp: Number(product.priceLbp || product.price) || 0,
+        image: product.image || (Array.isArray(product.images) ? product.images[0] : '') || '',
+        images: Array.isArray(product.images) ? product.images : [],
+        category: product.category || '',
+        sku: product.sku || '',
+        description: product.description || '',
         quantity: qty,
         stock: product.stock,
-        isSubscriptionEligible: product.isSubscriptionEligible,
+        isSubscriptionEligible: !!product.isSubscriptionEligible,
         selectedVariant: product.selectedVariant,
       };
       return [...prev, newCartItem];
     });
-    toast.success(`${product.name} added to your ritual cart!`);
+    toast.success(`${product.name || 'Product'} added to your ritual cart!`);
   };
 
   const removeItem = (cartItemId: string) => {

@@ -42,11 +42,16 @@ function formatOrderDoc(doc: any): Order {
 
 export const OrderService = {
   async create(order: Omit<Order, 'id' | 'createdAt'>): Promise<string> {
+    if (!order.userId) throw new Error('userId is required');
+    if (!order.items?.length) throw new Error('Order must have at least one item');
+    if (typeof order.total !== 'number' || order.total < 0) throw new Error('Invalid order total');
+    if (order.items.some(i => !i.productId || !i.name)) throw new Error('Each item must have productId and name');
     const docRef = await addDoc(collection(db, 'orders'), {
       ...order,
       createdAt: serverTimestamp(),
       status: 'pending'
     });
+    console.log('[OrderService] Order created:', docRef.id, 'userId:', order.userId, 'total:', order.total);
     return docRef.id;
   },
 

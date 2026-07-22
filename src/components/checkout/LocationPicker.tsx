@@ -5,11 +5,16 @@ import 'leaflet/dist/leaflet.css';
 import { Navigation, Loader2, MapPin, Crosshair } from 'lucide-react';
 import { toast } from 'sonner';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+// Use a reliable SVG marker icon instead of Leaflet's default PNG icons
+// which break in bundlers due to path resolution issues
+const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42"><path fill="#6f4e37" stroke="#fff" stroke-width="2" d="M16 2C9.4 2 4 7.4 4 14c0 8.4 12 26 12 26s12-17.6 12-26C28 7.4 22.6 2 16 2z"/><circle fill="#fff" cx="16" cy="14" r="5"/></svg>`;
+const PIN_SVG_URL = `data:image/svg+xml;base64,${btoa(PIN_SVG)}`;
+const CUSTOM_MARKER_ICON = L.divIcon({
+  className: '',
+  iconSize: [32, 42],
+  iconAnchor: [16, 42],
+  popupAnchor: [0, -42],
+  html: `<img src="${PIN_SVG_URL}" alt="" style="width:32px;height:42px;display:block;" />`,
 });
 
 const LEBANON_CENTER: [number, number] = [33.8938, 35.5018];
@@ -53,6 +58,7 @@ function DraggableMarker({ position, onPositionChange }: Props) {
       ref={markerRef}
       position={[draggedPos.lat, draggedPos.lng]}
       draggable
+      icon={CUSTOM_MARKER_ICON}
       eventHandlers={{
         dragend() {
           const marker = markerRef.current;

@@ -150,6 +150,14 @@ export default function Checkout() {
       return;
     }
 
+    // Force refresh the Firebase ID token so the security rules see the verified email
+    try {
+      await user.getIdToken(true);
+    } catch {
+      toast.error('Session refresh failed. Please reload and try again.');
+      return;
+    }
+
     if (step < 4) {
       setStep(step + 1);
       return;

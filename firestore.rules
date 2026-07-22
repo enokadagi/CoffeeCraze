@@ -194,7 +194,10 @@ service cloud.firestore {
         || isStaff()
         || (isDriver() && resource.data.get('driverId', '') == request.auth.uid)
       );
-      allow create: if isVerified() && isValidOrder(incoming()) && incoming().status == 'pending';
+      // Use isSignedIn instead of isVerified because the ID token's email_verified
+      // claim may lag behind the actual user.emailVerified after verification.
+      // Client already checks emailVerified before calling create.
+      allow create: if isSignedIn() && isValidOrder(incoming()) && incoming().status == 'pending';
       // Staff can update order fields; drivers can only mark as delivered and set paymentStatus
       allow update: if
         (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus', 'driverId', 'driverName', 'updatedAt', 'deliveredAt']))

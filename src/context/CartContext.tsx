@@ -20,10 +20,31 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+function sanitizeCartItem(item: any): CartItem {
+  return {
+    id: item.id || '',
+    productId: item.productId || '',
+    name: String(item.name || item.productId || ''),
+    price: Number(item.price) || 0,
+    priceUsd: Number(item.priceUsd) || 0,
+    priceLbp: Number(item.priceLbp || item.price) || 0,
+    image: item.image || (Array.isArray(item.images) ? item.images[0] : '') || '',
+    images: Array.isArray(item.images) ? item.images : [],
+    category: item.category || '',
+    sku: item.sku || '',
+    description: item.description || '',
+    quantity: Math.max(1, Number(item.quantity) || 1),
+    stock: item.stock,
+    isSubscriptionEligible: !!item.isSubscriptionEligible,
+    selectedVariant: item.selectedVariant,
+  };
+}
+
 function loadLocalCart(): CartItem[] {
   try {
     const saved = localStorage.getItem(CART_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
+    const parsed: CartItem[] = saved ? JSON.parse(saved) : [];
+    return parsed.map(sanitizeCartItem);
   } catch {
     return [];
   }
@@ -52,7 +73,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const cartRef = doc(db, 'carts', user.uid);
       getDoc(cartRef).then((snap) => {
         if (snap.exists()) {
-          const firestoreCart: CartItem[] = snap.data().items || [];
+          const firestoreCart: CartItem[] = (snap.data().items || []).map(sanitizeCartItem);
           if (localCart.length > 0) {
             // Merge: Firestore items take priority, add any local items not in FS
             const merged = [...firestoreCart];
@@ -100,7 +121,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const unsub = onSnapshot(cartRef, (snap) => {
       if (isSyncing.current) return;
       if (snap.exists()) {
-        const firestoreItems: CartItem[] = snap.data().items || [];
+        const firestoreItems: CartItem[] = (snap.data().items || []).map(sanitizeCartItem);
         setItems(firestoreItems);
         saveLocalCart(firestoreItems);
       }
@@ -214,7 +235,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const total = items.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0);
   const totalUsd = items.reduce((sum, item) => sum + ((item.priceUsd || 0) * item.quantity), 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 

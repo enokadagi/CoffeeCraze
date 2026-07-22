@@ -168,6 +168,11 @@ export default function Checkout() {
       return;
     }
 
+    if (!Number.isFinite(grandTotalLbp) || grandTotalLbp < 0) {
+      toast.error('Invalid order total. Please review your cart items and try again.');
+      return;
+    }
+
     const orderItems: OrderItem[] = items.map((item) => ({
       productId: item.productId,
       name: item.name,

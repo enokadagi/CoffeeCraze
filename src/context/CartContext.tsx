@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
+import { cleanUndefined } from '../lib/utils';
 
 const CART_STORAGE_KEY = 'coffeecraze_cart';
 
@@ -20,6 +21,20 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+function sanitizeSelectedVariant(v: any) {
+  if (!v || typeof v !== 'object') return undefined;
+  return {
+    id: String(v.id || ''),
+    name: String(v.name || ''),
+    price: Number(v.price) || 0,
+    priceUsd: Number(v.priceUsd) || 0,
+    priceLbp: Number(v.priceLbp || v.price) || 0,
+    image: v.image || '',
+    stock: Number(v.stock) || 0,
+    sku: v.sku || '',
+  };
+}
+
 function sanitizeCartItem(item: any): CartItem {
   return {
     id: item.id || '',
@@ -34,9 +49,9 @@ function sanitizeCartItem(item: any): CartItem {
     sku: item.sku || '',
     description: item.description || '',
     quantity: Math.max(1, Number(item.quantity) || 1),
-    stock: item.stock,
+    stock: Number(item.stock) || 0,
     isSubscriptionEligible: !!item.isSubscriptionEligible,
-    selectedVariant: item.selectedVariant,
+    selectedVariant: sanitizeSelectedVariant(item.selectedVariant),
   };
 }
 
@@ -89,7 +104,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             }
             setItems(merged);
             saveLocalCart(merged);
-            setDoc(cartRef, { items: merged, updatedAt: serverTimestamp() }, { merge: true }).catch((err) => console.error('Cart merge sync error:', err));
+            setDoc(cartRef, { items: cleanUndefined(merged), updatedAt: serverTimestamp() }, { merge: true }).catch((err) => console.error('Cart merge sync error:', err));
           } else {
             setItems(firestoreCart);
             saveLocalCart(firestoreCart);
@@ -98,7 +113,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           // No Firestore cart, use local
           setItems(localCart);
           if (localCart.length > 0) {
-            setDoc(cartRef, { items: localCart, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch((err) => console.error('Cart init sync error:', err));
+            setDoc(cartRef, { items: cleanUndefined(localCart), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch((err) => console.error('Cart init sync error:', err));
           }
         }
         setInitialized(true);
@@ -136,7 +151,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       isSyncing.current = true;
       const cartRef = doc(db, 'carts', user.uid);
-      setDoc(cartRef, { items, updatedAt: serverTimestamp() }, { merge: true })
+      setDoc(cartRef, { items: cleanUndefined(items), updatedAt: serverTimestamp() }, { merge: true })
         .catch((err) => {
           console.error('Cart sync error:', err);
           toast.error('Failed to sync cart. Please try again.');
@@ -200,9 +215,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         sku: product.sku || '',
         description: product.description || '',
         quantity: qty,
-        stock: product.stock,
+        stock: Number(product.stock) || 0,
         isSubscriptionEligible: !!product.isSubscriptionEligible,
-        selectedVariant: product.selectedVariant,
+        selectedVariant: sanitizeSelectedVariant(product.selectedVariant),
       };
       return [...prev, newCartItem];
     });

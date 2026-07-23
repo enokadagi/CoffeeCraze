@@ -137,12 +137,25 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
     setLoading(true);
     try {
       const finalData = {
-         ...formData,
+         name: formData.name || '',
+         description: formData.description || '',
+         fullDescription: formData.fullDescription || '',
          price: Number(formData.priceLbp || formData.price || 0),
          priceUsd: Number(formData.priceUsd || 0),
          priceLbp: Number(formData.priceLbp || 0),
-         stock: Number(formData.stock || 0),
+         category: formData.category || '',
          images,
+         stock: Number(formData.stock || 0),
+         sku: formData.sku || '',
+         tags: Array.isArray(formData.tags) ? formData.tags : [],
+         isSubscriptionEligible: !!formData.isSubscriptionEligible,
+         planId: formData.planId || '',
+         wholesalePriceUsd: Number(formData.wholesalePriceUsd || 0),
+         wholesalePriceLbp: Number(formData.wholesalePriceLbp || 0),
+         isFeatured: !!formData.isFeatured,
+         rating: Number(formData.rating) || 0,
+         reviewCount: Number(formData.reviewCount) || 0,
+         isActive: formData.isActive !== undefined ? formData.isActive : true,
       };
       await onSave(finalData);
       onClose();

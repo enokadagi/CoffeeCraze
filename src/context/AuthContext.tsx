@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               createdAt: new Date().toISOString(),
               onboarded: false,
               emailVerified: user.emailVerified,
-              profileImage: user.photoURL || undefined,
+              profileImage: user.photoURL || '',
             };
             await setDoc(docRef, newProfile, { merge: true }).catch((err) => console.error('Profile creation error:', err));
           }

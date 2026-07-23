@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, Timestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Order, Subscription, Review, UserProfile, Plan } from '../types';
+import { cleanUndefined } from '../lib/utils';
 
 export const ProductService = {
   async getAll(): Promise<Product[]> {
@@ -46,11 +47,11 @@ export const OrderService = {
     if (!order.items?.length) throw new Error('Order must have at least one item');
     if (typeof order.total !== 'number' || order.total < 0) throw new Error('Invalid order total');
     if (order.items.some(i => !i.productId || !i.name)) throw new Error('Each item must have productId and name');
-    const docRef = await addDoc(collection(db, 'orders'), {
+    const docRef = await addDoc(collection(db, 'orders'), cleanUndefined({
       ...order,
       createdAt: serverTimestamp(),
       status: 'pending'
-    });
+    }));
     console.log('[OrderService] Order created:', docRef.id, 'userId:', order.userId, 'total:', order.total);
     return docRef.id;
   },
@@ -119,11 +120,11 @@ export const PlanService = {
 
 export const SubscriptionService = {
   async create(sub: Record<string, any>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'subscriptions'), {
+    const docRef = await addDoc(collection(db, 'subscriptions'), cleanUndefined({
       ...sub,
       createdAt: serverTimestamp(),
       status: 'active'
-    });
+    }));
     return docRef.id;
   },
 

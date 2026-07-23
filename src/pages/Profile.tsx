@@ -12,7 +12,7 @@ import { auth, db, storage } from '../lib/firebase';
 import { toast } from 'sonner';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { UserProfile, Address } from '../types';
-import { cn } from '../lib/utils';
+import { cn, cleanUndefined } from '../lib/utils';
 
 export default function Profile() {
   const { user, profile, updateProfileImage, sendVerificationEmail, refreshEmailVerification, isEmailVerified, logout } = useAuth();
@@ -80,13 +80,13 @@ export default function Profile() {
     setLoading(true);
     try {
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        displayName: formData.displayName,
-        phone: formData.phone,
-        address: formData.address,
-        addresses,
+      await updateDoc(userRef, cleanUndefined({
+        displayName: formData.displayName || '',
+        phone: formData.phone || '',
+        address: formData.address || '',
+        addresses: addresses || [],
         updatedAt: new Date().toISOString(),
-      });
+      }));
 
       setIsEditing(false);
       toast.success('Profile updated successfully');

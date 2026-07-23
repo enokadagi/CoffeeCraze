@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { cleanUndefined } from '../lib/utils';
 
 const SETTINGS_ID = 'app';
 
@@ -61,13 +62,13 @@ export const SiteSettingsService = {
   },
 
   async save(settings: Partial<SiteSettings>): Promise<void> {
-    const data = { ...settings, updatedAt: new Date().toISOString() };
+    const data = cleanUndefined({ ...settings, updatedAt: new Date().toISOString() });
     const ref = doc(db, 'site_settings', SETTINGS_ID);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       await updateDoc(ref, data);
     } else {
-      await setDoc(ref, { ...DEFAULTS, ...data });
+      await setDoc(ref, cleanUndefined({ ...DEFAULTS, ...data }));
     }
   },
 };

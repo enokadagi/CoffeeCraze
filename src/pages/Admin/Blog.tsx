@@ -8,7 +8,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { toast } from 'sonner';
-import { cn } from '../../lib/utils';
+import { cn, cleanUndefined } from '../../lib/utils';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 interface BlogPost {
@@ -44,7 +44,25 @@ export default function AdminBlog() {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, 'blog_posts'));
-      const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
+      const fetched = snap.docs.map(d => {
+        const raw = d.data();
+        return {
+          id: d.id,
+          title: raw.title || '',
+          excerpt: raw.excerpt || '',
+          content: raw.content || '',
+          category: raw.category || '',
+          date: raw.date || '',
+          image: raw.image || '',
+          likes: Number(raw.likes) || 0,
+          dislikes: Number(raw.dislikes) || 0,
+          likedBy: Array.isArray(raw.likedBy) ? raw.likedBy : [],
+          dislikedBy: Array.isArray(raw.dislikedBy) ? raw.dislikedBy : [],
+          comments: Array.isArray(raw.comments) ? raw.comments : [],
+          status: raw.status || 'draft',
+          createdAt: raw.createdAt || new Date().toISOString(),
+        } as BlogPost;
+      });
       // Sort desc by date
       fetched.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
       setPosts(fetched);
@@ -76,10 +94,10 @@ export default function AdminBlog() {
         if (!targetId) targetId = 'post-' + Date.now();
       }
 
-      await setDoc(doc(db, 'blog_posts', targetId), {
+      await setDoc(doc(db, 'blog_posts', targetId), cleanUndefined({
         ...data,
         updatedAt: new Date().toISOString(),
-      });
+      }));
       
       toast.success(id === 'new' ? 'Article created' : 'Article updated');
       setEditingPost(null);

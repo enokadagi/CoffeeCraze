@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { ThumbsUp, ThumbsDown, MessageSquare, Clock, CornerDownRight, ArrowLeft, Send } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -190,7 +189,7 @@ export default function BlogDetail() {
     const authorName = user ? (profile?.displayName || user.displayName || user.email || 'Member') : (commentName.trim() || 'Anonymous Coffee Lover');
     
     const newComment: Comment = {
-      id: 'comment_' + Date.now(),
+      id: 'comment_' + crypto.randomUUID(),
       userName: authorName,
       content: commentContent.trim(),
       createdAt: new Date().toISOString(),
@@ -219,7 +218,7 @@ export default function BlogDetail() {
     const authorName = user ? (profile?.displayName || user.displayName || user.email || 'Member') : (replyName.trim() || 'Anonymous Coffee Lover');
 
     const newReply: Reply = {
-      id: 'reply_' + Date.now(),
+      id: 'reply_' + crypto.randomUUID(),
       userName: authorName,
       content: replyContent.trim(),
       createdAt: new Date().toISOString()

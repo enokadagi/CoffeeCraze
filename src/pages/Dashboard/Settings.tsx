@@ -34,10 +34,10 @@ export default function AccountSettings() {
         displayName: profile.displayName || '',
         email: profile.email || '',
         phone: profile.phone || '',
-        street: (profile as any).street || profile.address || '',
-        building: (profile as any).building || '',
-        floor: (profile as any).floor || '',
-        city: (profile as any).city || 'Beirut'
+        street: profile?.['street'] || profile?.address || '',
+        building: profile?.['building'] || '',
+        floor: profile?.['floor'] || '',
+        city: profile?.['city'] || 'Beirut'
       });
       NotificationService.getPreferences(profile.uid).then(setNotificationPrefs);
     }
@@ -57,7 +57,7 @@ export default function AccountSettings() {
         address: compositeAddress,
       });
       toast.success("Profile coordinates synced with CC Mainframe");
-    } catch (err) {
+    } catch {
       toast.error("Failed to update profile coordinates");
     } finally {
       setLoading(false);

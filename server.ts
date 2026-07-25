@@ -1,15 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { fileURLToPath } from 'url';
 import './setup-backend-module';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 function rateLimit(key: string, maxRequests = 20, windowMs = 60000): boolean {

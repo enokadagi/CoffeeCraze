@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GeminiService } from '../services/gemini';
-import { Coffee, ChevronRight, Sparkles, CheckCircle2, ArrowRight, RefreshCw, ShoppingBag } from 'lucide-react';
+import { Coffee, Sparkles, CheckCircle2, ArrowRight, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import SEO from '../components/common/SEO';
@@ -40,7 +40,7 @@ const QUESTIONS = [
 export default function CoffeeQuiz() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [recommendation, setRecommendation] = useState<any>(null);
+  const [recommendation, setRecommendation] = useState<{ profile: string; reason: string; recommendedCategory: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleAnswer = (value: string) => {
@@ -59,7 +59,7 @@ export default function CoffeeQuiz() {
     try {
       const result = await GeminiService.getCoffeeRecommendation(finalAnswers);
       setRecommendation(result);
-    } catch (err) {
+    } catch {
       setRecommendation({ profile: "Lebanese Ritual Special", reason: "AI suggested a classic local profile.", recommendedCategory: "Medium Roast" });
     } finally {
       setLoading(false);

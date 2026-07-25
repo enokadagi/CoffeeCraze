@@ -473,7 +473,7 @@ export interface AdminOperation {
   type: 'subscription_update' | 'payment_adjustment' | 'delivery_reschedule' | 'manual_refund' | 'customer_note';
   targetId: string;
   adminId: string;
-  changes: Record<string, any>;
+  changes: Record<string, unknown>;
   reason?: string;
   createdAt: string;
 }

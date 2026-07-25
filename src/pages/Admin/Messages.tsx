@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { Mail, MailOpen, Trash2, Clock, Inbox, CheckCircle, Eye, Send } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -28,10 +27,6 @@ export default function AdminMessages() {
   const [sendingReply, setSendingReply] = useState(false);
   const { profile } = useAuth();
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
-
   const fetchMessages = async () => {
     setLoading(true);
     try {
@@ -47,6 +42,10 @@ export default function AdminMessages() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
 
   const markAsRead = async (msg: ContactMessage) => {
     try {

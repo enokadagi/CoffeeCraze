@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Order, Product } from '../../types';
@@ -18,8 +18,6 @@ export default function AdminAnalytics() {
   });
   const [weeklyRevenue, setWeeklyRevenue] = useState<{ name: string; revenue: number }[]>([]);
   const [categorySales, setCategorySales] = useState<{ name: string; sales: number }[]>([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const fetchData = async () => {
       const [ordersSnap, productsSnap, usersSnap] = await Promise.all([
@@ -76,33 +74,9 @@ export default function AdminAnalytics() {
         });
       });
       setCategorySales(Object.entries(catMap).map(([name, sales]) => ({ name, sales })));
-
-      setLoading(false);
     };
     fetchData();
   }, []);
-
-  const StatCard = ({ title, value, icon: Icon }: any) => (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-border p-10 rounded-[3.5rem] shadow-premium hover:shadow-premium-xl transition-all duration-1000 group relative overflow-hidden"
-    >
-      <div className="mesh-gradient absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-1000 pointer-events-none" />
-      <div className="flex items-center justify-between mb-8 relative z-10">
-        <div className="w-14 h-14 bg-mocha/5 rounded-2xl flex items-center justify-center text-caramel shadow-premium group-hover:rotate-12 transition-transform duration-700 border border-mocha/10">
-          <Icon size={24} strokeWidth={1.5} />
-        </div>
-        <div className="px-4 py-2 rounded-full text-[10px] font-black italic border bg-cream text-text-muted border-border">
-          LIVE
-        </div>
-      </div>
-      <div className="relative z-10">
-        <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] mb-3 italic">{title}_VECTOR</p>
-        <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">{value}</h3>
-      </div>
-    </motion.div>
-  );
 
   return (
     <DashboardLayout>
@@ -214,5 +188,29 @@ export default function AdminAnalytics() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+function StatCard({ title, value, icon: Icon }: { title: string; value: string | number; icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white border border-border p-10 rounded-[3.5rem] shadow-premium hover:shadow-premium-xl transition-all duration-1000 group relative overflow-hidden"
+    >
+      <div className="mesh-gradient absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-1000 pointer-events-none" />
+      <div className="flex items-center justify-between mb-8 relative z-10">
+        <div className="w-14 h-14 bg-mocha/5 rounded-2xl flex items-center justify-center text-caramel shadow-premium group-hover:rotate-12 transition-transform duration-700 border border-mocha/10">
+          <Icon size={24} strokeWidth={1.5} />
+        </div>
+        <div className="px-4 py-2 rounded-full text-[10px] font-black italic border bg-cream text-text-muted border-border">
+          LIVE
+        </div>
+      </div>
+      <div className="relative z-10">
+        <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] mb-3 italic">{title}_VECTOR</p>
+        <h3 className="text-4xl font-display font-black text-espresso italic tracking-tightest uppercase">{value}</h3>
+      </div>
+    </motion.div>
   );
 }

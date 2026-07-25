@@ -16,7 +16,7 @@ export default function Footer() {
           setLogoUrl(docSnap.data().logoUrl);
         }
       } catch {
-        // Silently fall back to static logo
+        console.warn('[Footer] Failed to fetch site settings');
       }
     };
     fetchSettings();

@@ -10,6 +10,7 @@ const CART_STORAGE_KEY = 'coffeecraze_cart';
 
 interface CartContextType {
   items: CartItem[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addItem: (item: any, qty?: number) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, qty: number) => void;
@@ -21,6 +22,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sanitizeSelectedVariant(v: any) {
   if (!v || typeof v !== 'object') return undefined;
   return {
@@ -35,6 +37,7 @@ function sanitizeSelectedVariant(v: any) {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sanitizeCartItem(item: any): CartItem {
   return {
     id: item.id || '',
@@ -61,6 +64,7 @@ function loadLocalCart(): CartItem[] {
     const parsed: CartItem[] = saved ? JSON.parse(saved) : [];
     return parsed.map(sanitizeCartItem);
   } catch {
+    console.warn('[Cart] Failed to parse localStorage cart');
     return [];
   }
 }
@@ -127,7 +131,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setInitialized(true);
     }
     prevUserRef.current = user?.uid || null;
-  }, [user?.uid]);
+  }, [user]);
 
   // Listen to Firestore cart changes in real time when logged in
   useEffect(() => {
@@ -142,7 +146,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     }, (err) => console.error('Cart Firestore listener error:', err));
     return unsub;
-  }, [user?.uid, initialized]);
+  }, [user, initialized]);
 
   // Sync to Firestore and localStorage whenever items change
   useEffect(() => {
@@ -160,8 +164,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           isSyncing.current = false;
         });
     }
-  }, [items, user?.uid, initialized]);
+  }, [items, user, initialized]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const addItem = (product: any, qty = 1) => {
     if (!product || typeof product !== 'object') {
       toast.error('Invalid product data');
@@ -261,6 +266,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCart = () => {
   const context = useContext(CartContext);
   if (context === undefined) {

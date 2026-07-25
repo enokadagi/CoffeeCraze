@@ -12,7 +12,7 @@ const FALLBACK_GRADIENT =
   );
 
 export default function ImageWithFallback({ src, alt, fallbackSrc = FALLBACK_GRADIENT, className, ...props }: Props) {
-  const [imgSrc, setImgSrc] = useState(src);
+  const [imgSrc] = useState(src);
   const [hasError, setHasError] = useState(false);
 
   return (

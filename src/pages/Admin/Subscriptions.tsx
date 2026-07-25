@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
-  Truck, Calendar, User, Search, 
-  MoreHorizontal, Play, Pause, XCircle, CheckCircle2
+  Truck, User, Search, Play, Pause, XCircle
 } from 'lucide-react';
 import { collection, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { formatPrice, cn } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 import SEO from '../../components/common/SEO';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Subscription, SubscriptionStatus } from '../../types';

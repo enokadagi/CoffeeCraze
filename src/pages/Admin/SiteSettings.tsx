@@ -9,6 +9,38 @@ import ImageWithFallback from '../../components/common/ImageWithFallback';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { dbSeeder } from '../../utils/dbSeeder';
 
+const ImageField = ({ label, field, settings, onImageUpload, onFieldChange }: { 
+  label: string; 
+  field: keyof SiteSettings; 
+  settings: SiteSettings; 
+  onImageUpload: (field: keyof SiteSettings, e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFieldChange: (field: keyof SiteSettings, value: string) => void;
+}) => (
+  <div className="space-y-2">
+    <label className="text-xs font-bold uppercase tracking-wider text-text-muted">{label}</label>
+    <div className="flex items-center gap-4">
+      <div className="w-16 h-16 bg-cream rounded-2xl border border-border overflow-hidden flex items-center justify-center shrink-0">
+        {typeof settings[field] === 'string' && (settings[field] as string) ? (
+          <ImageWithFallback src={settings[field] as string} alt={label} className="w-full h-full object-cover" />
+        ) : (
+          <Image size={24} className="text-text-muted" />
+        )}
+      </div>
+      <label className="btn-outline px-4 py-2 rounded-xl text-xs font-bold cursor-pointer border border-coffee-200 text-text-secondary hover:bg-cream transition-all">
+        <Upload size={14} className="inline-block mr-1" /> Upload
+        <input type="file" accept="image/*" className="hidden" onChange={e => onImageUpload(field, e)} />
+      </label>
+      <input
+        type="text"
+        value={(settings[field] as string) || ''}
+        onChange={e => onFieldChange(field, e.target.value)}
+        className="flex-1 px-4 py-2 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel transition-all"
+        placeholder="URL or leave empty"
+      />
+    </div>
+  </div>
+);
+
 export default function AdminSiteSettings() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +71,10 @@ export default function AdminSiteSettings() {
     } catch {
       toast.error('Upload failed');
     }
+  };
+
+  const handleFieldChange = (field: keyof SiteSettings, value: string) => {
+    setSettings(prev => prev ? { ...prev, [field]: value } : prev);
   };
 
   const handleSave = async () => {
@@ -82,32 +118,6 @@ export default function AdminSiteSettings() {
       </DashboardLayout>
     );
   }
-
-  const ImageField = ({ label, field }: { label: string; field: keyof SiteSettings }) => (
-    <div className="space-y-2">
-      <label className="text-xs font-bold uppercase tracking-wider text-text-muted">{label}</label>
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 bg-cream rounded-2xl border border-border overflow-hidden flex items-center justify-center shrink-0">
-          {typeof settings[field] === 'string' && (settings[field] as string) ? (
-            <ImageWithFallback src={settings[field] as string} alt={label} className="w-full h-full object-cover" />
-          ) : (
-            <Image size={24} className="text-text-muted" />
-          )}
-        </div>
-        <label className="btn-outline px-4 py-2 rounded-xl text-xs font-bold cursor-pointer border border-coffee-200 text-text-secondary hover:bg-cream transition-all">
-          <Upload size={14} className="inline-block mr-1" /> Upload
-          <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(field, e)} />
-        </label>
-        <input
-          type="text"
-          value={(settings[field] as string) || ''}
-          onChange={e => setSettings({ ...settings, [field]: e.target.value })}
-          className="flex-1 px-4 py-2 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel transition-all"
-          placeholder="URL or leave empty"
-        />
-      </div>
-    </div>
-  );
 
   return (
     <DashboardLayout>
@@ -169,12 +179,12 @@ export default function AdminSiteSettings() {
               <Image size={20} className="text-caramel" /> Branding Assets
             </h2>
             <div className="space-y-5">
-              <ImageField label="Logo" field="logoUrl" />
-              <ImageField label="Favicon" field="faviconUrl" />
-              <ImageField label="Apple Touch Icon" field="appleTouchIconUrl" />
-              <ImageField label="PWA Icon 192x192" field="icon192Url" />
-              <ImageField label="PWA Icon 512x512" field="icon512Url" />
-              <ImageField label="OG Image (Social Share)" field="ogImageUrl" />
+              <ImageField label="Logo" field="logoUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="Favicon" field="faviconUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="Apple Touch Icon" field="appleTouchIconUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="PWA Icon 192x192" field="icon192Url" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="PWA Icon 512x512" field="icon512Url" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="OG Image (Social Share)" field="ogImageUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
             </div>
           </div>
         </div>

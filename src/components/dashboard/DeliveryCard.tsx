@@ -1,4 +1,5 @@
-﻿import { motion } from 'motion/react';
+﻿import React from 'react';
+import { motion } from 'motion/react';
 import { Truck, MapPin, Clock, CheckCircle, AlertCircle, Package } from 'lucide-react';
 import { Delivery, DeliveryStatus } from '../../types';
 import { cn } from '../../lib/utils';
@@ -10,7 +11,7 @@ interface DeliveryCardProps {
 
 export default function DeliveryCard({ delivery, onClick }: DeliveryCardProps) {
   const getStatusConfig = (status: DeliveryStatus) => {
-    const configs: Record<DeliveryStatus, { color: string; icon: any; label: string; bg: string }> = {
+    const configs: Record<DeliveryStatus, { color: string; icon: React.ElementType; label: string; bg: string }> = {
       [DeliveryStatus.SCHEDULED]: {
         color: 'text-amber-600',
         bg: 'bg-amber-50 border-amber-200',

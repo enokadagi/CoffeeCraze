@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { OrderService } from '../../services/firestore';
 import { Order, OrderStatus } from '../../types';
 import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
-import { ShoppingBag, Search, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Filter, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Package, Truck, CheckCircle, Clock, X, MapPin, ArrowUpDown, Calendar, ChevronLeft, CreditCard, XCircle, ArrowRight } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { motion, AnimatePresence } from 'motion/react';
@@ -477,7 +477,6 @@ export default function MyOrders() {
                     </div>
                     <div className="flex gap-2 h-1.5 w-full">
                       {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((s, i) => {
-                        const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
                         const statusToIndex: Record<string, number> = { pending: 0, confirmed: 1, processing: 2, preparing: 2, ready: 3, shipped: 4, out_for_delivery: 4, delivered: 5 };
                         const currentIndex = statusToIndex[selectedOrder.status] ?? -1;
                         const isActive = currentIndex >= i && selectedOrder.status !== 'cancelled';

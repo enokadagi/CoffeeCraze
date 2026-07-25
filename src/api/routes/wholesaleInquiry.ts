@@ -69,8 +69,7 @@ router.post('/wholesale-inquiry', async (req, res) => {
     });
 
     return res.status(200).json({ ok: true, id: docRef.id });
-  } catch (e: any) {
-    console.error('wholesale-inquiry error', e);
+  } catch {
     return res.status(500).json({ error: 'Failed to submit inquiry' });
   }
 });

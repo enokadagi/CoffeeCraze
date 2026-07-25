@@ -57,7 +57,9 @@ export const SiteSettingsService = {
       if (snap.exists()) {
         return { ...DEFAULTS, ...snap.data() } as SiteSettings;
       }
-    } catch { /* use defaults */ }
+    } catch {
+      console.warn('[SiteSettings] Failed to load settings, using defaults');
+    }
     return DEFAULTS;
   },
 

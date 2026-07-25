@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'motion/react';
 import { ChevronRight, Package, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Order } from '../../types';
@@ -12,7 +13,7 @@ interface OrderHistoryProps {
 
 export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
   const getStatusConfig = (status: string) => {
-    const configs: Record<string, { color: string; icon: any; label: string }> = {
+    const configs: Record<string, { color: string; icon: React.ElementType; label: string }> = {
       pending: { color: 'text-amber-600', icon: Package, label: 'Pending' },
       confirmed: { color: 'text-blue-600', icon: Truck, label: 'Confirmed' },
       processing: { color: 'text-blue-600', icon: Truck, label: 'Processing' },
@@ -78,11 +79,10 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
                       <span>{order.items.length} items</span>
                       <span>•</span>
                       <span>{(() => {
-                        const raw = order.createdAt as any;
-                        // Handle Firestore Timestamp objects that weren't serialised upstream
-                        const date = (raw && typeof raw.toDate === 'function')
+                        const raw = order.createdAt as string | { toDate: () => Date };
+                        const date = (raw && typeof raw === 'object' && 'toDate' in raw)
                           ? raw.toDate()
-                          : new Date(raw);
+                          : new Date(raw as string);
                         return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
                       })()}</span>
                     </div>

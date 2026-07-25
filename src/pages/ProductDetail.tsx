@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Review } from '../types';
+import { Product, Review, ProductVariant } from '../types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import { formatPrice, cn, getDualPricing } from '../lib/utils';
 import ImageWithFallback from '../components/common/ImageWithFallback';
-import { ShoppingCart, Star, Heart, ArrowLeft, Truck, ShieldCheck, Zap, MessageSquare, ArrowRight, ThumbsUp } from 'lucide-react';
+import { ShoppingCart, Star, Heart, ArrowLeft, Truck, ShieldCheck, MessageSquare, ArrowRight } from 'lucide-react';
 import SEO from '../components/common/SEO';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/shop/ProductCard';
@@ -28,7 +28,7 @@ export default function ProductDetail() {
   const [activeImage, setActiveImage] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   useEffect(() => {
     if (product?.variants && product.variants.length > 0 && !selectedVariant) {
@@ -44,7 +44,7 @@ export default function ProductDetail() {
      priceUsd: selectedVariant?.priceUsd || product?.priceUsd || 0
   };
   
-  const dualBase = getDualPricing(basePricingObj as any);
+  const dualBase = getDualPricing(basePricingObj);
   
   let currentPriceLbp = dualBase.lbp;
   let currentPriceUsd = dualBase.usd;
@@ -54,7 +54,7 @@ export default function ProductDetail() {
       priceLbp: product?.wholesalePriceLbp || currentPriceLbp,
       priceUsd: product?.wholesalePriceUsd || currentPriceUsd
     };
-    const dualWholesale = getDualPricing(wholesaleObj as any);
+    const dualWholesale = getDualPricing(wholesaleObj);
     currentPriceLbp = dualWholesale.lbp;
     currentPriceUsd = dualWholesale.usd;
     

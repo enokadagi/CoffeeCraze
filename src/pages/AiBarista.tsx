@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, User, Sparkles, Loader2 } from 'lucide-react';
-import { GeminiService, AiContext } from '../services/gemini';
+import { GeminiService, type AiContext } from '../services/gemini';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import SEO from '../components/common/SEO';
@@ -44,22 +44,21 @@ export default function AiBarista() {
       try {
         // Load all products (seeder does not set isActive, so we omit the filter)
         const productsSnap = await getDocs(query(collection(db, 'products'), fLimit(50)));
-        ctx.products = productsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+        ctx.products = productsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as AiContext['products'];
         const plansSnap = await getDocs(query(collection(db, 'plans'), fLimit(10)));
-        ctx.plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+        ctx.plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() })) as AiContext['plans'];
         const cartSnap = await getDoc(doc(db, 'carts', user.uid));
         if (cartSnap.exists()) {
           const cartData = cartSnap.data();
-          ctx.cartItems = (cartData.items || []).map((i: any) => ({ id: i.id || i.productId, name: i.name, quantity: i.quantity, price: i.price }));
+          ctx.cartItems = (cartData.items || []).map((i: Record<string, unknown>) => ({ id: (i.id || i.productId) as string, name: i.name as string, quantity: i.quantity as number, price: i.price as number }));
         }
         const ordersSnap = await getDocs(query(collection(db, 'orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), fLimit(5)));
         ctx.recentOrders = ordersSnap.docs.map(d => {
-          const o = d.data() as any;
-          // Safely handle Firestore Timestamps
+          const o = d.data();
           const createdAt = o.createdAt;
-          const safeCreatedAt = (createdAt && typeof createdAt.toDate === 'function')
-            ? createdAt.toDate().toISOString()
-            : (createdAt || '');
+          const safeCreatedAt = (createdAt && typeof (createdAt as { toDate?: () => Date }).toDate === 'function')
+            ? (createdAt as { toDate: () => Date }).toDate().toISOString()
+            : ((createdAt as string) || '');
           return { id: d.id, status: o.status, total: o.total, createdAt: safeCreatedAt };
         });
         // Enrich with wishlist from user profile
@@ -68,7 +67,7 @@ export default function AiBarista() {
           const profileData = profileSnap.data();
           if (profileData.wishlist?.length) {
             ctx.wishlistItems = profileData.wishlist.map((id: string) => {
-              const product = ctx.products?.find((p: any) => p.id === id);
+              const product = ctx.products?.find((p: Record<string, unknown>) => p.id === id);
               return product ? { id, name: product.name } : { id, name: 'Unknown' };
             });
           }
@@ -79,7 +78,7 @@ export default function AiBarista() {
       setAiContext(ctx);
     };
     loadContext();
-  }, [user]);
+  });
 
   // Auto-scroll to bottom whenever messages or loading state changes
   useEffect(() => {

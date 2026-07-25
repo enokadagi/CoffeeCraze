@@ -1,9 +1,9 @@
 import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
-import { Star, Zap, ShoppingBag, Gift, ArrowRight, TrendingUp, History } from 'lucide-react';
+import { Star, Zap, ShoppingBag, Gift, TrendingUp, History } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { motion } from 'motion/react';
-import { formatPrice, cn } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 
 export default function LoyaltyRitual() {
   const { profile } = useAuth();

@@ -1,4 +1,4 @@
-import { MapPin, Mail, Phone, Send, ArrowRight, Instagram, Twitter, Linkedin, MessageSquare, Clock } from 'lucide-react';
+import { Mail, Send, MessageSquare, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import SEO from '../components/common/SEO';

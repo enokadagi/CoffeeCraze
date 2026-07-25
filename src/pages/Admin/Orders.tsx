@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { OrderService } from '../../services/firestore';
-import { Order } from '../../types';
+import { Order, OrderStatus } from '../../types';
 import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
-import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, Search, Filter, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
@@ -65,7 +65,7 @@ export default function AdminOrders() {
       try {
         const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'driver')));
         setDrivers(snap.docs.map(d => ({ id: d.id, displayName: d.data().displayName || 'Driver', email: d.data().email || '' })));
-      } catch { /* non-critical */ }
+      } catch { console.warn('[Orders] Failed to load drivers'); }
     };
     loadDrivers();
   }, []);
@@ -89,7 +89,7 @@ export default function AdminOrders() {
       setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
       logAdminAction(user?.uid || '', user?.email || '', 'update_order_status', 'orders', id, { from: oldStatus, to: newStatus });
       toast.success(`Order status updated to ${newStatus}`);
-    } catch (err) {
+    } catch {
       toast.error("Failed to update order status");
     }
   };
@@ -104,13 +104,13 @@ export default function AdminOrders() {
         driverName: driver?.displayName || '',
         updatedAt: new Date().toISOString(),
       });
-      setOrders(orders.map(o => o.id === orderId ? { ...o, driverId, driverName: driver?.displayName || '' } as any : o));
+      setOrders(orders.map(o => o.id === orderId ? { ...o, driverId, driverName: driver?.displayName || '' } : o));
       if (selectedOrder?.id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, driverId, driverName: driver?.displayName || '' } as any : prev);
+        setSelectedOrder(prev => prev ? { ...prev, driverId, driverName: driver?.displayName || '' } : prev);
       }
       logAdminAction(user?.uid || '', user?.email || '', 'assign_driver', 'orders', orderId, { driverId, driverName: driver?.displayName });
       toast.success(`Driver ${driver?.displayName} assigned`);
-    } catch (err) {
+    } catch {
       toast.error('Failed to assign driver');
     } finally {
       setDriverAssigning(false);
@@ -198,7 +198,7 @@ export default function AdminOrders() {
                       <select 
                         className="px-6 py-3 bg-white border border-border rounded-2xl text-[10px] font-black text-text uppercase tracking-[0.3em] italic focus:ring-0 focus:border-gold-500 outline-none transition-all duration-700 shadow-premium group-hover/row:bg-cream appearance-none cursor-pointer text-center"
                         value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value as any)}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
                       >
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
@@ -293,9 +293,9 @@ export default function AdminOrders() {
                     {selectedOrder.shippingAddress?.building && <p>Building: {selectedOrder.shippingAddress.building}</p>}
                     {selectedOrder.shippingAddress?.apartment && <p>Apt: {selectedOrder.shippingAddress.apartment}</p>}
                     {selectedOrder.gateCode && <p className="font-mono text-caramel">Gate Code: {selectedOrder.gateCode}</p>}
-                    {(selectedOrder.shippingAddress?.gpsCoordinates || (selectedOrder as any).gpsCoordinates) && (
+                    {(selectedOrder as unknown as Record<string, unknown>)?.['gpsCoordinates'] && (
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${(selectedOrder.shippingAddress?.gpsCoordinates || (selectedOrder as any).gpsCoordinates)?.lat},${(selectedOrder.shippingAddress?.gpsCoordinates || (selectedOrder as any).gpsCoordinates)?.lng}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${((selectedOrder as unknown as Record<string, unknown>)?.['gpsCoordinates'] as unknown as Record<string, unknown>)?.['lat']},${((selectedOrder as unknown as Record<string, unknown>)?.['gpsCoordinates'] as unknown as Record<string, unknown>)?.['lng']}`}
                         target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-caramel hover:text-espresso underline mt-1"
                       >
@@ -356,7 +356,7 @@ export default function AdminOrders() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((step, i) => {
+                    {['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].map((step, _i) => {
                       const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
                       const statusToIndex: Record<string, number> = { pending: 0, confirmed: 1, processing: 2, preparing: 2, ready: 3, shipped: 4, out_for_delivery: 4, delivered: 5 };
                       const currentIdx = statusToIndex[selectedOrder.status] ?? -1;
@@ -404,7 +404,7 @@ export default function AdminOrders() {
                         <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Assign Driver</label>
                         <select
                           className="w-full px-4 py-3 bg-white border border-border rounded-xl text-xs font-bold text-text focus:ring-2 focus:ring-caramel/20 focus:border-caramel outline-none"
-                          value={(selectedOrder as any).driverId || ''}
+                          value={selectedOrder.driverId || ''}
                           onChange={(e) => handleDriverAssign(selectedOrder.id, e.target.value)}
                           disabled={driverAssigning}
                         >
@@ -413,8 +413,8 @@ export default function AdminOrders() {
                             <option key={d.id} value={d.id}>{d.displayName} ({d.email})</option>
                           ))}
                         </select>
-                        {(selectedOrder as any).driverName && (
-                          <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ Assigned: {(selectedOrder as any).driverName}</p>
+                        {selectedOrder.driverName && (
+                          <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ Assigned: {selectedOrder.driverName}</p>
                         )}
                       </div>
                     )}

@@ -4,7 +4,7 @@ import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from '
 import { db } from '../../lib/firebase';
 import { Profile, UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { Users, Search, Shield, Star, Ban, ExternalLink } from 'lucide-react';
+import { Search, Shield, Star, Ban } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
@@ -20,24 +20,22 @@ export default function AdminCustomers() {
   const { user: currentUser } = useAuth();
   const [confirmTarget, setConfirmTarget] = useState<{ uid: string; action: 'toggleAdmin' | 'delete'; role: UserRole } | null>(null);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
   const fetchCustomers = async () => {
     setLoading(true);
     try {
       const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
       const snap = await getDocs(q);
       setCustomers(snap.docs.map(d => ({ ...d.data() } as Profile)));
-    } catch (err) {
+    } catch {
       toast.error('Failed to load customers');
     } finally {
       setLoading(false);
     }
   };
 
-  const canManage = currentUser && (currentUser.uid === confirmTarget?.uid ? false : true);
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   const executeAction = async () => {
     if (!confirmTarget) return;
@@ -56,7 +54,7 @@ export default function AdminCustomers() {
         logAdminAction(currentUser?.uid || '', currentUser?.email || '', 'delete_user', 'users', uid, {});
         toast.success('User removed');
       }
-    } catch (err) {
+    } catch {
       toast.error(action === 'toggleAdmin' ? 'Failed to update role' : 'Failed to remove user');
     }
   };

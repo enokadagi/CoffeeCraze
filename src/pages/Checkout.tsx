@@ -517,11 +517,11 @@ export default function Checkout() {
                             type="radio"
                             name="paymentTiming"
                             value={opt.value}
-                            checked={formData.paymentTiming === (opt.value as any)}
+                            checked={formData.paymentTiming === opt.value}
                             onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                paymentTiming: e.target.value as any,
+                                paymentTiming: e.target.value as 'prepaid' | 'monthly' | 'deferred',
                               })
                             }
                             className="w-4 h-4"
@@ -702,7 +702,7 @@ export default function Checkout() {
               <h3 className="text-xl font-bold text-espresso italic">Order Summary</h3>
 
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {items.map((item: any) => (
+                {items.map((item) => (
                   <div
                     key={item.productId}
                     className="flex items-center justify-between text-sm pb-3 border-b border-espresso/5"

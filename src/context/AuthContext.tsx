@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // with nothing when called later (e.g. from Auth.tsx).
     getRedirectResult(auth).then((result) => {
       if (result) {
-        console.log('[AuthProvider] Redirect sign-in completed for', result.user.email);
+        // redirect sign-in completed
       }
     }).catch((err) => {
       console.warn('[AuthProvider] getRedirectResult error (non-fatal):', err?.code || err?.message || err);
@@ -182,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -1,21 +1,20 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { 
-  Coffee, Truck, Star, ArrowRight, Sparkles, Settings,
-  CreditCard, Calendar, Package, AlertCircle, CheckCircle, 
-  TrendingUp, MessageSquare, ShoppingBag, Zap
+  Coffee, Truck, Star, Sparkles, Settings,
+  CreditCard, AlertCircle, 
+  MessageSquare, ShoppingBag, Zap
 } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { cn } from '../../lib/utils';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Order, Subscription, SubscriptionStatus, PaymentStatus, Delivery, DeliveryStatus } from '../../types';
-import { formatUSD, formatLBP, formatDualFromLBP } from '../../utils/exchange';
-import { formatPrice, formatDate } from '../../lib/utils';
+import { Order, Subscription, SubscriptionStatus, Delivery } from '../../types';
+import { formatPrice } from '../../lib/utils';
 import MetricCard from '../../components/dashboard/MetricCard';
 import SubscriptionCard from '../../components/dashboard/SubscriptionCard';
 import DeliveryCard from '../../components/dashboard/DeliveryCard';
@@ -41,14 +40,7 @@ export default function DashboardOverview() {
   
   const [loading, setLoading] = useState(true);
 
-  // Fetch all dashboard data
-  useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       // Fetch active subscriptions
       const subsQ = query(
@@ -123,7 +115,14 @@ export default function DashboardOverview() {
       console.error('Error fetching dashboard data:', error);
       setLoading(false);
     }
-  };
+  }, [user, profile]);
+
+  // Fetch all dashboard data
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user, fetchDashboardData]);
 
   const handlePauseSubscription = async (subscriptionId: string) => {
     try {

@@ -8,19 +8,9 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Address, Plan, PlanItem, SubscriptionStatus, PaymentStatus } from '../types';
+import { Plan, PlanItem, SubscriptionStatus, PaymentStatus } from '../types';
 import { PlanService, SubscriptionService } from '../services/firestore';
 import { formatUSD } from '../utils/exchange';
-
-const getNextDeliveryDate = (frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly') => {
-  const date = new Date();
-  let increment = 30;
-  if (frequency === 'daily') increment = 1;
-  else if (frequency === 'weekly') increment = 7;
-  else if (frequency === 'biweekly') increment = 14;
-  date.setDate(date.getDate() + increment);
-  return date.toISOString();
-};
 
 export default function Subscriptions() {
   const { user, profile, isEmailVerified } = useAuth();

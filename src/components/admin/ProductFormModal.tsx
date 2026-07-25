@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Product } from '../../types';
-import { X, Upload, ImageIcon, Loader2, GripVertical, Star, Trash2, Plus } from 'lucide-react';
+import { X, Loader2, Star, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage } from '../../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -28,7 +28,7 @@ const CATEGORIES = [
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1559525839-b184a4d698c7?auto=format&fit=crop&q=80';
 
 export default function ProductFormModal({ product, plans = [], onClose, onSave }: ProductFormModalProps) {
-  const [formData, setFormData] = useState<Partial<Product>>(product || {
+  const [formData, setFormData] = useState<Partial<Product>>(() => product || {
     name: '',
     description: '',
     price: 0,
@@ -79,8 +79,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
         images: [...(prev.images || []), downloadUrl],
       }));
       toast.success('Image uploaded successfully.');
-    } catch (err) {
-      console.error('Image upload error:', err);
+    } catch {
       toast.error('Image upload failed. You can paste a URL below instead.');
     } finally {
       setUploading(false);
@@ -159,7 +158,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
       };
       await onSave(finalData);
       onClose();
-    } catch (err) {
+    } catch {
       toast.error('Failed to save product');
     } finally {
       setLoading(false);
@@ -378,7 +377,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
               <select
                 id="product-category"
                 value={formData.category}
-                onChange={e => setFormData({...formData, category: e.target.value as any})}
+                onChange={e => setFormData({...formData, category: e.target.value})}
                 className="form-select"
               >
                 {CATEGORIES.map(cat => (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Save, Plus, Trash2, Edit3, Eye, FileText, CheckCircle, RefreshCw } from 'lucide-react';
-import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { Save, Plus, Trash2, Edit3, FileText, RefreshCw } from 'lucide-react';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -23,7 +23,7 @@ interface BlogPost {
   dislikes: number;
   likedBy: string[];
   dislikedBy: string[];
-  comments: any[];
+  comments: unknown[];
   status: 'draft' | 'published';
   createdAt: string;
 }
@@ -35,10 +35,6 @@ export default function AdminBlog() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchPosts();
-  }, []);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -66,13 +62,16 @@ export default function AdminBlog() {
       // Sort desc by date
       fetched.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
       setPosts(fetched);
-    } catch (err) {
-      console.error('Failed to fetch posts:', err);
+    } catch {
       toast.error('Failed to load blog posts.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
   const handleSave = async () => {
     if (!editingPost) return;
@@ -102,8 +101,7 @@ export default function AdminBlog() {
       toast.success(id === 'new' ? 'Article created' : 'Article updated');
       setEditingPost(null);
       fetchPosts();
-    } catch (err) {
-      console.error('Save failed:', err);
+    } catch {
       toast.error('Failed to save article.');
     } finally {
       setSaving(false);
@@ -126,7 +124,7 @@ export default function AdminBlog() {
       });
       setEditingPost({ ...editingPost, image: url });
       toast.success('Image uploaded');
-    } catch (err) {
+    } catch {
       toast.error('Image upload failed');
     } finally {
       setUploading(false);
@@ -167,7 +165,7 @@ export default function AdminBlog() {
       await deleteDoc(doc(db, 'blog_posts', id));
       toast.success('Article deleted');
       fetchPosts();
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete article.');
     }
   };
@@ -328,7 +326,7 @@ export default function AdminBlog() {
                     <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Publish Status</label>
                     <select
                       value={editingPost.status}
-                      onChange={(e) => setEditingPost({ ...editingPost, status: e.target.value as any })}
+                      onChange={(e) => setEditingPost({ ...editingPost, status: e.target.value as BlogPost['status'] })}
                       className="w-full px-4 py-3 bg-cream border border-border rounded-xl outline-none focus:border-coffee-500 text-sm font-semibold text-espresso"
                     >
                       <option value="draft">Draft (Hidden)</option>

@@ -3,9 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { OrderService } from '../../services/firestore';
-import { Order, OrderStatus, PaymentStatus } from '../../types';
+import { Order, OrderStatus, PaymentStatus, Address } from '../../types';
 import { toast } from 'sonner';
-import { MapPin, Phone, Navigation, Package, CheckCircle, LogOut, Coffee } from 'lucide-react';
+import { Phone, Navigation, Package, CheckCircle, LogOut, Coffee } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { formatLBP } from '../../utils/exchange';
 import { cn } from '../../lib/utils';
@@ -58,14 +58,14 @@ export default function DriverDashboard() {
   const pendingDeliveries = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED);
   const completedDeliveries = orders.filter(o => o.status === OrderStatus.DELIVERED);
 
-  const getAddressString = (addr: any) => {
+  const getAddressString = (addr: Address) => {
     if (!addr) return '';
     return `${addr.street || ''}, ${addr.building ? `Bldg ${addr.building}` : ''}, ${addr.floor ? `Floor ${addr.floor}` : ''}, ${addr.city || ''}, Lebanon`;
   };
 
   const handleNavigate = (order: Order) => {
     const coords = order.shippingAddress.gpsCoordinates;
-    let url = '';
+    let url;
     if (coords && coords.lat && coords.lng) {
       url = `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
     } else {

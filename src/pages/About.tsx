@@ -1,6 +1,5 @@
 import ImageWithFallback from '../components/common/ImageWithFallback';
-import { Coffee, Heart, Users, MapPin, Mail, Phone, ArrowRight, Instagram, Twitter, Linkedin } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Coffee, Heart, Users } from 'lucide-react';
 import SEO from '../components/common/SEO';
 
 export default function About() {

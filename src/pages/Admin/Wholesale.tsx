@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { WholesaleAccount, UserRole } from '../../types';
-import { Building2, Search, CheckCircle, XCircle, Clock, MoreVertical, Coffee, ExternalLink } from 'lucide-react';
+import { Building2, Search, CheckCircle, XCircle, Clock, Coffee } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -14,17 +14,17 @@ export default function AdminWholesale() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
   const fetchAccounts = async () => {
     setLoading(true);
     const q = query(collection(db, 'wholesale_accounts'));
     const snap = await getDocs(q);
-    setAccounts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+    setAccounts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WholesaleAccount & { id: string })));
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   const handleStatusChange = async (id: string, userId: string, newStatus: WholesaleAccount['status']) => {
     try {
@@ -39,7 +39,7 @@ export default function AdminWholesale() {
 
       setAccounts(accounts.map(a => a.id === id ? { ...a, status: newStatus } : a));
       toast.success(`Account ${newStatus} successfully`);
-    } catch (err) {
+    } catch {
       toast.error("Failed to update wholesale status");
     }
   };

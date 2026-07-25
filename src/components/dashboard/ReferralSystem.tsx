@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Gift, Copy, Share2, Check, Zap } from 'lucide-react';
+import { Gift, Copy, Check, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ReferralSystem() {

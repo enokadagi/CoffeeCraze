@@ -8,7 +8,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import SEO from '../components/common/SEO';
 
 export default function Blog() {
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<{ id: string; image?: string; title?: string; category?: string; date?: string; excerpt?: string; createdAt?: string; [key: string]: unknown }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,8 +21,8 @@ export default function Blog() {
         const snap = await getDocs(q);
         const fetched = snap.docs.map(doc => ({
           id: doc.id,
-          ...doc.data()
-        })) as any[];
+          ...doc.data(),
+        })) as { id: string; image?: string; title?: string; category?: string; date?: string; excerpt?: string; createdAt?: string; [key: string]: unknown }[];
         // Sort by date or createdAt desc if available
         fetched.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
         setPosts(fetched);

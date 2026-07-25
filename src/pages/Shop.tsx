@@ -4,7 +4,7 @@ import { db } from '../lib/firebase';
 import { Product } from '../types';
 import ProductCard from '../components/shop/ProductCard';
 import ImageWithFallback from '../components/common/ImageWithFallback';
-import { Search, X, Star, DollarSign, Compass, ArrowRight } from 'lucide-react';
+import { Search, X, Star, DollarSign, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ export default function Shop() {
         category: 'All', minPrice: 0, maxPrice: 50000000, minRating: 0, selectedTags: [] as string[]
       };
     } catch {
+      console.warn('[Shop] Failed to parse saved filters');
       return {
         category: 'All', minPrice: 0, maxPrice: 50000000, minRating: 0, selectedTags: [] as string[]
       };
@@ -56,12 +57,6 @@ export default function Shop() {
     fetchProducts();
   }, []);
 
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    products.forEach(p => p.tags?.forEach(t => tags.add(t)));
-    return Array.from(tags);
-  }, [products]);
-
   const filteredProducts = products.filter(p => {
     const matchesSearch = search.length === 0 || p.name.toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = filters.category === 'All' || p.category === filters.category;
@@ -75,15 +70,6 @@ export default function Shop() {
     if (!search || search.length < 2) return [];
     return products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 5);
   }, [search, products]);
-
-  const toggleTag = (tag: string) => {
-    setFilters(prev => ({
-      ...prev,
-      selectedTags: prev.selectedTags.includes(tag)
-        ? prev.selectedTags.filter(t => t !== tag)
-        : [...prev.selectedTags, tag]
-    }));
-  };
 
   return (
     <div className="min-h-screen bg-cream" style={{ padding: '80px 0' }}>

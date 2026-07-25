@@ -1,7 +1,7 @@
-﻿import { useState, useMemo } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ImageWithFallback from '../common/ImageWithFallback';
-import { ShoppingCart, Star, Heart, Eye, Plus, Check, ArrowRight, Sparkles, Clock, Zap } from 'lucide-react';
+import { Star, Heart, Plus, Check, Sparkles, Clock, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
@@ -22,11 +22,13 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const { lbp, usd } = getDualPricing(product);
 
+  const [mountTime, setMountTime] = useState(0);
+  useEffect(() => { setMountTime(Date.now()); }, []);
   const isNew = useMemo(() => {
-    if (!product.createdAt) return false;
-    const daysSinceCreated = (Date.now() - new Date(product.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (!product.createdAt || !mountTime) return false;
+    const daysSinceCreated = (mountTime - new Date(product.createdAt).getTime()) / (1000 * 60 * 60 * 24);
     return daysSinceCreated <= NEW_DAYS_THRESHOLD;
-  }, [product.createdAt]);
+  }, [product.createdAt, mountTime]);
 
   const stockLabel = product.stock > 10 ? 'In Stock' : product.stock > 0 ? `${product.stock} left` : 'Out of Stock';
   const stockClass = product.stock > 10 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : product.stock > 0 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200';

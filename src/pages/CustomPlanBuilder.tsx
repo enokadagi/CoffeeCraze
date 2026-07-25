@@ -2,8 +2,8 @@
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Coffee, Calendar, Truck, ArrowRight, ArrowLeft, 
-  Plus, Minus, ShoppingBag, Sparkles, Check, Info, HelpCircle
+  Coffee, Calendar, ArrowRight, ArrowLeft, 
+  Plus, Minus, ShoppingBag, Sparkles, Check, Info
 } from 'lucide-react';
 import Seo from '../components/common/SEO';
 import { useAuth } from '../context/AuthContext';
@@ -66,10 +66,6 @@ export default function CustomPlanBuilder() {
       setBoxItems([...boxItems, { product, quantity: 1, grind: 'Whole Beans' }]);
     }
     toast.success(`${product.name} added to your coffee box!`);
-  };
-
-  const handleRemoveProduct = (productId: string) => {
-    setBoxItems(boxItems.filter(item => item.product.id !== productId));
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -224,7 +220,7 @@ export default function CustomPlanBuilder() {
         updatedAt: new Date().toISOString(),
         userEmail: user.email,
         userDisplayName: profile?.displayName || user.email?.split('@')[0] || 'Customer',
-      } as any);
+      });
 
       toast.success("Your customized coffee box has been manifested!");
       navigate('/subscription/confirmation', { state: { planName: 'CUSTOM_CREATION' } });
@@ -420,7 +416,7 @@ export default function CustomPlanBuilder() {
                       ].map((t) => (
                         <button
                           key={t.id}
-                          onClick={() => setPaymentTiming(t.id as any)}
+                          onClick={() => setPaymentTiming(t.id as 'prepaid' | 'monthly' | 'deferred')}
                           className={cn(
                             "p-5 rounded-2xl text-left border transition-all duration-500 shadow-premium flex flex-col justify-between gap-3 h-full",
                             paymentTiming === t.id ? "bg-espresso text-white border-espresso" : "bg-white text-espresso border-white/80 hover:bg-white"

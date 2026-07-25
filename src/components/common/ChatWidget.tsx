@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MessageSquare, X, Send, User, Bot, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, Loader2 } from 'lucide-react';
 import { GeminiService, AiContext } from '../../services/gemini';
 import { cn } from '../../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
-import { collection, query, where, getDocs, orderBy, limit as fLimit, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit as fLimit, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -36,13 +36,13 @@ export default function ChatWidget() {
       };
       try {
         const productsSnap = await getDocs(query(collection(db, 'products'), where('isActive', '==', true), fLimit(30)));
-        ctx.products = productsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+        ctx.products = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as unknown as { id: string; name: string; category: string; price: number; priceUsd?: number; description?: string; isSubscriptionEligible?: boolean; });
         const plansSnap = await getDocs(query(collection(db, 'plans'), fLimit(10)));
-        ctx.plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+        ctx.plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() }) as unknown as { id: string; name: string; price: number; description?: string; frequency: string; isFeatured?: boolean; });
         const cartSnap = await getDoc(doc(db, 'carts', user.uid));
         if (cartSnap.exists()) {
           const cartData = cartSnap.data();
-          ctx.cartItems = (cartData.items || []).map((i: any) => ({ id: i.id || i.productId, name: i.name, quantity: i.quantity, price: i.price }));
+          ctx.cartItems = (cartData.items || []).map((i: Record<string, unknown>) => ({ id: i.id || i.productId, name: i.name, quantity: i.quantity, price: i.price }));
         }
       } catch (e) {
         console.warn('Failed to load chat context:', e);
@@ -50,7 +50,7 @@ export default function ChatWidget() {
       setAiContext(ctx);
     };
     loadContext();
-  }, [user]);
+  }, [user, profile?.displayName, profile?.email]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +69,7 @@ export default function ChatWidget() {
       const response = await GeminiService.getBaristaResponse(userMessage, history, aiContext);
       setMessages(prev => [...prev, { role: 'model', content: response }]);
       toast.success('Message delivered successfully.');
-    } catch (err) {
+    } catch {
       toast.error('Message failed to send. Please try again.');
       setMessages(prev => [...prev, { role: 'model', content: "Apologies, the brew was interrupted. Please try again." }]);
     } finally {

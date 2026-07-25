@@ -1,15 +1,36 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash, ArrowRight, Search, Save, X, Image as ImageIcon, Star, Eye, EyeOff } from 'lucide-react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, deleteField } from 'firebase/firestore';
+import { Plus, Edit, Trash, ArrowRight, Save, X, Star, Eye, EyeOff } from 'lucide-react';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { toast } from 'sonner';
-import { cn } from '../../lib/utils';
 import { motion } from 'motion/react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+
+interface PlanData {
+  id: string;
+  name: string;
+  price: number;
+  priceUsd?: number;
+  description: string;
+  features: string[];
+  productIds: string[];
+  frequency: string;
+  isFeatured: boolean;
+  image?: string;
+  [key: string]: unknown;
+}
+
+interface ProductData {
+  id: string;
+  name: string;
+  sku?: string;
+  category?: string;
+  [key: string]: unknown;
+}
 
 interface PlanForm {
   name: string;
@@ -34,12 +55,12 @@ const emptyForm: PlanForm = {
 };
 
 export default function AdminPlans() {
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<PlanData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<any | null>(null);
+  const [editingPlan, setEditingPlan] = useState<PlanData | null>(null);
   const [form, setForm] = useState<PlanForm>({ ...emptyForm });
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductData[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -48,10 +69,6 @@ export default function AdminPlans() {
   const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -59,8 +76,8 @@ export default function AdminPlans() {
         getDocs(collection(db, 'plans')),
         getDocs(collection(db, 'products')),
       ]);
-      setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() }) as unknown as PlanData));
+      setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() }) as unknown as ProductData));
     } catch (err) {
       console.error(err);
       toast.error('Failed to fetch data');
@@ -68,6 +85,10 @@ export default function AdminPlans() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const uploadImage = (file: File, planId: string) => {
     return new Promise<string>((resolve, reject) => {
@@ -110,7 +131,7 @@ export default function AdminPlans() {
     const error = validate();
     if (error) { setValidationError(error); toast.error(error); return; }
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: form.name,
         price: Number(form.price),
         priceUsd: Number(form.priceUsd || 0),
@@ -126,13 +147,13 @@ export default function AdminPlans() {
         try {
           const url = await uploadImage(selectedFile, ref.id);
           await updateDoc(doc(db, 'plans', ref.id), { image: url });
-        } catch (e) { toast.error('Image upload failed'); }
+        } catch { toast.error('Image upload failed'); }
       }
       toast.success('Plan created');
       resetForm();
       setShowModal(false);
       fetchData();
-    } catch (err) { toast.error('Create failed'); }
+    } catch { toast.error('Create failed'); }
   };
 
   const handleUpdate = async () => {
@@ -140,7 +161,7 @@ export default function AdminPlans() {
     const error = validate();
     if (error) { setValidationError(error); toast.error(error); return; }
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: form.name,
         price: Number(form.price),
         priceUsd: Number(form.priceUsd || 0),
@@ -152,7 +173,7 @@ export default function AdminPlans() {
       };
       if (selectedFile) {
         try { payload.image = await uploadImage(selectedFile, editingPlan.id); }
-        catch (e) { toast.error('Image upload failed'); }
+        catch { toast.error('Image upload failed'); }
       }
       await updateDoc(doc(db, 'plans', editingPlan.id), payload);
       toast.success('Plan updated');
@@ -160,7 +181,7 @@ export default function AdminPlans() {
       setShowModal(false);
       setEditingPlan(null);
       fetchData();
-    } catch (err) { toast.error('Update failed'); }
+    } catch { toast.error('Update failed'); }
   };
 
   const handleDelete = (id: string) => setDeletePlanId(id);
@@ -172,10 +193,10 @@ export default function AdminPlans() {
       await deleteDoc(doc(db, 'plans', id));
       toast.success('Plan deleted');
       fetchData();
-    } catch (err) { toast.error('Delete failed'); }
+    } catch { toast.error('Delete failed'); }
   };
 
-  const openEdit = (plan: any) => {
+  const openEdit = (plan: PlanData) => {
     setEditingPlan(plan);
     setForm({
       name: plan.name || '',
@@ -199,18 +220,18 @@ export default function AdminPlans() {
     setShowModal(true);
   };
 
-  const toggleFeatured = async (plan: any) => {
+  const toggleFeatured = async (plan: PlanData) => {
     try {
       await updateDoc(doc(db, 'plans', plan.id), { isFeatured: !plan.isFeatured });
       fetchData();
       toast.success(plan.isFeatured ? 'Unfeatured' : 'Featured');
-    } catch (err) { toast.error('Failed'); }
+    } catch { toast.error('Failed'); }
   };
 
   const filteredProducts = useMemo(() => {
     const q = productSearch.toLowerCase().trim();
     if (!q) return products;
-    return products.filter((p: any) =>
+    return products.filter(p =>
       p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q)
     );
   }, [productSearch, products]);
@@ -396,7 +417,7 @@ export default function AdminPlans() {
                 <div className="max-h-48 overflow-y-auto border border-espresso/10 rounded-2xl p-3 space-y-1">
                   {filteredProducts.length === 0 ? (
                     <p className="text-xs text-text-muted text-center py-4">No products found</p>
-                  ) : filteredProducts.map((p: any) => (
+                  ) : filteredProducts.map((p: ProductData) => (
                     <label key={p.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-espresso/5 cursor-pointer">
                       <input
                         type="checkbox"

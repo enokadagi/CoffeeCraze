@@ -6,14 +6,19 @@ import { NotificationService } from '../../services/notification';
 const LS_KEY = 'pwa-prompt-dismissed';
 const DAY_MS = 86400000;
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export default function PwaInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
   const [isInstallable, setIsInstallable] = useState(false);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
@@ -32,7 +37,7 @@ export default function PwaInstallPrompt() {
         const elapsed = Date.now() - lastDismissed;
         const delay = count >= 3 ? 30 * DAY_MS : count >= 1 ? 7 * DAY_MS : 3 * DAY_MS;
         if (elapsed < delay) return;
-      } catch { /* ignore */ }
+      } catch { /* ignore - localStorage parse failure */ }
     }
 
     const check = () => setIsInstallable(true);
@@ -53,7 +58,7 @@ export default function PwaInstallPrompt() {
           const elapsed = Date.now() - lastDismissed;
           const delay = count >= 3 ? 30 * DAY_MS : count >= 1 ? 7 * DAY_MS : 3 * DAY_MS;
           if (elapsed < delay) return;
-        } catch { /* ignore */ }
+        } catch { /* ignore - localStorage parse failure */ }
       }
       setShow(true);
     }
@@ -84,11 +89,9 @@ export default function PwaInstallPrompt() {
   const handleDismiss = () => {
     setShow(false);
     const stored = localStorage.getItem(LS_KEY);
-    let count = 0;
+    let count = 1;
     if (stored) {
-      try { count = (JSON.parse(stored).count || 0) + 1; } catch { count = 1; }
-    } else {
-      count = 1;
+      try { count = (JSON.parse(stored).count || 0) + 1; } catch { /* keep default */ }
     }
     localStorage.setItem(LS_KEY, JSON.stringify({ count, lastDismissed: Date.now() }));
   };

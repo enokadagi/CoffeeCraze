@@ -5,7 +5,7 @@ import { db } from '../../lib/firebase';
 import { SubscriptionService } from '../../services/firestore';
 import { Address, Subscription, SubscriptionStatus } from '../../types';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
-import { Coffee, Calendar, RefreshCw, XCircle, Package, ArrowRight, Plus, MapPin, Clock, Edit2 } from 'lucide-react';
+import { Coffee, Calendar, RefreshCw, XCircle, ArrowRight, Plus, MapPin, Clock, Edit2 } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -43,7 +43,7 @@ export default function DashboardSubscriptions() {
     try {
       await updateDoc(doc(db, 'subscriptions', sub.id), { status: SubscriptionStatus.ACTIVE, pausedUntil: null });
       toast.success('Ritual Resumed successfully!');
-    } catch (err) {
+    } catch {
       toast.error('Failed to resume ritual');
     }
   };
@@ -57,7 +57,7 @@ export default function DashboardSubscriptions() {
       });
       toast.success(`Ritual Paused until ${pauseUntilDate || 'indefinitely'}!`);
       setPauseSub(null);
-    } catch (err) {
+    } catch {
       toast.error('Failed to pause ritual');
     }
   };
@@ -71,7 +71,7 @@ export default function DashboardSubscriptions() {
       await updateDoc(doc(db, 'subscriptions', id), { status: SubscriptionStatus.CANCELLED });
       setSubscriptions(subscriptions.map(s => s.id === id ? { ...s, status: SubscriptionStatus.CANCELLED } : s));
       toast.success("Ritual cancelled. We'll miss brewing for you.");
-    } catch (err) {
+    } catch {
       toast.error("Failed to cancel ritual");
     }
   };
@@ -100,9 +100,9 @@ export default function DashboardSubscriptions() {
         building: shippingAddress?.building || '',
         floor: shippingAddress?.floor || '',
         city: shippingAddress?.city || 'Beirut',
-        preferredTimeSlot: (editingSub as any).preferredTimeSlot || editingSub.preferredTime || 'Morning (9:00 AM - 12:00 PM)',
-        customNotes: (editingSub as any).customNotes || '',
-        gateCode: (editingSub as any).gateCode || ''
+        preferredTimeSlot: editingSub?.['preferredTimeSlot'] || editingSub.preferredTime || 'Morning (9:00 AM - 12:00 PM)',
+        customNotes: editingSub?.['customNotes'] || '',
+        gateCode: editingSub?.['gateCode'] || ''
       });
     }
   }, [editingSub]);
@@ -127,18 +127,18 @@ export default function DashboardSubscriptions() {
       setSubscriptions(subscriptions.map(s => s.id === editingSub.id ? { ...s, ...updatedFields } as Subscription : s));
       toast.success("Delivery coordinates synced successfully!");
       setEditingSub(null);
-    } catch (err) {
+    } catch {
       toast.error("Failed to update logistics");
     }
   };
 
-  const updateFrequency = async (id: string, freq: any) => {
+  const updateFrequency = async (id: string, freq: 'daily' | 'weekly' | 'biweekly' | 'monthly') => {
     try {
       await updateDoc(doc(db, 'subscriptions', id), { frequency: freq });
       setSubscriptions(subscriptions.map(s => s.id === id ? { ...s, frequency: freq } : s));
       toast.success("Extraction frequency cycle modulated!");
       setEditingSub(null);
-    } catch (err) {
+    } catch {
       toast.error("Failed to update cycle frequency");
     }
   };
@@ -157,21 +157,21 @@ export default function DashboardSubscriptions() {
       await updateDoc(doc(db, 'subscriptions', sub.id), { nextDelivery: nextDeliveryStr });
       setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, nextDelivery: nextDeliveryStr } : s));
       toast.success(`Successfully skipped cycle! Next delivery rescheduled for ${nextDeliveryStr}`);
-    } catch (err) {
+    } catch {
       toast.error("Failed to skip cycle");
     }
   };
 
   const extendPlanDuration = async (sub: Subscription, additionalMonths: number) => {
     try {
-      const currentDuration = (sub as any).durationMonths || 3;
+      const currentDuration = sub?.['durationMonths'] || 3;
       const newDuration = currentDuration + additionalMonths;
       
       await updateDoc(doc(db, 'subscriptions', sub.id), { durationMonths: newDuration });
-      setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, durationMonths: newDuration } as any : s));
+      setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, durationMonths: newDuration } as Subscription : s));
       toast.success(`Ritual cycle extended successfully by ${additionalMonths} months!`);
       setEditingSub(null);
-    } catch (err) {
+    } catch {
       toast.error("Failed to extend plan duration");
     }
   };
@@ -234,9 +234,9 @@ export default function DashboardSubscriptions() {
                       )}>
                         {sub.status.toUpperCase()}
                       </span>
-                      {((sub as any).durationMonths) && (
+                      {sub?.['durationMonths'] && (
                         <span className="bg-espresso text-caramel-gold border border-white/10 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                          {((sub as any).durationMonths)} MONTHS PLAN
+                          {sub?.['durationMonths']} MONTHS PLAN
                         </span>
                       )}
                     </div>
@@ -276,7 +276,7 @@ export default function DashboardSubscriptions() {
                       <Clock size={12} className="text-caramel shrink-0" /> Slot Lock
                     </p>
                     <p className="text-xs font-bold text-espresso truncate">
-                      {(sub as any).preferredTimeSlot || sub.preferredTime || 'Morning Slot'}
+                      {sub?.['preferredTimeSlot'] || sub.preferredTime || 'Morning Slot'}
                     </p>
                   </div>
                 </div>
@@ -326,9 +326,9 @@ export default function DashboardSubscriptions() {
                           {sub.status === SubscriptionStatus.ACTIVE ? "Pause Cycle" : "Resume Cycle"}
                         </button>
                         
-                        {sub.status === SubscriptionStatus.PAUSED && (sub as any).pausedUntil && (
+                        {sub.status === SubscriptionStatus.PAUSED && sub?.['pausedUntil'] && (
                           <p className="text-[10px] text-amber-600 font-bold text-center w-full -mt-2">
-                            Auto-resume: {format(new Date((sub as any).pausedUntil), 'MMM dd, yyyy')}
+                            Auto-resume: {format(new Date(sub?.['pausedUntil']), 'MMM dd, yyyy')}
                           </p>
                         )}
                         
@@ -438,7 +438,7 @@ export default function DashboardSubscriptions() {
                         <div className="space-y-3">
                           <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Recipe Blueprint Items</p>
                           <div className="space-y-2">
-                            {editingSub.items.map((item: any, idx: number) => (
+                            {editingSub.items.map((item, idx: number) => (
                               <div key={idx} className="flex items-center justify-between p-3 bg-cream rounded-xl border border-espresso/5">
                                  <div className="flex items-center gap-3">
                                    <div className="w-10 h-10 bg-white rounded-lg border border-white shadow-premium overflow-hidden">
@@ -451,7 +451,7 @@ export default function DashboardSubscriptions() {
                                  </div>
                                  <button 
                                    onClick={async () => {
-                                     const newItems = editingSub.items.filter((_: any, i: number) => i !== idx);
+                                      const newItems = editingSub.items.filter((_: unknown, i: number) => i !== idx);
                                      if (newItems.length === 0) {
                                        toast.error("Ritual requires at least one component");
                                        return;
@@ -461,8 +461,8 @@ export default function DashboardSubscriptions() {
                                        setSubscriptions(subscriptions.map(s => s.id === editingSub.id ? { ...s, items: newItems } : s));
                                        setEditingSub({ ...editingSub, items: newItems });
                                        toast.success("Component removed");
-                                     } catch (err) {
-                                       toast.error("Failed to remove component");
+                                      } catch {
+                                        toast.error("Failed to remove component");
                                      }
                                    }}
                                    className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-red-500 bg-white rounded-lg transition-all shadow-sm"

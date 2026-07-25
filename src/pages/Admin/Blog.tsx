@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Save, Plus, Trash2, Edit3, Eye, FileText, CheckCircle, RefreshCw } from 'lucide-react';
-import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { Save, Plus, Trash2, Edit3, FileText, RefreshCw } from 'lucide-react';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import { toast } from 'sonner';
-import { cn } from '../../lib/utils';
+import { cn, cleanUndefined } from '../../lib/utils';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 interface BlogPost {
@@ -23,7 +23,7 @@ interface BlogPost {
   dislikes: number;
   likedBy: string[];
   dislikedBy: string[];
-  comments: any[];
+  comments: unknown[];
   status: 'draft' | 'published';
   createdAt: string;
 }
@@ -36,25 +36,42 @@ export default function AdminBlog() {
   const [uploading, setUploading] = useState(false);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
   const fetchPosts = async () => {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, 'blog_posts'));
-      const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
+      const fetched = snap.docs.map(d => {
+        const raw = d.data();
+        return {
+          id: d.id,
+          title: raw.title || '',
+          excerpt: raw.excerpt || '',
+          content: raw.content || '',
+          category: raw.category || '',
+          date: raw.date || '',
+          image: raw.image || '',
+          likes: Number(raw.likes) || 0,
+          dislikes: Number(raw.dislikes) || 0,
+          likedBy: Array.isArray(raw.likedBy) ? raw.likedBy : [],
+          dislikedBy: Array.isArray(raw.dislikedBy) ? raw.dislikedBy : [],
+          comments: Array.isArray(raw.comments) ? raw.comments : [],
+          status: raw.status || 'draft',
+          createdAt: raw.createdAt || new Date().toISOString(),
+        } as BlogPost;
+      });
       // Sort desc by date
       fetched.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
       setPosts(fetched);
-    } catch (err) {
-      console.error('Failed to fetch posts:', err);
+    } catch {
       toast.error('Failed to load blog posts.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
   const handleSave = async () => {
     if (!editingPost) return;
@@ -76,16 +93,15 @@ export default function AdminBlog() {
         if (!targetId) targetId = 'post-' + Date.now();
       }
 
-      await setDoc(doc(db, 'blog_posts', targetId), {
+      await setDoc(doc(db, 'blog_posts', targetId), cleanUndefined({
         ...data,
         updatedAt: new Date().toISOString(),
-      });
+      }));
       
       toast.success(id === 'new' ? 'Article created' : 'Article updated');
       setEditingPost(null);
       fetchPosts();
-    } catch (err) {
-      console.error('Save failed:', err);
+    } catch {
       toast.error('Failed to save article.');
     } finally {
       setSaving(false);
@@ -108,7 +124,7 @@ export default function AdminBlog() {
       });
       setEditingPost({ ...editingPost, image: url });
       toast.success('Image uploaded');
-    } catch (err) {
+    } catch {
       toast.error('Image upload failed');
     } finally {
       setUploading(false);
@@ -149,7 +165,7 @@ export default function AdminBlog() {
       await deleteDoc(doc(db, 'blog_posts', id));
       toast.success('Article deleted');
       fetchPosts();
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete article.');
     }
   };
@@ -310,7 +326,7 @@ export default function AdminBlog() {
                     <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Publish Status</label>
                     <select
                       value={editingPost.status}
-                      onChange={(e) => setEditingPost({ ...editingPost, status: e.target.value as any })}
+                      onChange={(e) => setEditingPost({ ...editingPost, status: e.target.value as BlogPost['status'] })}
                       className="w-full px-4 py-3 bg-cream border border-border rounded-xl outline-none focus:border-coffee-500 text-sm font-semibold text-espresso"
                     >
                       <option value="draft">Draft (Hidden)</option>

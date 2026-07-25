@@ -69,6 +69,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useWishlist = () => {
   const context = useContext(WishlistContext);
   if (context === undefined) {

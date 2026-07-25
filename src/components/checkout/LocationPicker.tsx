@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Loader2, MapPin, Crosshair } from 'lucide-react';
+import { Loader2, MapPin, Crosshair } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Use a reliable SVG marker icon instead of Leaflet's default PNG icons

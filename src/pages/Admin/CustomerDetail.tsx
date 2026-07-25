@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { UserProfile, Order, Subscription, OrderStatus, UserRole, ROLE_LABELS } from '../../types';
 import { formatPrice, safeDate, cn } from '../../lib/utils';
@@ -15,54 +15,53 @@ export default function AdminCustomerDetail() {
   const [customer, setCustomer] = useState<UserProfile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    const loadCustomer = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', id));
+        if (snap.exists()) {
+          setCustomer(snap.data() as UserProfile);
+        } else {
+          toast.error('Customer not found');
+          navigate('/admin/customers');
+        }
+      } catch {
+        toast.error('Failed to load customer');
+        navigate('/admin/customers');
+      }
+    };
+
+    const loadOrders = async () => {
+      try {
+        const q = query(collection(db, 'orders'), where('userId', '==', id), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        setOrders(snap.docs.map(d => {
+          const data = d.data();
+          const createdAt = data.createdAt;
+          return {
+            id: d.id,
+            ...data,
+            createdAt: createdAt?.toDate?.()?.toISOString?.() || createdAt || new Date().toISOString(),
+          } as Order;
+        }));
+      } catch { console.warn('[CustomerDetail] Failed to load orders'); }
+    };
+
+    const loadSubscriptions = async () => {
+      try {
+        const q = query(collection(db, 'subscriptions'), where('userId', '==', id));
+        const snap = await getDocs(q);
+        setSubscriptions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Subscription)));
+      } catch { console.warn('[CustomerDetail] Failed to load subscriptions'); }
+    };
+
     loadCustomer();
     loadOrders();
     loadSubscriptions();
-  }, [id]);
-
-  const loadCustomer = async () => {
-    try {
-      const snap = await getDoc(doc(db, 'users', id!));
-      if (snap.exists()) {
-        setCustomer(snap.data() as UserProfile);
-      } else {
-        toast.error('Customer not found');
-        navigate('/admin/customers');
-      }
-    } catch {
-      toast.error('Failed to load customer');
-      navigate('/admin/customers');
-    }
-  };
-
-  const loadOrders = async () => {
-    try {
-      const q = query(collection(db, 'orders'), where('userId', '==', id!), orderBy('createdAt', 'desc'));
-      const snap = await getDocs(q);
-      setOrders(snap.docs.map(d => {
-        const data = d.data();
-        const createdAt = data.createdAt;
-        return {
-          id: d.id,
-          ...data,
-          createdAt: createdAt?.toDate?.()?.toISOString?.() || createdAt || new Date().toISOString(),
-        } as Order;
-      }));
-    } catch { /* non-critical */ }
-  };
-
-  const loadSubscriptions = async () => {
-    try {
-      const q = query(collection(db, 'subscriptions'), where('userId', '==', id!));
-      const snap = await getDocs(q);
-      setSubscriptions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Subscription)));
-    } catch { /* non-critical */ }
-  };
+  }, [id, navigate]);
 
   const handleRoleToggle = async () => {
     if (!customer) return;
@@ -93,7 +92,7 @@ export default function AdminCustomerDetail() {
     }
   };
 
-  if (loading && !customer) {
+  if (!customer) {
     return (
       <DashboardLayout>
         <div className="animate-pulse space-y-8 p-8">

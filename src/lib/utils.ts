@@ -73,3 +73,25 @@ export function safeDate(value: unknown): Date {
   const d = new Date(value as string | number | Date);
   return isNaN(d.getTime()) ? new Date() : d;
 }
+
+/**
+ * Recursively removes all keys with `undefined` values from an object.
+ * Firestore's SDK throws on `undefined` values; use this before setDoc/addDoc/updateDoc.
+ * Does NOT mutate the original; returns a new object/array.
+ */
+export function cleanUndefined<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) {
+    return value.map(cleanUndefined) as unknown as T;
+  }
+  if (typeof value === 'object' && value.constructor === Object) {
+    const cleaned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) {
+        cleaned[k] = cleanUndefined(v);
+      }
+    }
+    return cleaned as T;
+  }
+  return value;
+}

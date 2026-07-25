@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Save, Image, Type, Eye, EyeOff, RefreshCw, Plus, Trash2, HelpCircle, X } from 'lucide-react';
+import { Save, Type, Eye, EyeOff, RefreshCw, Plus, Trash2, HelpCircle, X } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
@@ -55,24 +55,36 @@ export default function AdminCMS() {
   const [faqSaving, setFaqSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'faq' | 'section'; id: string } | null>(null);
 
-  useEffect(() => {
-    fetchContent();
-    fetchFaqs();
-  }, []);
-
   const fetchFaqs = async () => {
     setFaqLoading(true);
     try {
       const snap = await getDocs(collection(db, 'faqs'));
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as FAQItem));
       setFaqs(items.sort((a, b) => a.order - b.order));
-    } catch (err) {
-      console.error('Failed to fetch FAQs:', err);
+    } catch {
       toast.error('Failed to load FAQs');
     } finally {
       setFaqLoading(false);
     }
   };
+
+  const fetchContent = async () => {
+    setLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'cms_content'));
+      const content = snap.docs.map(d => ({ id: d.id, ...d.data() } as ContentSection));
+      setSections(content.sort((a, b) => a.order - b.order));
+    } catch {
+      toast.error('Failed to load content');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContent();
+    fetchFaqs();
+  }, []);
 
   const handleFaqSave = async () => {
     if (!editingFaq) return;
@@ -87,7 +99,7 @@ export default function AdminCMS() {
       toast.success('FAQ updated');
       setEditingFaq(null);
       fetchFaqs();
-    } catch (err) {
+    } catch {
       toast.error('Failed to save FAQ');
     } finally {
       setFaqSaving(false);
@@ -96,7 +108,7 @@ export default function AdminCMS() {
 
   const addNewFaq = async () => {
     try {
-      const ref = await addDoc(collection(db, 'faqs'), {
+      await addDoc(collection(db, 'faqs'), {
         question: 'New Question',
         answer: 'New answer',
         order: faqs.length + 1,
@@ -105,7 +117,7 @@ export default function AdminCMS() {
       });
       toast.success('FAQ created');
       fetchFaqs();
-    } catch (err) {
+    } catch {
       toast.error('Failed to create FAQ');
     }
   };
@@ -121,22 +133,8 @@ export default function AdminCMS() {
       logAdminAction(user?.uid || '', user?.email || '', 'delete_faq', 'faqs', id, {});
       toast.success('FAQ deleted');
       fetchFaqs();
-    } catch (err) {
+    } catch {
       toast.error('Delete failed');
-    }
-  };
-
-  const fetchContent = async () => {
-    setLoading(true);
-    try {
-      const snap = await getDocs(collection(db, 'cms_content'));
-      const content = snap.docs.map(d => ({ id: d.id, ...d.data() } as ContentSection));
-      setSections(content.sort((a, b) => a.order - b.order));
-    } catch (err) {
-      console.error('Failed to fetch CMS content:', err);
-      toast.error('Failed to load content');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -153,8 +151,7 @@ export default function AdminCMS() {
       toast.success('Content updated');
       setEditingSection(null);
       fetchContent();
-    } catch (err) {
-      console.error('Save failed:', err);
+    } catch {
       toast.error('Failed to save content');
     } finally {
       setSaving(false);
@@ -177,7 +174,7 @@ export default function AdminCMS() {
       });
       setEditingSection({ ...editingSection, image: url });
       toast.success('Image uploaded');
-    } catch (err) {
+    } catch {
       toast.error('Image upload failed');
     } finally {
       setUploading(false);
@@ -186,7 +183,7 @@ export default function AdminCMS() {
 
   const addNewSection = async () => {
     try {
-      const ref = await addDoc(collection(db, 'cms_content'), {
+      await addDoc(collection(db, 'cms_content'), {
         key: `section_${Date.now()}`,
         title: 'New Section',
         subtitle: '',
@@ -201,7 +198,7 @@ export default function AdminCMS() {
       });
       toast.success('New section created');
       fetchContent();
-    } catch (err) {
+    } catch {
       toast.error('Failed to create section');
     }
   };
@@ -217,7 +214,7 @@ export default function AdminCMS() {
       logAdminAction(user?.uid || '', user?.email || '', 'delete_cms_section', 'cms_content', id, {});
       toast.success('Section deleted');
       fetchContent();
-    } catch (err) {
+    } catch {
       toast.error('Delete failed');
     }
   };
@@ -328,7 +325,7 @@ export default function AdminCMS() {
                           try {
                             await updateDoc(doc(db, 'faqs', faq.id), { visible: !faq.visible });
                             fetchFaqs();
-                          } catch (err) {
+                          } catch {
                             toast.error('Update failed');
                           }
                         }}
@@ -485,7 +482,7 @@ export default function AdminCMS() {
                       try {
                         await updateDoc(doc(db, 'cms_content', section.id), { visible: !section.visible });
                         fetchContent();
-                      } catch (err) {
+                      } catch {
                         toast.error('Update failed');
                       }
                     }}
@@ -531,7 +528,7 @@ export default function AdminCMS() {
                   <label className="text-xs font-bold uppercase tracking-widest text-text-muted">Type</label>
                   <select
                     value={editingSection.type}
-                    onChange={(e) => setEditingSection({ ...editingSection, type: e.target.value as any })}
+                    onChange={(e) => setEditingSection({ ...editingSection, type: e.target.value as ContentSection['type'] })}
                     className="w-full px-5 py-4 bg-cream border border-espresso/10 rounded-2xl focus:bg-white focus:border-caramel-gold outline-none transition-all text-sm font-medium"
                   >
                     {typeOptions.map((opt) => (

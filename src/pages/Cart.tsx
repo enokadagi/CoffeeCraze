@@ -13,12 +13,12 @@ import { useSiteSettings } from '../hooks/useSiteSettings';
 import { toast } from 'sonner';
 
 export default function Cart() {
-  const { items, removeItem, addItem, updateQuantity, total, totalUsd, clearCart } = useCart();
+  const { items, removeItem, updateQuantity, total, totalUsd } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const siteSettings = useSiteSettings();
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: Cart, 2: Checkout
+  const [loading] = useState(false);
+  const [step] = useState(1); // 1: Cart, 2: Checkout
 
   // Coupon state
   const [couponInput, setCouponInput] = useState('');

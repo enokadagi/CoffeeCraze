@@ -1,6 +1,7 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, Timestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, onSnapshot, Unsubscribe, type DocumentSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Product, Order, Subscription, Review, UserProfile, Plan } from '../types';
+import { Product, Order, Subscription, Plan } from '../types';
+import { cleanUndefined } from '../lib/utils';
 
 export const ProductService = {
   async getAll(): Promise<Product[]> {
@@ -28,7 +29,7 @@ export const ProductService = {
   }
 };
 
-function formatOrderDoc(doc: any): Order {
+function formatOrderDoc(doc: DocumentSnapshot): Order {
   const data = doc.data();
   const createdAt = data.createdAt;
   return {
@@ -44,14 +45,13 @@ export const OrderService = {
   async create(order: Omit<Order, 'id' | 'createdAt'>): Promise<string> {
     if (!order.userId) throw new Error('userId is required');
     if (!order.items?.length) throw new Error('Order must have at least one item');
-    if (typeof order.total !== 'number' || order.total < 0) throw new Error('Invalid order total');
+    if (typeof order.total !== 'number' || !Number.isFinite(order.total) || order.total < 0) throw new Error('Invalid order total');
     if (order.items.some(i => !i.productId || !i.name)) throw new Error('Each item must have productId and name');
-    const docRef = await addDoc(collection(db, 'orders'), {
+    const docRef = await addDoc(collection(db, 'orders'), cleanUndefined({
       ...order,
       createdAt: serverTimestamp(),
       status: 'pending'
-    });
-    console.log('[OrderService] Order created:', docRef.id, 'userId:', order.userId, 'total:', order.total);
+    }));
     return docRef.id;
   },
 
@@ -118,12 +118,12 @@ export const PlanService = {
 };
 
 export const SubscriptionService = {
-  async create(sub: Record<string, any>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'subscriptions'), {
+  async create(sub: Record<string, unknown>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'subscriptions'), cleanUndefined({
       ...sub,
       createdAt: serverTimestamp(),
       status: 'active'
-    });
+    }));
     return docRef.id;
   },
 
@@ -145,23 +145,5 @@ export const SubscriptionService = {
       (snapshot) => onData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subscription))),
       (err) => onError?.(err)
     );
-  }
-};
-
-export const ReviewService = {
-  async getByProductId(productId: string): Promise<Review[]> {
-    const q = query(collection(db, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
-  },
-
-  async addReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<void> {
-    await addDoc(collection(db, 'reviews'), {
-      ...review,
-      createdAt: serverTimestamp()
-    });
-    
-    // Update product average rating (ideally this should be an atomic operation or cloud function)
-    // For now we'll do simple update
   }
 };

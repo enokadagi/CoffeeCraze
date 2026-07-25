@@ -62,13 +62,13 @@ async function postAi<T>(body: Record<string, unknown>): Promise<T> {
     let details = '';
     try {
       if (isJson) {
-        const parsed: any = await res.json();
+        const parsed: Record<string, unknown> = await res.json();
         details = parsed?.error ? String(parsed.error) : '';
       } else {
         details = await res.text();
       }
     } catch {
-      // ignore
+      console.warn('[Gemini] Failed to parse error response');
     }
     throw new Error(`AI request failed: ${res.status}${details ? ` - ${details}` : ''}`);
   }
@@ -91,7 +91,7 @@ export const GeminiService = {
       console.warn('[AiBarista] Gemini returned error:', data.error, data.details);
       toast.error(`AI Barista error: ${errMsg}`);
       return `I'm having trouble retrieving details right now (${errMsg}). Here is a recommendation instead:\n\n${getFallbackRecommendation(message)}`;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[AiBarista] Request failed:', error);
       const messageText = error instanceof Error ? error.message : 'Unknown communication failure';
       toast.error(`Service unreachable: ${messageText}`);

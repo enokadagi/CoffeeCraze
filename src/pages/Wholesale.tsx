@@ -5,7 +5,6 @@ import { Building2, Briefcase, TrendingUp, Handshake, CheckCircle2, ArrowRight }
 import { useAuth } from '../context/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import SEO from '../components/common/SEO';
 

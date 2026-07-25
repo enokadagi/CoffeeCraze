@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../../lib/firebase';
-import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { UserRole, UserProfile, ROLE_LABELS } from '../../types';
 import { toast } from 'sonner';
-import { Shield, UserPlus, Trash2, Mail, Check, X, ShieldAlert, Key, Edit, RefreshCw } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Mail, X, ShieldAlert, Key, Edit } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
 import { cn } from '../../lib/utils';
@@ -58,10 +58,6 @@ export default function Employees() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -88,6 +84,10 @@ export default function Employees() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -650,7 +650,7 @@ export default function Employees() {
                   <select
                     id="edit-status"
                     value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as 'active' | 'disabled' | 'suspended' })}
                     className="w-full px-4 py-3 border border-border rounded-xl text-sm outline-none focus:border-caramel bg-white font-semibold text-espresso"
                   >
                     <option value="active">Active Clearance</option>

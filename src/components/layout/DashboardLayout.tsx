@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   BarChart3, Package, Users, Settings, LogOut, LayoutDashboard,
-  ShoppingBag, Building2, Star, Truck, Heart, Menu, X,
+  ShoppingBag, Building2, Star, Truck, Heart, Menu,
   BookOpen, MessageSquare, Shield, Palette
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';

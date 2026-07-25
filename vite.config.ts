@@ -2,7 +2,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv, type PluginOption} from 'vite';
+import {defineConfig, type PluginOption} from 'vite';
 
 // Production-only plugin: replaces dev-only modules with no-ops
 // to prevent accidental exposure in the client bundle.
@@ -25,7 +25,6 @@ function excludeDevOnly(...paths: string[]): PluginOption {
 }
 
 export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
   const isProd = mode === 'production';
   return {
     plugins: [react(), tailwindcss(), isProd && excludeDevOnly('src/utils/dbSeeder.ts')].filter(Boolean),
@@ -68,6 +67,7 @@ export default defineConfig(({mode}) => {
               'react-dom',
               'recharts',
               'firebase',
+              'xlsx',
               'lucide-react',
               'google',
               '@google',

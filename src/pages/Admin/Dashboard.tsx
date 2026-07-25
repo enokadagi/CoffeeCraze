@@ -1,22 +1,21 @@
 ﻿import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  Users, ShoppingBag, Coffee, TrendingUp, AlertTriangle,
-  Package, Truck, DollarSign, CalendarDays, Settings,
-  BarChart3, PieChart, Activity, Clock, MessageSquare
+  Users, ShoppingBag, Coffee, AlertTriangle,
+  Package, Truck, Settings,
+  MessageSquare
 } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { UserRole, hasRole, Order, Subscription, SubscriptionStatus, DeliveryStatus } from '../../types';
-import { formatUSD, formatLBP } from '../../utils/exchange';
+import { UserRole, hasRole, Order, SubscriptionStatus } from '../../types';
+import { formatLBP } from '../../utils/exchange';
 import AdminWeeklyRevenueChart from '../../components/admin/AdminWeeklyRevenueChart';
 // dbSeeder import removed --- client-side data seeding is a security risk. Use admin-only scripts.
-import { toast } from 'sonner';
 
 interface AdminStats {
   totalCustomers: number;
@@ -32,6 +31,8 @@ interface AdminStats {
   totalRevThisWeek: number;
   totalRevLastWeek: number;
 }
+
+const STAFF_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE, UserRole.ANALYST];
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
@@ -55,40 +56,31 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<'overview' | 'operations' | 'analytics'>('overview');
   const [unreadMessages, setUnreadMessages] = useState(0);
 
-  const STAFF_ROLES = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE, UserRole.ANALYST];
-
   useEffect(() => {
     if (profile && !hasRole(profile.role, STAFF_ROLES)) {
       navigate('/');
     }
   }, [profile, navigate]);
 
-  useEffect(() => {
-    if (profile && hasRole(profile.role, STAFF_ROLES)) {
-      fetchAdminData();
-    }
-  }, [profile]);
-
   const fetchAdminData = async () => {
     try {
       // Fetch collections
-      const [productsSnap, ordersSnap, customersSnap, subsSnap, wholesaleSnap, messagesSnap] = await Promise.all([
+      const [productsSnap, ordersSnap, customersSnap, subsSnap, messagesSnap] = await Promise.all([
         getDocs(collection(db, 'products')),
         getDocs(collection(db, 'orders')),
         getDocs(query(collection(db, 'users'), where('role', '!=', UserRole.ADMIN))),
         getDocs(collection(db, 'subscriptions')),
-        getDocs(query(collection(db, 'wholesale_accounts'), where('status', '==', 'pending'))),
         getDocs(query(collection(db, 'contact_messages'), where('status', '==', 'unread')))
       ]);
       setUnreadMessages(messagesSnap.size);
 
       // Products analysis
       const productsList = productsSnap.docs.map(doc => doc.data());
-      const lowStockCount = productsList.filter((p: any) => (p.stock ?? 0) < 10).length;
+      const lowStockCount = productsList.filter((p: Record<string, unknown>) => (Number(p.stock) || 0) < 10).length;
 
       // Subscriptions analysis
       const subsList = subsSnap.docs.map(doc => doc.data());
-      const activeCount = subsList.filter((s: any) => s.status === SubscriptionStatus.ACTIVE).length;
+      const activeCount = subsList.filter((s: Record<string, unknown>) => s['status'] === SubscriptionStatus.ACTIVE).length;
 
       // Orders analysis
       const allOrders = ordersSnap.docs.map(doc => {
@@ -145,6 +137,12 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (profile && hasRole(profile.role, STAFF_ROLES)) {
+      fetchAdminData();
+    }
+  }, [profile]);
 
   if (loading) {
     return (

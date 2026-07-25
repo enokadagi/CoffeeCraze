@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { signInWithCredential, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, updateProfile } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -17,26 +17,26 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resetting, setResetting] = useState(false);
+  
   const [verifying, setVerifying] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
 
-  const getRedirectPath = () => {
+  const getRedirectPath = useCallback(() => {
     const redirectParam = searchParams.get('redirect');
     if (redirectParam) return redirectParam;
     const fromState = location.state as { from?: { pathname: string } } | null;
     if (fromState?.from?.pathname) return fromState.from.pathname;
     return '/';
-  };
+  }, [searchParams, location.state]);
 
   useEffect(() => {
     if (!authLoading && authUser) {
       navigate(getRedirectPath(), { replace: true });
     }
-  }, [authUser, authLoading]);
+  }, [authUser, authLoading, getRedirectPath, navigate]);
 
   const gsiReadyRef = useRef(false);
 
@@ -119,13 +119,10 @@ export default function Auth() {
       return;
     }
     try {
-      setResetting(true);
       await sendPasswordResetEmail(auth, email);
       toast.success("Password reset link sent to your email.");
-    } catch (err) {
+    } catch {
       toast.error("Failed to send password reset email.");
-    } finally {
-      setResetting(false);
     }
   };
 
@@ -157,14 +154,13 @@ export default function Auth() {
           onboarded: false,
           emailVerified: false,
         }, { merge: true });
-        console.log('[Auth] Profile doc created for', userCredential.user.uid);
         await sendEmailVerification(userCredential.user);
         setJustRegistered(true);
         toast.success("Account created successfully! Please check your email to verify your address.");
       }
       navigate(getRedirectPath(), { replace: true });
     } catch (err) {
-      const code = (err as any)?.code || '';
+      const code = (err as { code?: string })?.code || '';
       if (code.includes('invalid-credential') || code.includes('auth/invalid-credential')) {
         toast.error('Invalid email or password. Please try again.');
       } else if (code.includes('email-already-in-use')) {
@@ -244,7 +240,7 @@ export default function Auth() {
                 try {
                   await sendEmailVerification(auth.currentUser);
                   toast.success('Verification email sent. Please check your inbox.');
-                } catch (err) {
+                } catch {
                   toast.error('Failed to send verification email.');
                 } finally {
                   setVerifying(false);

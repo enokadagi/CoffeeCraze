@@ -6,7 +6,7 @@ import ImageWithFallback from '../../components/common/ImageWithFallback';
 import {
   Package, Plus, Search, Edit2, Trash2, Tag, FileSpreadsheet, Download,
   ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight,
-  Star, StarOff, CheckSquare, Square, Minus, AlertTriangle, Filter, X,
+  Star, StarOff, CheckSquare, Square, Minus, AlertTriangle, X,
   BarChart3, History, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,7 +17,12 @@ import { Link } from 'react-router-dom';
 import { db } from '../../lib/firebase';
 import ProductFormModal from '../../components/admin/ProductFormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import * as XLSX from 'xlsx';
+type XlsxModule = typeof import('xlsx');
+let _xlsx: XlsxModule | null = null;
+async function loadXlsx(): Promise<XlsxModule> {
+  if (!_xlsx) _xlsx = await import('xlsx');
+  return _xlsx;
+}
 import { useAuth } from '../../context/AuthContext';
 import { logAdminAction } from '../../utils/auditLog';
 
@@ -34,7 +39,7 @@ async function logInventoryChange(productId: string, productName: string, previo
       createdBy: userId,
       createdAt: serverTimestamp(),
     });
-  } catch { /* non-critical */ }
+  } catch { console.warn('[Inventory] Failed to log stock history'); }
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -52,7 +57,7 @@ interface Column {
   minWidth: number;
 }
 
-const SortIcon = ({ field, active, dir }: { field: string; active: boolean; dir: SortDir }) => {
+const SortIcon = ({ field: _field, active, dir }: { field: string; active: boolean; dir: SortDir }) => {
   if (!active) return <ChevronsUpDown size={13} className="text-text-muted/50 group-hover:text-text-muted transition-colors" />;
   return dir === 'asc'
     ? <ChevronUp size={13} className="text-gold-500" />
@@ -62,7 +67,7 @@ const SortIcon = ({ field, active, dir }: { field: string; active: boolean; dir:
 export default function AdminInventory() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<{ id: string; name: string; [key: string]: unknown }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Toolbar state
@@ -88,7 +93,7 @@ export default function AdminInventory() {
   const [inlineEdit, setInlineEdit] = useState<{ id: string; field: 'stock' | 'price'; value: string } | null>(null);
 
   // Stock history drawer
-  const [stockHistory, setStockHistory] = useState<any[]>([]);
+  const [stockHistory, setStockHistory] = useState<Record<string, unknown>[]>([]);
   const [stockHistoryProduct, setStockHistoryProduct] = useState<Product | null>(null);
   const [stockHistoryLoading, setStockHistoryLoading] = useState(false);
 
@@ -119,16 +124,7 @@ export default function AdminInventory() {
   const startX = useRef<number>(0);
   const startWidth = useRef<number>(0);
 
-  const handleMouseDown = (colId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    resizingCol.current = colId;
-    startX.current = e.clientX;
-    startWidth.current = colWidths[colId] || 100;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useRef((e: MouseEvent) => {
     if (!resizingCol.current) return;
     const diff = e.clientX - startX.current;
     const col = columns.find(c => c.id === resizingCol.current);
@@ -139,22 +135,22 @@ export default function AdminInventory() {
       ...prev,
       [resizingCol.current!]: newWidth
     }));
-  };
+  }).current;
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useRef(() => {
     resizingCol.current = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
-  };
+  }).current;
 
-  useEffect(() => {
-    fetchProducts();
-    fetchPlans();
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
+  const handleMouseDown = (colId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingCol.current = colId;
+    startX.current = e.clientX;
+    startWidth.current = colWidths[colId] || 100;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -166,9 +162,19 @@ export default function AdminInventory() {
   const fetchPlans = async () => {
     try {
       const snap = await getDocs(collection(db, 'plans'));
-      setPlans(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch { /* silent */ }
+      setPlans(snap.docs.map(d => ({ id: d.id, ...d.data() }) as unknown as { id: string; name: string; [key: string]: unknown }));
+    } catch { console.warn('[Inventory] Failed to load plans'); }
   };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchPlans();
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Sorting ────────────────────────────────────────────────────────────────
   const handleSort = (field: SortField) => {
@@ -198,7 +204,7 @@ export default function AdminInventory() {
     }
 
     list.sort((a, b) => {
-      let va: any, vb: any;
+      let va: string | number, vb: string | number;
       switch (sortField) {
         case 'name': va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); break;
         case 'category': va = a.category?.toLowerCase(); vb = b.category?.toLowerCase(); break;
@@ -241,7 +247,7 @@ export default function AdminInventory() {
   };
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) { next.delete(id); } else { next.add(id); }
     setSelected(next);
   };
   const clearSelection = () => setSelected(new Set());
@@ -282,7 +288,7 @@ export default function AdminInventory() {
         limit(50)
       );
       const snap = await getDocs(q);
-      setStockHistory(snap.docs.map(d => ({ id: d.id, ...d.data() }) as any));
+      setStockHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch { setStockHistory([]); }
     finally { setStockHistoryLoading(false); }
   };
@@ -327,7 +333,7 @@ export default function AdminInventory() {
       }
       await fetchProducts();
       await fetchPlans();
-    } catch { toast.error('Failed to save product'); throw new Error('save failed'); }
+    } catch { console.error('[Inventory] Failed to save product'); toast.error('Failed to save product'); throw new Error('save failed'); }
   };
 
   const executeDelete = async () => {
@@ -340,7 +346,7 @@ export default function AdminInventory() {
       logAdminAction(user?.uid || '', user?.email || '', 'delete_product', 'products', id, { name: product?.name });
       toast.success('Product removed');
       setProducts(prev => prev.filter(p => p.id !== id));
-    } catch { toast.error('Failed to delete product'); }
+    } catch { console.error('[Inventory] Failed to delete product'); toast.error('Failed to delete product'); }
   };
 
   const toggleFeatured = async (id: string, current: boolean) => {
@@ -353,10 +359,12 @@ export default function AdminInventory() {
   const parseInventoryFile = async (file: File): Promise<Partial<Product>[]> => {
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (extension === 'xlsx' || extension === 'xls') {
+      const XLSX = await loadXlsx();
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<any>(sheet);
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return rows.map((item: any) => ({
         name: item.name || 'Untitled',
         description: item.description || '',
@@ -402,7 +410,8 @@ export default function AdminInventory() {
   };
 
   // ── Exports ────────────────────────────────────────────────────────────────
-  const exportXLSX = () => {
+  const exportXLSX = async () => {
+    const XLSX = await loadXlsx();
     const rows = filteredSorted.map(p => ({
       Name: p.name, SKU: p.sku, Category: p.category,
       Stock: p.stock, PriceLBP: p.price, PriceUSD: p.priceUsd || '',
@@ -433,7 +442,8 @@ export default function AdminInventory() {
     toast.success('CSV exported');
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await loadXlsx();
     const template = [{
       name: 'Example Product', description: 'Rich dark roast', category: 'beans', sku: 'PRD-001',
       priceLbp: 250000, priceUsd: 8, wholesalePriceLbp: 180000, wholesalePriceUsd: 6,
@@ -957,6 +967,7 @@ export default function AdminInventory() {
                   <span className="flex-1 text-center">Change</span>
                   <span className="text-right">Balance</span>
                 </div>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {stockHistory.map((log: any) => {
                   const change = log.change || 0;
                   const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date(log.createdAt);

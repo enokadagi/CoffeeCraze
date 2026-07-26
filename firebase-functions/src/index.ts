@@ -1,11 +1,8 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
 import { GoogleGenAI } from '@google/genai';
 
-const geminiApiKey = defineSecret('GEMINI_API_KEY');
-
 export const aiChat = onRequest(
-  { cors: true, secrets: [geminiApiKey], maxInstances: 10 },
+  { cors: true, maxInstances: 10 },
   async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -18,7 +15,7 @@ export const aiChat = onRequest(
 
     try {
       const { message, history = [], mode = 'chat', answers, context } = req.body ?? {};
-      const apiKey = geminiApiKey.value();
+      const apiKey = process.env.GEMINI_API_KEY || '';
       if (!apiKey) {
         res.status(500).json({ error: 'AI service not configured' });
         return;

@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { signInWithCredential, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, updateProfile } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+import { UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -140,31 +142,48 @@ export default function Auth() {
         }
         // Force token refresh so Firestore security rules see request.auth immediately
         await userCredential.user.getIdToken(true);
-        // Create/update Firestore profile doc (must handle both CREATE and UPDATE rules)
-        const { doc, getDoc, setDoc, updateDoc, deleteDoc } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        const { UserRole } = await import('../types');
+        // Create/update Firestore profile doc
+        const display = displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest';
         const userRef = doc(db, 'users', userCredential.user.uid);
-        const userSnap = await getDoc(userRef);
+        let userSnap;
+        try {
+          userSnap = await getDoc(userRef);
+          console.log('[Auth] getDoc succeeded, exists:', userSnap.exists());
+        } catch (getErr) {
+          console.error('[Auth] getDoc FAILED:', getErr);
+          throw getErr;
+        }
         if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            uid: userCredential.user.uid,
-            email: userCredential.user.email || '',
-            displayName: displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest',
-            role: UserRole.CUSTOMER,
-            loyaltyPoints: 0,
-            totalSpent: 0,
-            createdAt: new Date().toISOString(),
-            onboarded: false,
-            emailVerified: false,
-          });
+          try {
+            await setDoc(userRef, {
+              uid: userCredential.user.uid,
+              email: userCredential.user.email || '',
+              displayName: display,
+              role: UserRole.CUSTOMER,
+              loyaltyPoints: 0,
+              totalSpent: 0,
+              createdAt: new Date().toISOString(),
+              onboarded: false,
+              emailVerified: false,
+            });
+            console.log('[Auth] setDoc succeeded (CREATE)');
+          } catch (setErr) {
+            console.error('[Auth] setDoc FAILED:', setErr);
+            throw setErr;
+          }
         } else {
-          await updateDoc(userRef, {
-            displayName: displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest',
-            onboarded: false,
-            emailVerified: false,
-            updatedAt: new Date().toISOString(),
-          });
+          try {
+            await updateDoc(userRef, {
+              displayName: display,
+              onboarded: false,
+              emailVerified: false,
+              updatedAt: new Date().toISOString(),
+            });
+            console.log('[Auth] updateDoc succeeded (UPDATE)');
+          } catch (updErr) {
+            console.error('[Auth] updateDoc FAILED:', updErr);
+            throw updErr;
+          }
         }
         // Check for pending employee invite
         try {
@@ -175,7 +194,9 @@ export default function Auth() {
             await updateDoc(userRef, { role: inviteData.role, permissions: inviteData.permissions || [] });
             await deleteDoc(inviteRef);
           }
-        } catch { /* invite check is best-effort */ }
+        } catch (invErr) {
+          console.warn('[Auth] Invite check skipped:', invErr);
+        }
         try {
           await sendEmailVerification(userCredential.user);
         } catch (verErr) {
@@ -186,8 +207,9 @@ export default function Auth() {
       }
       navigate(getRedirectPath(), { replace: true });
     } catch (err) {
-      console.error('[Auth] handleSubmit error:', err);
-      const code = (err as { code?: string })?.code || '';
+      const e = err as Error & { code?: string };
+      console.error('[Auth] handleSubmit error:', e.code || '(no code)', e.message, e);
+      const code = e.code || '';
       if (code.includes('invalid-credential') || code.includes('auth/invalid-credential')) {
         toast.error('Invalid email or password. Please try again.');
       } else if (code.includes('email-already-in-use')) {

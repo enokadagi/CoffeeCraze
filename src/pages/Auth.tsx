@@ -138,28 +138,53 @@ export default function Auth() {
         if (displayName.trim()) {
           await updateProfile(userCredential.user, { displayName: displayName.trim() });
         }
-        // Immediately create the Firestore profile doc so it exists before any navigation
-        const { doc, setDoc } = await import('firebase/firestore');
+        // Create/update Firestore profile doc (must handle both CREATE and UPDATE rules)
+        const { doc, getDoc, setDoc, updateDoc, deleteDoc } = await import('firebase/firestore');
         const { db } = await import('../lib/firebase');
         const { UserRole } = await import('../types');
         const userRef = doc(db, 'users', userCredential.user.uid);
-        await setDoc(userRef, {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email || '',
-          displayName: displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest',
-          role: UserRole.CUSTOMER,
-          loyaltyPoints: 0,
-          totalSpent: 0,
-          createdAt: new Date().toISOString(),
-          onboarded: false,
-          emailVerified: false,
-        }, { merge: true });
-        await sendEmailVerification(userCredential.user);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            uid: userCredential.user.uid,
+            email: userCredential.user.email || '',
+            displayName: displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest',
+            role: UserRole.CUSTOMER,
+            loyaltyPoints: 0,
+            totalSpent: 0,
+            createdAt: new Date().toISOString(),
+            onboarded: false,
+            emailVerified: false,
+          });
+        } else {
+          await updateDoc(userRef, {
+            displayName: displayName.trim() || userCredential.user.email?.split('@')[0] || 'Guest',
+            onboarded: false,
+            emailVerified: false,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        // Check for pending employee invite
+        try {
+          const inviteRef = doc(db, 'employee_invites', (userCredential.user.email || '').toLowerCase());
+          const inviteSnap = await getDoc(inviteRef);
+          if (inviteSnap.exists()) {
+            const inviteData = inviteSnap.data();
+            await updateDoc(userRef, { role: inviteData.role, permissions: inviteData.permissions || [] });
+            await deleteDoc(inviteRef);
+          }
+        } catch { /* invite check is best-effort */ }
+        try {
+          await sendEmailVerification(userCredential.user);
+        } catch (verErr) {
+          console.warn('[Auth] sendEmailVerification failed:', verErr);
+        }
         setJustRegistered(true);
         toast.success("Account created successfully! Please check your email to verify your address.");
       }
       navigate(getRedirectPath(), { replace: true });
     } catch (err) {
+      console.error('[Auth] handleSubmit error:', err);
       const code = (err as { code?: string })?.code || '';
       if (code.includes('invalid-credential') || code.includes('auth/invalid-credential')) {
         toast.error('Invalid email or password. Please try again.');
@@ -169,6 +194,10 @@ export default function Auth() {
         toast.error('Password must be at least 6 characters.');
       } else if (code.includes('user-not-found') || code.includes('wrong-password')) {
         toast.error('Invalid email or password. Please try again.');
+      } else if (code.includes('permission-denied')) {
+        toast.error('Account creation failed due to permissions. Please contact support.');
+      } else if (code.includes('network-request-failed') || code.includes('unavailable')) {
+        toast.error('Network error. Please check your connection and try again.');
       } else {
         toast.error('Authentication failed. Please try again.');
       }
@@ -235,7 +264,7 @@ export default function Auth() {
             <button
               type="button"
               onClick={async () => {
-                if (!auth.currentUser) { toast.error('Sign in first to resend verification.'); return; }
+                if (!auth?.currentUser) { toast.error('Sign in first to resend verification.'); return; }
                 setVerifying(true);
                 try {
                   await sendEmailVerification(auth.currentUser);

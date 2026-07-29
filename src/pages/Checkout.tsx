@@ -224,10 +224,25 @@ export default function Checkout() {
     };
 
     setLoading(true);
+    let orderId: string;
     try {
-      const orderId = await OrderService.create(orderPayload);
+      orderId = await OrderService.create(orderPayload);
+    } catch (err) {
+      const msg = (err as Error)?.message || 'Unknown error';
+      console.error('[Checkout] OrderService.create FAILED:', msg, JSON.stringify(orderPayload));
+      if (msg.includes('permission') || msg.includes('denied') || msg.includes('Missing or insufficient')) {
+        toast.error('Order rejected by security rules. Contact support.');
+      } else if (msg.includes('network') || msg.includes('unavailable')) {
+        toast.error('Network error. Check your connection and try again.');
+      } else {
+        toast.error(msg.includes('Error: ') ? msg : `Failed to place order: ${msg}`);
+      }
+      setLoading(false);
+      return;
+    }
 
-      // Save shippingAddress to user profile if not already present
+    // Save shippingAddress to user profile if not already present
+    try {
       const userRef = doc(db, 'users', user.uid);
       const existingAddresses = profile?.addresses || [];
       const isAlreadySaved = existingAddresses.some(
@@ -238,30 +253,21 @@ export default function Checkout() {
         const addressToSave = {
           ...shippingAddress,
           id: `addr-${Date.now()}`,
-          isDefault: existingAddresses.length === 0, // set default if it's their first address
+          isDefault: existingAddresses.length === 0,
         };
         await updateDoc(userRef, {
           addresses: [...existingAddresses, addressToSave],
           address: profile?.address || `${shippingAddress.street}, ${shippingAddress.city}`,
         });
       }
-
-      toast.success('Order placed successfully!');
-      clearCart();
-      navigate(`/order-success/${orderId}`);
     } catch (err) {
-      const msg = (err as Error)?.message || 'Unknown error';
-      console.error('[Checkout] Order creation failed:', msg, err);
-      if (msg.includes('permission') || msg.includes('denied') || msg.includes('Missing or insufficient')) {
-        toast.error('Order rejected by security rules. Contact support.');
-      } else if (msg.includes('network') || msg.includes('unavailable')) {
-        toast.error('Network error. Check your connection and try again.');
-      } else {
-        toast.error(msg.includes('Error: ') ? msg : `Failed to place order: ${msg}`);
-      }
-    } finally {
-      setLoading(false);
+      console.error('[Checkout] Profile update failed (order still created):', (err as Error)?.message, err);
     }
+
+    toast.success('Order placed successfully!');
+    clearCart();
+    navigate(`/order-success/${orderId}`);
+    setLoading(false);
   };
 
   if (items.length === 0) {

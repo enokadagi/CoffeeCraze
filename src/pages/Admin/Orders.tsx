@@ -291,11 +291,14 @@ export default function AdminOrders() {
                       {[selectedOrder.shippingAddress?.city, selectedOrder.shippingAddress?.region, selectedOrder.shippingAddress?.country].filter(Boolean).join(', ')}
                     </p>
                     {selectedOrder.shippingAddress?.building && <p>Building: {selectedOrder.shippingAddress.building}</p>}
+                    {selectedOrder.shippingAddress?.floor && <p>Floor: {selectedOrder.shippingAddress.floor}</p>}
                     {selectedOrder.shippingAddress?.apartment && <p>Apt: {selectedOrder.shippingAddress.apartment}</p>}
-                    {selectedOrder.gateCode && <p className="font-mono text-caramel">Gate Code: {selectedOrder.gateCode}</p>}
-                    {(selectedOrder as unknown as Record<string, unknown>)?.['gpsCoordinates'] && (
+                    {selectedOrder.shippingAddress?.landmark && <p>Landmark: {selectedOrder.shippingAddress.landmark}</p>}
+                    {(selectedOrder.gateCode || selectedOrder.shippingAddress?.gateCode) && <p className="font-mono text-caramel">Gate Code: {selectedOrder.gateCode || selectedOrder.shippingAddress?.gateCode}</p>}
+                    {selectedOrder.shippingAddress?.instructions && <p className="italic text-text-muted text-xs">Note: {selectedOrder.shippingAddress.instructions}</p>}
+                    {selectedOrder.shippingAddress?.gpsCoordinates && (
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${((selectedOrder as unknown as Record<string, unknown>)?.['gpsCoordinates'] as unknown as Record<string, unknown>)?.['lat']},${((selectedOrder as unknown as Record<string, unknown>)?.['gpsCoordinates'] as unknown as Record<string, unknown>)?.['lng']}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${selectedOrder.shippingAddress.gpsCoordinates.lat},${selectedOrder.shippingAddress.gpsCoordinates.lng}`}
                         target="_blank" rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-caramel hover:text-espresso underline mt-1"
                       >

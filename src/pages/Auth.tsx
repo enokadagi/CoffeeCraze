@@ -138,6 +138,8 @@ export default function Auth() {
         if (displayName.trim()) {
           await updateProfile(userCredential.user, { displayName: displayName.trim() });
         }
+        // Force token refresh so Firestore security rules see request.auth immediately
+        await userCredential.user.getIdToken(true);
         // Create/update Firestore profile doc (must handle both CREATE and UPDATE rules)
         const { doc, getDoc, setDoc, updateDoc, deleteDoc } = await import('firebase/firestore');
         const { db } = await import('../lib/firebase');

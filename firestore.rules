@@ -87,11 +87,11 @@ service cloud.firestore {
         && data.order is number;
     }
 
-    // Owner updating own profile: only profile fields, never role/permissions/status
+    // Owner updating own profile: only profile fields, never change role/permissions/status
     function isOwnerProfileUpdate() {
-      return !('role' in incoming())
-        && !('permissions' in incoming())
-        && !('status' in incoming())
+      return incoming().get('role', null) == existing().get('role', null)
+        && incoming().get('permissions', []) == existing().get('permissions', [])
+        && incoming().get('status', null) == existing().get('status', null)
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'displayName', 'phone', 'address', 'addresses', 'defaultAddressId',
           'avatar', 'profileImage', 'preferences', 'onboarded', 'updatedAt'

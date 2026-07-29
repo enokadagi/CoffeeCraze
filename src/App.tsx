@@ -51,6 +51,7 @@ const AdminSiteSettings = lazy(() => import('./pages/Admin/SiteSettings'));
 const DriverDashboard = lazy(() => import('./pages/Driver/Dashboard'));
 const AdminCustomerDetail = lazy(() => import('./pages/Admin/CustomerDetail'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
+const InviteAccept = lazy(() => import('./pages/InviteAccept'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-transparent">
@@ -122,6 +123,7 @@ function AppContent() {
             <Route path="/subscription/confirmation" element={<ProtectedRoute><LazyPage><SubscriptionConfirmation /></LazyPage></ProtectedRoute>} />
             <Route path="/wishlist" element={<ProtectedRoute><LazyPage><Wishlist /></LazyPage></ProtectedRoute>} />
             <Route path="/wholesale" element={<LazyPage><Wholesale /></LazyPage>} />
+            <Route path="/invite/:email" element={<LazyPage><InviteAccept /></LazyPage>} />
             <Route path="/product/:id" element={<LazyPage><ProductDetail /></LazyPage>} />
             <Route path="/blog/:id" element={<LazyPage><BlogDetail /></LazyPage>} />
             <Route path="/custom-plan-builder" element={<ProtectedRoute><LazyPage><CustomPlanBuilder /></LazyPage></ProtectedRoute>} />

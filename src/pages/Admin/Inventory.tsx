@@ -327,7 +327,7 @@ export default function AdminInventory() {
         }
         toast.success('Product updated');
       } else {
-        const ref = await addDoc(collection(db, 'products'), productData);
+        const ref = await addDoc(collection(db, 'products'), { ...productData, createdAt: serverTimestamp() });
         if (newPlanId) await updateDoc(doc(db, 'plans', newPlanId), { productIds: arrayUnion(ref.id) });
         toast.success('Product added');
       }

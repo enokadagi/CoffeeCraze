@@ -89,6 +89,17 @@ export default function Employees() {
     fetchData();
   }, []);
 
+  async function findUserByEmail(email: string): Promise<UserProfile | null> {
+    const snap = await getDocs(collection(db, 'users'));
+    for (const d of snap.docs) {
+      const data = d.data();
+      if ((data.email || '').toLowerCase() === email) {
+        return { uid: d.id, ...data } as unknown as UserProfile;
+      }
+    }
+    return null;
+  }
+
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteForm.email || !inviteForm.name) {
@@ -98,10 +109,32 @@ export default function Employees() {
 
     try {
       const emailLower = inviteForm.email.toLowerCase();
-      // Check if already in staff
+      // Check if already in staff list
       const exists = employees.some((emp) => emp.email.toLowerCase() === emailLower);
       if (exists) {
         toast.error('User is already registered as staff');
+        return;
+      }
+
+      // Check ALL users by email (not just staff)
+      const existingUser = await findUserByEmail(emailLower);
+      if (existingUser) {
+        // User exists but is not staff - promote them directly
+        await updateDoc(doc(db, 'users', existingUser.uid), {
+          role: inviteForm.role,
+          permissions: inviteForm.permissions,
+          status: 'active',
+          updatedAt: new Date().toISOString(),
+        });
+        toast.success(`${inviteForm.name} promoted to ${inviteForm.role}`);
+        setShowInviteModal(false);
+        setInviteForm({
+          email: '',
+          name: '',
+          role: UserRole.CUSTOMER_SERVICE,
+          permissions: [],
+        });
+        fetchData();
         return;
       }
 
@@ -117,7 +150,8 @@ export default function Employees() {
       };
 
       await setDoc(inviteRef, invitePayload);
-      toast.success(`Invitation created successfully for ${emailLower}`);
+      const inviteLink = `${window.location.origin}/invite/${encodeURIComponent(emailLower)}`;
+      toast.success(`Invitation created! Share this link: ${inviteLink}`, { duration: 8000 });
       setShowInviteModal(false);
       setInviteForm({
         email: '',

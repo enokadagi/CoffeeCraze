@@ -5,9 +5,14 @@ import { cleanUndefined } from '../lib/utils';
 
 export const ProductService = {
   async getAll(): Promise<Product[]> {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    const snapshot = await getDocs(collection(db, 'products'));
+    const raw = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const toMillis = (v: unknown): number =>
+      v && typeof v === 'object' && 'toDate' in v && typeof (v as { toDate: () => Date }).toDate === 'function'
+        ? (v as { toDate: () => Date }).toDate().getTime() : 0;
+    raw.sort((a, b) => toMillis((b as Record<string, unknown>).createdAt) - toMillis((a as Record<string, unknown>).createdAt));
+    const products = raw as Product[];
+    return products;
   },
 
   async getById(id: string): Promise<Product | null> {
@@ -47,11 +52,12 @@ export const OrderService = {
     if (!order.items?.length) throw new Error('Order must have at least one item');
     if (typeof order.total !== 'number' || !Number.isFinite(order.total) || order.total < 0) throw new Error('Invalid order total');
     if (order.items.some(i => !i.productId || !i.name)) throw new Error('Each item must have productId and name');
-    const docRef = await addDoc(collection(db, 'orders'), cleanUndefined({
-      ...order,
+    const cleanData = cleanUndefined(order);
+    const docRef = await addDoc(collection(db, 'orders'), {
+      ...cleanData,
       createdAt: serverTimestamp(),
       status: 'pending'
-    }));
+    });
     return docRef.id;
   },
 

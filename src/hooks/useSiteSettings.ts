@@ -34,6 +34,7 @@ export function applySiteSettings(settings: SiteSettings) {
   setMeta('og:title', settings.siteName);
   setMeta('og:description', settings.siteDescription);
   if (settings.ogImageUrl) setMeta('og:image', settings.ogImageUrl);
+  if (settings.backgroundColor) document.documentElement.style.setProperty('--site-bg', settings.backgroundColor);
 }
 
 function setMeta(name: string, content: string) {

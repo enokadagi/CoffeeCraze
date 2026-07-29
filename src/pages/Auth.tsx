@@ -176,7 +176,6 @@ export default function Auth() {
             await updateDoc(userRef, {
               displayName: display,
               onboarded: false,
-              emailVerified: false,
               updatedAt: new Date().toISOString(),
             });
             console.log('[Auth] updateDoc succeeded (UPDATE)');

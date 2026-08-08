@@ -25,6 +25,59 @@ export interface SiteSettings {
   minOrderLbp: number;                // minimum order value in LBP (default 0)
   supportEmail: string;
   supportPhone: string;
+
+  // === HERO SECTION ===
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImage: string;
+  heroVideo: string;
+  heroCtaText: string;
+  heroCtaLink: string;
+  heroSecondaryCtaText: string;
+  heroSecondaryCtaLink: string;
+
+  // === NAVBAR ===
+  navbarLogoText: string;
+  navbarSticky: boolean;
+
+  // === FOOTER ===
+  footerDescription: string;
+  footerCopyright: string;
+  footerEmail: string;
+  footerPhone: string;
+  footerSocialFacebook: string;
+  footerSocialInstagram: string;
+  footerSocialTwitter: string;
+  footerSocialLinkedin: string;
+  footerSocialYoutube: string;
+  footerLinks: string; // JSON string of {label, url}[]
+
+  // === SEO / META ===
+  metaKeywords: string;
+  metaRobots: string;
+  googleAnalyticsId: string;
+
+  // === BANNERS ===
+  announcementText: string;
+  announcementLink: string;
+  announcementEnabled: boolean;
+
+  // === POPUP / CAMPAIGN ===
+  popupEnabled: boolean;
+  popupTitle: string;
+  popupDescription: string;
+  popupImage: string;
+  popupCtaText: string;
+  popupCtaLink: string;
+  popupDelay: number; // seconds before popup appears
+
+  // === COUPON / PROMO ===
+  defaultPromoCode: string;
+  defaultDiscountPercent: number;
+
+  // === LOYALTY ===
+  loyaltyPointsPerDollar: number;
+  loyaltyPointsPerOrder: number;
 }
 
 const DEFAULTS: SiteSettings = {
@@ -48,6 +101,58 @@ const DEFAULTS: SiteSettings = {
   minOrderLbp: 0,
   supportEmail: 'coffeecraze@nilelink.app',
   supportPhone: '+961 71 972 495',
+  // Hero
+  heroTitle: 'Your Daily Ritual, Perfected',
+  heroSubtitle: 'Premium coffee delivered to your door',
+  heroImage: '',
+  heroVideo: '',
+  heroCtaText: 'Shop Now',
+  heroCtaLink: '/shop',
+  heroSecondaryCtaText: 'Learn More',
+  heroSecondaryCtaLink: '/about',
+  // Navbar
+  navbarLogoText: 'CoffeeCraze',
+  navbarSticky: true,
+  // Footer
+  footerDescription: 'Handcrafted coffee experiences delivered to your door. Lebanon\'s premier coffee roastery.',
+  footerCopyright: `© ${new Date().getFullYear()} CoffeeCraze. All rights reserved.`,
+  footerEmail: 'coffeecraze@nilelink.app',
+  footerPhone: '+961 71 972 495',
+  footerSocialFacebook: 'https://facebook.com/coffeecraze',
+  footerSocialInstagram: 'https://instagram.com/coffeecraze',
+  footerSocialTwitter: 'https://twitter.com/coffeecraze',
+  footerSocialLinkedin: 'https://linkedin.com/company/coffeecraze',
+  footerSocialYoutube: 'https://youtube.com/@coffeecraze',
+  footerLinks: JSON.stringify([
+    { label: 'Shop', url: '/shop' },
+    { label: 'Subscriptions', url: '/subscriptions' },
+    { label: 'About', url: '/about' },
+    { label: 'Blog', url: '/blog' },
+    { label: 'FAQ', url: '/faq' },
+    { label: 'Contact', url: '/contact' },
+  ]),
+  // SEO
+  metaKeywords: 'coffee, premium, lebanon, subscription, roastery',
+  metaRobots: 'index, follow',
+  googleAnalyticsId: '',
+  // Banners
+  announcementText: '',
+  announcementLink: '',
+  announcementEnabled: false,
+  // Popup
+  popupEnabled: false,
+  popupTitle: 'Welcome to CoffeeCraze',
+  popupDescription: 'Get 10% off your first subscription order!',
+  popupImage: '',
+  popupCtaText: 'Get 10% Off',
+  popupCtaLink: '/subscriptions',
+  popupDelay: 10,
+  // Coupon
+  defaultPromoCode: 'COFFEECRAZE10',
+  defaultDiscountPercent: 10,
+  // Loyalty
+  loyaltyPointsPerDollar: 10,
+  loyaltyPointsPerOrder: 100,
 };
 
 export const SiteSettingsService = {

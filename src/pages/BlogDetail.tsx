@@ -6,6 +6,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import SEO from '../components/common/SEO';
+import ImageWithFallback from '../components/common/ImageWithFallback';
 import { toast } from 'sonner';
 
 type Reply = {
@@ -277,7 +278,7 @@ export default function BlogDetail() {
         {/* Hero Image */}
         {post.image && (
           <div className="aspect-[21/9] w-full rounded-[2.5rem] overflow-hidden shadow-premium-lg border border-border bg-cream">
-            <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+<ImageWithFallback src={post.image} alt={post.title} className="w-full h-full object-cover" />
           </div>
         )}
 

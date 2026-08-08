@@ -1,6 +1,7 @@
 import { Order, OrderStatus } from '../../types';
 import { CheckCircle, Circle, MapPin, CreditCard } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import ImageWithFallback from '../common/ImageWithFallback';
 
 interface Props {
   order: Order;
@@ -208,7 +209,7 @@ export default function OrderTrackingTimeline({ order }: Props) {
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-lg overflow-hidden bg-cream shrink-0">
-                <img
+                <ImageWithFallback
                   src={item.image}
                   alt={item.name}
                   className="w-full h-full object-cover"

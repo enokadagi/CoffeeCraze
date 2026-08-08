@@ -28,6 +28,8 @@ export function useSiteSettings() {
 export function applySiteSettings(settings: SiteSettings) {
   document.title = settings.siteName;
   setMeta('description', settings.siteDescription);
+  setMeta('keywords', settings.metaKeywords || '');
+  setMeta('robots', settings.metaRobots || 'index, follow');
   setLink('icon', settings.faviconUrl, 'image/svg+xml');
   setLink('apple-touch-icon', settings.appleTouchIconUrl);
   setMeta('theme-color', settings.themeColor);
@@ -35,6 +37,24 @@ export function applySiteSettings(settings: SiteSettings) {
   setMeta('og:description', settings.siteDescription);
   if (settings.ogImageUrl) setMeta('og:image', settings.ogImageUrl);
   if (settings.backgroundColor) document.documentElement.style.setProperty('--site-bg', settings.backgroundColor);
+
+  // Load Google Analytics if configured
+  if (settings.googleAnalyticsId) {
+    const gaId = settings.googleAnalyticsId.trim();
+    const existingScript = document.querySelector(`script[data-ga="${gaId}"]`);
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+      script.dataset.ga = gaId;
+      document.head.appendChild(script);
+      const w = window as unknown as { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
+      w.dataLayer = w.dataLayer || [];
+      w.gtag = function (...args: unknown[]) { w.dataLayer!.push(args); };
+      w.gtag('js', new Date());
+      w.gtag('config', gaId);
+    }
+  }
 }
 
 function setMeta(name: string, content: string) {

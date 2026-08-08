@@ -2,7 +2,9 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
 import {defineConfig, type PluginOption} from 'vite';
+import {loadEnv} from 'vite';
 
 // Production-only plugin: replaces dev-only modules with no-ops
 // to prevent accidental exposure in the client bundle.
@@ -24,10 +26,71 @@ function excludeDevOnly(...paths: string[]): PluginOption {
   };
 }
 
+// Injects Firebase env vars into the messaging service worker at build time.
+// public/firebase-messaging-sw.js is copied to dist verbatim (public dir files
+// do NOT go through the transform pipeline), so we rewrite the emitted file
+// in closeBundle after the build writes the output directory.
+function injectFirebaseConfigIntoSw(mode: string, outDir: string): PluginOption {
+  const envKeys = [
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_AUTH_DOMAIN',
+    'VITE_FIREBASE_PROJECT_ID',
+    'VITE_FIREBASE_STORAGE_BUCKET',
+    'VITE_FIREBASE_MESSAGING_SENDER_ID',
+    'VITE_FIREBASE_APP_ID',
+  ] as const;
+  return {
+    name: 'inject-firebase-config-into-sw',
+    enforce: 'post',
+    // In dev, serve a transformed copy of the SW with env vars substituted so
+    // push notifications can be tested on localhost without a production build.
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || '').split('?')[0];
+        if (url !== '/firebase-messaging-sw.js') return next();
+        try {
+          const env = loadEnv(mode, process.cwd(), '');
+          const swPath = path.join(process.cwd(), 'public', 'firebase-messaging-sw.js');
+          if (!fs.existsSync(swPath)) return next();
+          let code = fs.readFileSync(swPath, 'utf8');
+          for (const key of envKeys) {
+            const value = env[key] || '';
+            code = code.split(`__${key}__`).join(value);
+          }
+          res.setHeader('Content-Type', 'application/javascript');
+          res.setHeader('Service-Worker-Allowed', '/');
+          res.end(code);
+        } catch {
+          next();
+        }
+      });
+    },
+    closeBundle() {
+      try {
+        const env = loadEnv(mode, process.cwd(), '');
+        const swPath = path.join(outDir, 'firebase-messaging-sw.js');
+        if (!fs.existsSync(swPath)) {
+          console.warn('[vite:inject-sw] firebase-messaging-sw.js not found in output — skipping.');
+          return;
+        }
+        let code = fs.readFileSync(swPath, 'utf8');
+        for (const key of envKeys) {
+          const value = env[key] || '';
+          code = code.split(`__${key}__`).join(value);
+        }
+        fs.writeFileSync(swPath, code, 'utf8');
+        console.log('[vite:inject-sw] Firebase config injected into firebase-messaging-sw.js');
+      } catch (err) {
+        console.error('[vite:inject-sw] Failed to inject config:', err);
+      }
+    },
+  };
+}
+
 export default defineConfig(({mode}) => {
   const isProd = mode === 'production';
   return {
-    plugins: [react(), tailwindcss(), isProd && excludeDevOnly('src/utils/dbSeeder.ts')].filter(Boolean),
+    plugins: [react(), tailwindcss(), injectFirebaseConfigIntoSw(mode, 'dist'), isProd && excludeDevOnly('src/utils/dbSeeder.ts')].filter(Boolean),
     test: {
       globals: true,
       environment: 'jsdom',

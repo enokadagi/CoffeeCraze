@@ -87,14 +87,17 @@ service cloud.firestore {
         && data.order is number;
     }
 
-    // Owner updating own profile: only profile fields, never change role/permissions/status
+    // Owner updating own profile: only profile fields, never change role/permissions/status.
+    // Includes notification preferences, FCM tokens, email verification status,
+    // loyalty fields, and personal preferences — all user-editable without elevation.
     function isOwnerProfileUpdate() {
       return incoming().get('role', null) == existing().get('role', null)
         && incoming().get('permissions', []) == existing().get('permissions', [])
         && incoming().get('status', null) == existing().get('status', null)
         && incoming().diff(existing()).affectedKeys().hasOnly([
-          'displayName', 'phone', 'address', 'addresses', 'defaultAddressId',
-          'avatar', 'profileImage', 'preferences', 'onboarded', 'updatedAt'
+          'displayName', 'firstName', 'lastName', 'phone', 'address', 'addresses', 'defaultAddressId',
+          'avatar', 'profileImage', 'preferences', 'notificationPreferences', 'fcmTokens',
+          'emailVerified', 'loyaltyPoints', 'totalSpent', 'onboarded', 'updatedAt'
         ]);
     }
 
@@ -105,11 +108,15 @@ service cloud.firestore {
       ]);
     }
 
-    // Subscription owner pausing/cancelling
+    // Subscription owner pausing/cancelling/resuming and updating logistics.
+    // Allows customers to self-serve pause/cancel/resume and edit delivery details.
     function isOwnerSubscriptionUpdate() {
       return request.auth.uid == resource.data.userId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
-        && incoming().status in ['paused', 'cancelled'];
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'updatedAt', 'pausedUntil', 'frequency', 'address',
+          'preferredTimeSlot', 'preferredTime', 'customNotes', 'gateCode', 'nextDelivery', 'durationMonths'
+        ])
+        && (!('status' in incoming()) || incoming().status in ['active', 'paused', 'cancelled']);
     }
 
     // --- Users ---

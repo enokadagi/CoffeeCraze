@@ -111,7 +111,7 @@ export default function Home() {
           transition={{ duration: 5, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0 z-0"
         >
-          <img src={heroContent.image} alt="" className="w-full h-full object-cover" />
+          <ImageWithFallback src={heroContent.image} alt="CoffeeCraze hero" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-espresso/80 via-espresso/60 to-espresso/90" />
         </motion.div>
       </section>

@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { Product } from '../../types';
 import { X, Loader2, Star, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { storage } from '../../lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadImage } from '../../services/upload';
+import ImageWithFallback from '../common/ImageWithFallback';
 
 interface ProductFormModalProps {
   product?: Product | null;
@@ -53,34 +53,25 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be under 5 MB.');
-      return;
-    }
-
-    if (!storage) {
-      toast.error('Storage not initialized. Using URL field instead.');
-      return;
-    }
-
     setUploading(true);
     try {
-      const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const storageRef = ref(storage, `products/${filename}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
+      const result = await uploadImage(file, {
+        folder: 'products',
+        compress: true,
+        maxDimension: 1920,
+        onProgress: (percent) => {
+          // Progress percentage available for UI if needed
+          console.debug(`[ProductFormModal] upload ${percent}%`);
+        },
+      });
 
       setFormData(prev => ({
         ...prev,
-        images: [...(prev.images || []), downloadUrl],
+        images: [...(prev.images || []), result.url],
       }));
       toast.success('Image uploaded successfully.');
-    } catch {
-      toast.error('Image upload failed. You can paste a URL below instead.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Image upload failed. You can paste a URL below instead.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -204,7 +195,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
                   }}
                   onDragEnd={() => setDragIndex(null)}
                 >
-                  <img src={url} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
+                  <ImageWithFallback src={url} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
                   {/* Primary badge */}
                   {index === 0 && (
                     <div className="absolute top-1 left-1 bg-caramel text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md shadow">

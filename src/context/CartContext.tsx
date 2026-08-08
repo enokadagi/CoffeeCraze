@@ -7,6 +7,12 @@ import { toast } from 'sonner';
 import { cleanUndefined } from '../lib/utils';
 
 const CART_STORAGE_KEY = 'coffeecraze_cart';
+const COUPON_STORAGE_KEY = 'coffeecraze_coupon';
+
+export interface AppliedCoupon {
+  code: string;
+  discountPercent: number;
+}
 
 interface CartContextType {
   items: CartItem[];
@@ -18,6 +24,8 @@ interface CartContextType {
   total: number;
   totalUsd: number;
   itemCount: number;
+  appliedCoupon: AppliedCoupon | null;
+  setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -81,6 +89,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>(() => loadLocalCart());
   const [initialized, setInitialized] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(() => {
+    try {
+      const saved = localStorage.getItem(COUPON_STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as AppliedCoupon) : null;
+    } catch {
+      return null;
+    }
+  });
   const isSyncing = useRef(false);
   const prevUserRef = useRef<string | null>(null);
 
@@ -165,6 +181,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         });
     }
   }, [items, user, initialized]);
+
+  // Persist the applied coupon so it survives navigation and page reloads
+  useEffect(() => {
+    try {
+      if (appliedCoupon) {
+        localStorage.setItem(COUPON_STORAGE_KEY, JSON.stringify(appliedCoupon));
+      } else {
+        localStorage.removeItem(COUPON_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error('Failed to persist coupon:', e);
+    }
+  }, [appliedCoupon]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const addItem = (product: any, qty = 1) => {
@@ -260,7 +289,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, totalUsd, itemCount }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, totalUsd, itemCount, appliedCoupon, setAppliedCoupon }}>
       {children}
     </CartContext.Provider>
   );

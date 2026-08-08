@@ -4,11 +4,10 @@ import { applySiteSettings, invalidateSettingsCache } from '../../hooks/useSiteS
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
 import { toast } from 'sonner';
-import { Settings, Save, Upload, Image, AlertTriangle, RefreshCw, Database } from 'lucide-react';
+import { Settings, Save, Upload, Image, AlertTriangle } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { dbSeeder } from '../../utils/dbSeeder';
 
 const ImageField = ({ label, field, settings, onImageUpload, onFieldChange }: { 
   label: string; 
@@ -46,7 +45,6 @@ export default function AdminSiteSettings() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     SiteSettingsService.get().then(s => {
@@ -112,22 +110,6 @@ export default function AdminSiteSettings() {
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleForceSeed = async () => {
-    if (!window.confirm(
-      'WARNING: This will overwrite all seeded collections (products, plans, blog posts, etc.) with fresh demo data.\n\nExisting user orders and accounts will NOT be deleted.\n\nProceed?'
-    )) return;
-    setSeeding(true);
-    try {
-      await dbSeeder.reseedAll();
-      toast.success('Database re-seeded successfully! Refresh the page to see updated data.');
-    } catch (err) {
-      console.error('Seed failed:', err);
-      toast.error('Seeding failed. Check the console for details.');
-    } finally {
-      setSeeding(false);
     }
   };
 
@@ -510,27 +492,6 @@ export default function AdminSiteSettings() {
               <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
               <p className="text-xs text-red-600/70">Destructive operations — use with caution</p>
             </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-white border border-red-200 rounded-2xl">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Database size={16} className="text-red-600" />
-                <p className="font-bold text-red-700 text-sm">Force Re-Seed Database</p>
-              </div>
-              <p className="text-xs text-red-600/80 leading-relaxed max-w-md">
-                Resets all demo data (products, plans, blog posts, FAQs) to factory defaults.
-                User accounts and real orders are preserved.
-              </p>
-            </div>
-            <button
-              onClick={handleForceSeed}
-              disabled={seeding}
-              className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shrink-0"
-            >
-              <RefreshCw size={14} className={seeding ? 'animate-spin' : ''} />
-              {seeding ? 'Seeding…' : 'Re-Seed Now'}
-            </button>
           </div>
         </div>
       </div>

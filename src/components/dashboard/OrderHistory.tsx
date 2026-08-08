@@ -17,7 +17,10 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
       pending: { color: 'text-amber-600', icon: Package, label: 'Pending' },
       confirmed: { color: 'text-blue-600', icon: Truck, label: 'Confirmed' },
       processing: { color: 'text-blue-600', icon: Truck, label: 'Processing' },
+      preparing: { color: 'text-blue-600', icon: Truck, label: 'Preparing' },
+      ready: { color: 'text-blue-600', icon: Truck, label: 'Ready' },
       shipped: { color: 'text-blue-600', icon: Truck, label: 'Shipped' },
+      out_for_delivery: { color: 'text-blue-600', icon: Truck, label: 'Out for Delivery' },
       delivered: { color: 'text-green-600', icon: CheckCircle, label: 'Delivered' },
       cancelled: { color: 'text-red-600', icon: XCircle, label: 'Cancelled' },
     };

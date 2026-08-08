@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Check, ArrowRight, Zap, Coffee, Building2, Utensils, Truck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/common/SEO';
-import ImageWithFallback from '../components/common/ImageWithFallback';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
@@ -135,15 +134,9 @@ export default function Subscriptions() {
               Pick a plan that keeps your pantry stocked, simplifies ordering, and gives you flexibility with every delivery.
             </p>
             <div className="h-px w-32 bg-caramel/30 hidden md:block" />
-            <div className="flex -space-x-6">
-               {[1, 2, 3, 4].map((value) => (
-                 <div key={`member-${value}`} className="w-16 h-16 rounded-full border-4 border-white bg-cream shadow-premium group overflow-hidden ring-1 ring-espresso/5">
-                   <ImageWithFallback src={`https://images.unsplash.com/photo-${1500000000000 + value * 10000000}?auto=format&fit=crop&q=80&w=200`} alt="Customer photo" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                 </div>
-               ))}
-               <div className="w-16 h-16 rounded-full border-4 border-white bg-espresso flex items-center justify-center text-small text-white font-black italic shadow-premium ring-1 ring-white/10 uppercase tracking-tighter">
-                 +2K
-               </div>
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-border rounded-full shadow-premium">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-espresso italic">Skip or pause anytime</span>
             </div>
           </div>
         </motion.div>

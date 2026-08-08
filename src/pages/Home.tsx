@@ -141,10 +141,10 @@ export default function Home() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { value: '10,000+', label: 'Orders Delivered' },
-                  { value: '95%', label: 'Customer Satisfaction' },
-                  { value: '4.9/5', label: 'Coffee Selection Rating' },
-                  { value: 'Worldwide', label: 'Global Sourcing' }
+                  { value: 'Fresh', label: 'Small-Batch Roasted' },
+                  { value: 'Direct', label: 'Roaster Partnerships' },
+                  { value: 'Local', label: 'Delivery Across Lebanon' },
+                  { value: '24h', label: 'Order Confirmation' }
                 ].map((stat) => (
                   <div key={stat.label} className="rounded-xl bg-surface p-5 shadow-sm">
                     <p className="text-h3 text-espresso mb-1">{stat.value}</p>

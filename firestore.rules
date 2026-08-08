@@ -288,9 +288,16 @@ service cloud.firestore {
     }
 
     // --- Coupons ---
+    // Customers may read active coupons and increment usedCount (usage tracking);
+    // all other writes require staff. Customers must not modify the coupon itself.
     match /coupons/{couponId} {
       allow read: if isSignedIn();
-      allow write: if isStaff();
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']) &&
+        request.resource.data.usedCount == resource.data.usedCount + 1
+      );
     }
 
     // --- Employee Invites ---

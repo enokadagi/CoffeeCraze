@@ -78,7 +78,7 @@ export default function AiBarista() {
       setAiContext(ctx);
     };
     loadContext();
-  });
+  }, [user, profile]);
 
   // Auto-scroll to bottom whenever messages or loading state changes
   useEffect(() => {

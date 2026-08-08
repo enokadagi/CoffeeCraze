@@ -319,6 +319,7 @@ export interface OrderItem {
   images?: string[];
   category?: string;
   sku?: string;
+  variant?: { id: string; name: string };
 }
 
 export interface Delivery {

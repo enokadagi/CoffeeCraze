@@ -28,7 +28,7 @@ import {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { items, total, clearCart } = useCart();
+  const { items, total, clearCart, appliedCoupon, setAppliedCoupon } = useCart();
   const { user, profile, isEmailVerified } = useAuth();
   const siteSettings = useSiteSettings();
 
@@ -53,8 +53,6 @@ export default function Checkout() {
 
     // Payment
     paymentMethod: 'cash_on_delivery',
-    paymentTiming: 'monthly' as 'prepaid' | 'monthly' | 'deferred',
-    subscriptionDuration: 1,
 
     // Additional
     customNotes: '',
@@ -104,14 +102,7 @@ export default function Checkout() {
   ];
 
   const paymentMethods = [
-    { id: 'cash_on_delivery', label: 'Cash on Delivery', icon: '💵' },
-  ];
-
-  const subscriptionDurations = [
-    { value: 1, label: '1 Month', discount: 0 },
-    { value: 3, label: '3 Months', discount: 5 },
-    { value: 6, label: '6 Months', discount: 10 },
-    { value: 12, label: '12 Months', discount: 15 },
+    { id: 'cash_on_delivery', label: 'Cash on Delivery', note: 'Pay the courier in LBP or USD when your order arrives.', icon: '💵' },
   ];
 
   // Pricing — read from site settings with safe fallbacks
@@ -121,13 +112,9 @@ export default function Checkout() {
 
   const subtotalLbp = total;
   const shippingLbp = subtotalLbp > freeDeliveryThresholdLbp ? 0 : deliveryFeeLbp;
+  const couponDiscountLbp = appliedCoupon ? Math.floor(subtotalLbp * (appliedCoupon.discountPercent / 100)) : 0;
 
-  const discountFactor = formData.paymentTiming === 'prepaid' ? 0.9 : 1.0;
-  const durationDiscount =
-    subscriptionDurations.find((d) => d.value === formData.subscriptionDuration)?.discount || 0;
-
-  const discountAmountLbp = Math.floor((subtotalLbp + shippingLbp) * (durationDiscount / 100));
-  const grandTotalLbp = (subtotalLbp + shippingLbp - discountAmountLbp) * discountFactor;
+  const grandTotalLbp = Math.max(0, subtotalLbp + shippingLbp - couponDiscountLbp);
   const grandTotalUsd = grandTotalLbp / exchangeRate;
 
   let buttonLabel = 'Continue';
@@ -179,6 +166,7 @@ export default function Checkout() {
       price: item.price,
       quantity: item.quantity,
       image: item.image,
+      ...(item.selectedVariant?.id ? { variant: { id: item.selectedVariant.id, name: item.selectedVariant.name } } : {}),
     }));
 
     const shippingAddress = {
@@ -214,7 +202,8 @@ export default function Checkout() {
       totalUsd: Number(grandTotalUsd.toFixed(2)),
       paymentMethod: 'cash_on_delivery' as const,
       paymentStatus: PaymentStatus.PENDING,
-      paymentTiming: formData.paymentTiming,
+      paymentTiming: 'deferred' as const,
+      ...(appliedCoupon ? { couponCode: appliedCoupon.code, couponDiscountLbp } : {}),
       shippingAddress,
       deliveryDate: formData.deliveryDate,
       deliveryTime: formData.deliveryTimeWindow,
@@ -266,6 +255,7 @@ export default function Checkout() {
 
     toast.success('Order placed successfully!');
     clearCart();
+    setAppliedCoupon(null);
     navigate(`/order-success/${orderId}`);
     setLoading(false);
   };
@@ -502,62 +492,12 @@ export default function Checkout() {
                           className="w-4 h-4 mr-4"
                         />
                         <span className="text-2xl mr-3">{method.icon}</span>
-                        <span className="font-bold text-espresso">{method.label}</span>
+                        <span className="flex-1">
+                          <span className="block font-bold text-espresso">{method.label}</span>
+                          <span className="block text-xs text-text-muted mt-0.5">{method.note}</span>
+                        </span>
                       </label>
                     ))}
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t border-espresso/10">
-                    <h3 className="font-bold text-espresso mb-4">Payment Timing</h3>
-                    <div className="space-y-3">
-                      {[
-                        { value: 'prepaid', label: 'Pay Now', discount: '-10%' },
-                        { value: 'monthly', label: 'Monthly Payment' },
-                        { value: 'deferred', label: 'Pay at Delivery' },
-                      ].map((opt) => (
-                        <label
-                          key={opt.value}
-                          className="flex items-center p-4 border border-espresso/10 rounded-lg cursor-pointer hover:bg-espresso/5 transition-all"
-                        >
-                          <input
-                            type="radio"
-                            name="paymentTiming"
-                            value={opt.value}
-                            checked={formData.paymentTiming === opt.value}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                paymentTiming: e.target.value as 'prepaid' | 'monthly' | 'deferred',
-                              })
-                            }
-                            className="w-4 h-4"
-                          />
-                          <span className="ml-3 font-semibold text-espresso flex-1">{opt.label}</span>
-                          {opt.discount && <span className="text-green-600 font-bold">{opt.discount}</span>}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-espresso mb-4 mt-6">Plan Duration (if applicable)</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {subscriptionDurations.map((d) => (
-                        <button
-                          key={d.value}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, subscriptionDuration: d.value })}
-                          className={cn(
-                            'py-3 rounded-xl text-xs font-black uppercase tracking-wider border transition-all',
-                            formData.subscriptionDuration === d.value
-                              ? 'bg-espresso text-white border-espresso'
-                              : 'bg-cream text-espresso hover:bg-white border-espresso/10'
-                          )}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </motion.div>
               )}
@@ -665,7 +605,7 @@ export default function Checkout() {
                     <div>
                       <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Payment</p>
                       <p className="font-semibold text-espresso">
-                        {paymentMethods.find((m) => m.id === formData.paymentMethod)?.label} • {formData.paymentTiming}
+                        {paymentMethods.find((m) => m.id === formData.paymentMethod)?.label}
                       </p>
                     </div>
                   </div>
@@ -715,7 +655,9 @@ export default function Checkout() {
                   >
                     <div>
                       <p className="font-semibold text-espresso">{item.name}</p>
-                      <p className="text-xs text-text-muted">×{item.quantity}</p>
+                      <p className="text-xs text-text-muted">
+                        {item.selectedVariant?.name && `${item.selectedVariant.name} • `}×{item.quantity}
+                      </p>
                     </div>
                     <p className="font-bold text-espresso">{item.price ? item.price : ''}</p>
                   </div>
@@ -731,6 +673,12 @@ export default function Checkout() {
                   <span className="text-text-muted">Total (USD)</span>
                   <span className="font-semibold text-espresso">${grandTotalUsd.toFixed(2)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex items-center justify-between text-sm text-emerald-600">
+                    <span>Coupon ({appliedCoupon.code})</span>
+                    <span className="font-semibold">-{couponDiscountLbp.toLocaleString()} LBP</span>
+                  </div>
+                )}
                 <div className="bg-espresso/5 border border-espresso/10 rounded-lg p-4 flex items-center justify-between">
                   <span className="font-bold text-espresso">Final Total</span>
                   <div className="text-right">

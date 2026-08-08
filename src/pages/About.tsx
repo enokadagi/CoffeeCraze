@@ -12,7 +12,7 @@ export default function About() {
           <div className="max-w-xl space-y-10 sm:space-y-12">
             <div className="space-y-4">
                 <div className="inline-flex items-center gap-3 px-4 sm:px-5 py-2 sm:py-2.5 bg-cream active:bg-cream text-text-secondary rounded-full text-small font-black uppercase tracking-[0.4em] border border-border shadow-sm transition-all italic">
-                ESTABLISHED BEIRUT 1994
+                SPECIALTY COFFEE • BEIRUT
                 </div>
                 <h1 className="text-display font-display font-black text-text leading-[0.85] tracking-tightest italic">Beyond the Bean, <br/> <span className="not-italic text-text-muted">The Ritual.</span></h1>
             </div>
@@ -27,7 +27,7 @@ export default function About() {
               <div className="w-10 sm:w-12 lg:w-14 h-10 sm:h-12 lg:h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white border border-white/10">
                 <Coffee size={20} />
               </div>
-              <p className="text-[8px] sm:text-[9px] lg:text-[10px] font-black text-white uppercase tracking-[0.4em] italic leading-relaxed">Direct Trade <br/> Since 1994</p>
+              <p className="text-[8px] sm:text-[9px] lg:text-[10px] font-black text-white uppercase tracking-[0.4em] italic leading-relaxed">Small-Batch <br/> Freshly Roasted</p>
             </div>
           </div>
         </div>
@@ -38,10 +38,10 @@ export default function About() {
         <div className="absolute top-0 right-0 w-full h-full bg-coffee-500 blur-[300px] opacity-[0.03] -translate-y-1/2 translate-x-1/2"></div>
         <div className="px-6 max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 md:gap-16 lg:gap-20 text-center relative z-10">
           {[
-            { label: 'Rituals Brewed', val: '2.5M+' },
-            { label: 'Direct Farmers', val: '45' },
-            { label: 'Roast Profiles', val: '120+' },
-            { label: 'Happy Souls', val: '500K' }
+            { label: 'Roasting', val: 'Small-Batch' },
+            { label: 'Arabica', val: '100% Specialty' },
+            { label: 'Based In', val: 'Beirut' },
+            { label: 'Roasted', val: 'To Order' }
           ].map((stat, i) => (
             <div key={i} className="space-y-4">
               <p className="text-h1 font-display font-black text-white tracking-tighter italic">{stat.val}</p>

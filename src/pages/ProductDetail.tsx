@@ -70,6 +70,9 @@ export default function ProductDetail() {
     const fetchProduct = async () => {
       if (!id) return;
       setLoading(true);
+      setSelectedVariant(null);
+      setActiveImage(0);
+      setQuantity(1);
       try {
         const docRef = doc(db, 'products', id);
         const docSnap = await getDoc(docRef);

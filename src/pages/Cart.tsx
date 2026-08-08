@@ -6,14 +6,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import ImageWithFallback from '../components/common/ImageWithFallback';
 import { formatPrice, formatLbpNumeric } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, getDocs, query, where, updateDoc, doc, increment } from 'firebase/firestore';
+import { getDoc, updateDoc, doc, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import SEO from '../components/common/SEO';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { toast } from 'sonner';
 
 export default function Cart() {
-  const { items, removeItem, updateQuantity, total, totalUsd } = useCart();
+  const { items, removeItem, updateQuantity, total, totalUsd, appliedCoupon, setAppliedCoupon } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const siteSettings = useSiteSettings();
@@ -23,7 +23,6 @@ export default function Cart() {
   // Coupon state
   const [couponInput, setCouponInput] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercent: number } | null>(null);
 
   const deliveryFeeLbp = siteSettings?.deliveryFeeLbp ?? 25000;
   const freeDeliveryThresholdLbp = siteSettings?.freeDeliveryThresholdLbp ?? 1500000;
@@ -33,8 +32,8 @@ export default function Cart() {
   const shipping = subtotal > freeDeliveryThresholdLbp ? 0 : deliveryFeeLbp;
   const shippingUsd = shipping > 0 ? shipping / (siteSettings?.exchangeRate ?? 89500) : 0;
   const couponDiscount = appliedCoupon ? Math.floor(subtotal * (appliedCoupon.discountPercent / 100)) : 0;
-  const grandTotal = subtotal + shipping - couponDiscount;
-  const grandTotalUsd = subtotalUsd + shippingUsd - (couponDiscount / (siteSettings?.exchangeRate ?? 89500));
+  const grandTotal = Math.max(0, subtotal + shipping - couponDiscount);
+  const grandTotalUsd = Math.max(0, subtotalUsd + shippingUsd - (couponDiscount / (siteSettings?.exchangeRate ?? 89500)));
 
   const handleApplyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
@@ -42,16 +41,32 @@ export default function Cart() {
     if (!user) { toast.error('Please sign in to apply a coupon'); return; }
     setCouponLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'coupons'), where('code', '==', code), where('active', '==', true)));
-      if (snap.empty) { toast.error('Invalid or expired coupon code'); return; }
-      const couponDoc = snap.docs[0];
-      const couponData = couponDoc.data();
+      const couponRef = doc(db, 'coupons', code);
+      const couponSnap = await getDoc(couponRef);
+      if (!couponSnap.exists()) { toast.error('Invalid or expired coupon code'); return; }
+      const couponData = couponSnap.data();
+      const isActive = couponData.isActive !== false && couponData.active !== false;
+      if (!isActive) { toast.error('This coupon is no longer active'); return; }
+      if (couponData.expiresAt) {
+        const expiresAt = (couponData.expiresAt && typeof couponData.expiresAt.toDate === 'function')
+          ? couponData.expiresAt.toDate()
+          : new Date(couponData.expiresAt as string);
+        if (!isNaN(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+          toast.error('This coupon has expired'); return;
+        }
+      }
       if (couponData.usageLimit > 0 && couponData.usedCount >= couponData.usageLimit) {
         toast.error('This coupon has reached its usage limit'); return;
       }
-      setAppliedCoupon({ code, discountPercent: couponData.discountPercent });
-      await updateDoc(doc(db, 'coupons', couponDoc.id), { usedCount: increment(1) });
-      toast.success(`Coupon applied! ${couponData.discountPercent}% off`);
+      const discountPercent = Number(couponData.discountPercent) || 0;
+      if (discountPercent <= 0) { toast.error('Invalid coupon discount'); return; }
+      setAppliedCoupon({ code, discountPercent });
+      try {
+        await updateDoc(couponRef, { usedCount: increment(1) });
+      } catch (err) {
+        console.warn('Coupon usage count update failed:', err);
+      }
+      toast.success(`Coupon applied! ${discountPercent}% off`);
     } catch (err) {
       console.error('Coupon error:', err);
       toast.error('Failed to apply coupon');

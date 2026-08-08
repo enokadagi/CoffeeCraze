@@ -3,28 +3,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
-import {defineConfig, type PluginOption} from 'vite';
+import {defineConfig} from 'vite';
 import {loadEnv} from 'vite';
-
-// Production-only plugin: replaces dev-only modules with no-ops
-// to prevent accidental exposure in the client bundle.
-function excludeDevOnly(...paths: string[]): PluginOption {
-  const resolved = new Set(paths.map((p) => path.resolve(__dirname, p)));
-  return {
-    name: 'exclude-dev-only',
-    enforce: 'post',
-    resolveId(source, importer) {
-      if (!importer) return null;
-      const resolvedId = path.resolve(path.dirname(importer), source);
-      if (resolved.has(resolvedId)) return '\0excluded:' + resolvedId;
-      return null;
-    },
-    load(id) {
-      if (id.startsWith('\0excluded:')) return 'export default {};';
-      return null;
-    },
-  };
-}
 
 // Injects Firebase env vars into the messaging service worker at build time.
 // public/firebase-messaging-sw.js is copied to dist verbatim (public dir files
@@ -88,9 +68,8 @@ function injectFirebaseConfigIntoSw(mode: string, outDir: string): PluginOption 
 }
 
 export default defineConfig(({mode}) => {
-  const isProd = mode === 'production';
   return {
-    plugins: [react(), tailwindcss(), injectFirebaseConfigIntoSw(mode, 'dist'), isProd && excludeDevOnly('src/utils/dbSeeder.ts')].filter(Boolean),
+    plugins: [react(), tailwindcss(), injectFirebaseConfigIntoSw(mode, 'dist')],
     test: {
       globals: true,
       environment: 'jsdom',

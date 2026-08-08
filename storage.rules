@@ -8,7 +8,26 @@ service firebase.storage {
 
     function isAdmin() {
       return isSignedIn()
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'admin'];
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['owner', 'super_admin', 'admin'];
+    }
+
+    function isStaff() {
+      return isSignedIn()
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in [
+          'owner', 'super_admin', 'admin', 'manager', 'accounting',
+          'customer_service', 'inventory', 'warehouse', 'barista',
+          'marketing', 'supplier_manager', 'support', 'analyst',
+          'product_manager', 'wholesale_manager'
+        ];
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidImageUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
     }
 
     // Default: read public assets, no writes
@@ -17,46 +36,95 @@ service firebase.storage {
       allow write: if false;
     }
 
-    // Product images — admin only
-    match /products/{imageId} {
+    // Product images — staff write
+    match /products/{allPaths=**} {
       allow read: if true;
-      allow write, delete: if isAdmin()
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      allow write, delete: if isStaff() && isValidImageUpload();
     }
 
-    // CMS images — admin only
-    match /cms/{imageId} {
+    // Plan images — staff write
+    match /plans/{allPaths=**} {
       allow read: if true;
-      allow write, delete: if isAdmin()
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      allow write, delete: if isStaff() && isValidImageUpload();
     }
 
-    // Blog images — admin only
-    match /blog/{imageId} {
+    // Site/branding assets (logo, favicon, PWA icons, OG image) — admin write
+    match /site/{allPaths=**} {
       allow read: if true;
-      allow write, delete: if isAdmin()
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      allow write, delete: if isAdmin() && isValidImageUpload();
     }
 
-    // User profile uploads — owner only
+    // CMS content images — staff write
+    match /cms/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Blog images — staff write
+    match /blog/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Banners — staff write
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Gallery — staff write
+    match /gallery/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Promotions / campaigns — staff write
+    match /promotions/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Collections — staff write
+    match /collections/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Categories — staff write
+    match /categories/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // Hero images — staff write
+    match /heroes/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
+    }
+
+    // User profile uploads — owner only, private read
     match /uploads/{userId}/{allPaths=**} {
       allow read: if isSignedIn() && request.auth.uid == userId;
-      allow write, delete: if isSignedIn()
-        && request.auth.uid == userId
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      allow write, delete: if isOwner(userId) && isValidImageUpload();
     }
 
-    // Profile images — owner only (used by Profile.tsx and Settings.tsx)
+    // Profile images — owner write, public read (used by Profile.tsx and Settings.tsx)
     match /profiles/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write, delete: if isSignedIn()
-        && request.auth.uid == userId
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+      allow write, delete: if isOwner(userId) && isValidImageUpload();
+    }
+
+    // Avatars — owner write, public read
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isOwner(userId) && isValidImageUpload();
+    }
+
+    // Customer/Employee avatar admin-managed — staff write
+    match /avatars/admin/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if isStaff() && isValidImageUpload();
     }
   }
 }
+

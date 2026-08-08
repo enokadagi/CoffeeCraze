@@ -9,7 +9,7 @@ import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { cn } from '../../lib/utils';
-import { NotificationService, type NotificationPreferences, DEFAULT_NOTIFICATION_PREFS } from '../../services/notification';
+import { NotificationService, getFCMToken, type NotificationPreferences, DEFAULT_NOTIFICATION_PREFS } from '../../services/notification';
 
 export default function AccountSettings() {
   const { user, profile, updateProfileImage } = useAuth();
@@ -76,6 +76,15 @@ export default function AccountSettings() {
           setNotificationPrefs({ ...newPrefs, pushEnabled: false });
           setSavingNotifs(false);
           return;
+        }
+        // User explicitly opted in via button click — now register the FCM token.
+        try {
+          const token = await getFCMToken(profile.uid);
+          if (!token) {
+            console.warn('[Settings] Push enabled but FCM token could not be registered.');
+          }
+        } catch (err) {
+          console.warn('[Settings] FCM token registration failed:', err);
         }
       }
       await NotificationService.savePreferences(profile.uid, newPrefs);

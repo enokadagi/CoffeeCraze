@@ -14,20 +14,29 @@ const firebaseConfig = {
   storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || '',
   messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
   appId: env.VITE_FIREBASE_APP_ID || '',
-  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || ''
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || '',
 };
 
-let app: FirebaseApp | null;
-let db: Firestore | null = null;
-let auth: Auth | null = null;
-let storage: FirebaseStorage | null = null;
-if (firebaseConfig.apiKey) {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
-  storage = getStorage(app);
-} else {
-  console.warn('[CoffeeCraze] Firebase not initialized because VITE_FIREBASE_API_KEY is not set.');
+function assertConfig(config: Record<string, string>): void {
+  const missing = Object.entries(config)
+    .filter(([, value]) => !value)
+    .map(([key]) => key.replace('VITE_', ''));
+  if (missing.length > 0) {
+    throw new Error(
+      `[CoffeeCraze] Firebase is not configured. Missing env vars: ${missing.join(', ')}. ` +
+      'Set VITE_FIREBASE_* variables in your .env file (see .env.example).'
+    );
+  }
 }
 
-export { db, auth, storage };
+// Fail fast in development and production: if the Firebase env config is absent,
+// the app cannot function (Auth, Firestore, Storage, Messaging all require it).
+assertConfig(firebaseConfig);
+
+const app: FirebaseApp = initializeApp(firebaseConfig);
+const db: Firestore = getFirestore(app);
+const auth: Auth = getAuth(app);
+const storage: FirebaseStorage = getStorage(app);
+
+export { app, db, auth, storage };
+

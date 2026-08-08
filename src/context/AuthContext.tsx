@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile, UserRole } from '../types';
 import { toast } from 'sonner';
+import { initFCM, getFCMToken, listenForMessages } from '../services/notification';
 
 interface AuthContextType {
   user: User | null;
@@ -38,11 +39,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('[AuthProvider] getRedirectResult error (non-fatal):', err?.code || err?.message || err);
     });
 
+    // Initialize FCM on mount
+    initFCM().then((supported) => {
+      if (supported) {
+        listenForMessages((payload) => {
+          // Foreground messages are handled here
+          console.log('[FCM] Foreground message:', payload);
+        });
+      }
+    });
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setIsEmailVerified(user?.emailVerified ?? false);
       
       if (user) {
+        // Obtain and store FCM token
+        getFCMToken(user.uid).catch((err) => {
+          console.warn('[FCM] Token acquisition deferred:', err);
+        });
+
         const docRef = doc(db, 'users', user.uid);
 
         // Ensure profile doc exists (fire-and-forget to avoid race with onSnapshot)

@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useSiteSettings } from '../../hooks/useSiteSettings';
 import { UserRole, hasRole } from '../../types';
+import ImageWithFallback from '../common/ImageWithFallback';
 
 interface SidebarItem {
   label: string;
@@ -69,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="h-full flex flex-col p-4 lg:p-6 text-white/90">
           <Link to="/" className="flex items-center gap-4 mb-8 lg:mb-12 px-2 group">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-white/10 shadow-sm bg-white/10">
-              <img src={siteSettings?.logoUrl || '/logo.png'} alt="" className="w-full h-full object-cover" />
+              <ImageWithFallback src={siteSettings?.logoUrl || '/logo.png'} alt="CoffeeCraze logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="text-lg font-bold tracking-tight leading-none text-white uppercase">Coffee</div>

@@ -1,46 +1,58 @@
 import { useState, useEffect } from 'react';
 import { SiteSettingsService, SiteSettings } from '../../services/siteSettings';
 import { applySiteSettings, invalidateSettingsCache } from '../../hooks/useSiteSettings';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../lib/firebase';
-import { validateImageFile } from '../../services/upload';
+import { uploadImage, validateImageFile } from '../../services/upload';
 import { toast } from 'sonner';
 import { Settings, Save, Upload, Image, AlertTriangle } from 'lucide-react';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 
-const ImageField = ({ label, field, settings, onImageUpload, onFieldChange }: { 
-  label: string; 
-  field: keyof SiteSettings; 
-  settings: SiteSettings; 
+const ImageField = ({ label, field, settings, onImageUpload, onFieldChange, onRemove }: {
+  label: string;
+  field: keyof SiteSettings;
+  settings: SiteSettings;
   onImageUpload: (field: keyof SiteSettings, e: React.ChangeEvent<HTMLInputElement>) => void;
   onFieldChange: (field: keyof SiteSettings, value: string) => void;
-}) => (
-  <div className="space-y-2">
-    <label className="text-xs font-bold uppercase tracking-wider text-text-muted">{label}</label>
-    <div className="flex items-center gap-4">
-      <div className="w-16 h-16 bg-cream rounded-2xl border border-border overflow-hidden flex items-center justify-center shrink-0">
-        {typeof settings[field] === 'string' && (settings[field] as string) ? (
-          <ImageWithFallback src={settings[field] as string} alt={label} className="w-full h-full object-cover" />
-        ) : (
-          <Image size={24} className="text-text-muted" />
+  onRemove: (field: keyof SiteSettings) => void;
+}) => {
+  const value = (settings[field] as string) || '';
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-bold uppercase tracking-wider text-text-muted">{label}</label>
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 bg-cream rounded-2xl border border-border overflow-hidden flex items-center justify-center shrink-0">
+          {value ? (
+            <ImageWithFallback src={value} alt={label} className="w-full h-full object-cover" />
+          ) : (
+            <Image size={24} className="text-text-muted" />
+          )}
+        </div>
+        <label className="btn-outline px-4 py-2 rounded-xl text-xs font-bold cursor-pointer border border-coffee-200 text-text-secondary hover:bg-cream transition-all">
+          <Upload size={14} className="inline-block mr-1" /> Upload
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" className="hidden" onChange={e => onImageUpload(field, e)} />
+        </label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onRemove(field)}
+            className="px-4 py-2 rounded-xl text-xs font-bold cursor-pointer border border-red-200 text-red-500 hover:bg-red-50 transition-all shrink-0"
+            title="Remove this asset and restore the default"
+          >
+            Restore default
+          </button>
         )}
+        <input
+          type="text"
+          value={value}
+          onChange={e => onFieldChange(field, e.target.value)}
+          className="flex-1 min-w-0 px-4 py-2 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel transition-all"
+          placeholder="URL or leave empty for default"
+        />
       </div>
-      <label className="btn-outline px-4 py-2 rounded-xl text-xs font-bold cursor-pointer border border-coffee-200 text-text-secondary hover:bg-cream transition-all">
-        <Upload size={14} className="inline-block mr-1" /> Upload
-        <input type="file" accept="image/*" className="hidden" onChange={e => onImageUpload(field, e)} />
-      </label>
-      <input
-        type="text"
-        value={(settings[field] as string) || ''}
-        onChange={e => onFieldChange(field, e.target.value)}
-        className="flex-1 px-4 py-2 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel transition-all"
-        placeholder="URL or leave empty"
-      />
     </div>
-  </div>
-);
+  );
+};
 
 export default function AdminSiteSettings() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -54,33 +66,14 @@ export default function AdminSiteSettings() {
     });
   }, []);
 
-  const uploadFile = async (file: File, path: string): Promise<string> => {
-    const storageRef = ref(storage, path);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-    return new Promise<string>((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          // Upload progress could be shown here
-          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          if (progress > 0 && progress % 25 === 0) {
-            console.log(`[SiteSettings] Upload ${path}: ${progress}%`);
-          }
-        },
-        (error) => {
-          console.error('[SiteSettings] Upload failed:', error);
-          reject(error);
-        },
-        async () => {
-          try {
-            const url = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(url);
-          } catch (e) {
-            reject(e);
-          }
-        }
-      );
+  const uploadFile = async (file: File, field: string): Promise<string> => {
+    const result = await uploadImage(file, {
+      folder: 'site',
+      sub: field,
+      compress: true,
+      maxDimension: 1024,
     });
+    return result.url;
   };
 
   const handleImageUpload = async (field: keyof SiteSettings, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,12 +82,18 @@ export default function AdminSiteSettings() {
     try {
       const validationError = validateImageFile(file);
       if (validationError) throw new Error(validationError);
-      const url = await uploadFile(file, `site/${field}_${Date.now()}`);
+      const url = await uploadFile(file, String(field));
       setSettings({ ...settings, [field]: url });
-      toast.success('Image uploaded');
+      toast.success('Image uploaded. Click Save to publish.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     }
+  };
+
+  const handleRemoveImage = (field: keyof SiteSettings) => {
+    if (!settings) return;
+    setSettings({ ...settings, [field]: '' });
+    toast.success('Asset cleared. Click Save to publish the default.');
   };
 
   const handleFieldChange = (field: keyof SiteSettings, value: string) => {
@@ -186,13 +185,23 @@ export default function AdminSiteSettings() {
             <h2 className="text-lg font-display font-bold text-espresso flex items-center gap-3">
               <Image size={20} className="text-caramel" /> Branding Assets
             </h2>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <span>SVG uploads are blocked for security (active content in SVG can execute scripts). Use PNG, JPG, WebP, AVIF or GIF. "Restore default" clears your asset and falls back to the bundled CoffeeCraze logo.</span>
+            </div>
             <div className="space-y-5">
-              <ImageField label="Logo" field="logoUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
-              <ImageField label="Favicon" field="faviconUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
-              <ImageField label="Apple Touch Icon" field="appleTouchIconUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
-              <ImageField label="PWA Icon 192x192" field="icon192Url" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
-              <ImageField label="PWA Icon 512x512" field="icon512Url" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
-              <ImageField label="OG Image (Social Share)" field="ogImageUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="Primary Logo (header, dashboard)" field="logoUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Dark-Background Logo" field="logoDarkUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Compact Logo (mobile navbar)" field="logoCompactUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Wordmark (footer)" field="wordmarkUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Icon Mark" field="iconMarkUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Auth Page Logo" field="authLogoUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Favicon (browser tab)" field="faviconUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Apple Touch Icon" field="appleTouchIconUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="PWA Icon 192x192" field="icon192Url" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="PWA Icon 512x512" field="icon512Url" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Open Graph Image (social share)" field="ogImageUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
+              <ImageField label="Social Sharing Image (Twitter/X)" field="socialImageUrl" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
             </div>
           </div>
         </div>
@@ -266,7 +275,7 @@ export default function AdminSiteSettings() {
                 className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
             </div>
             <div className="sm:col-span-2">
-              <ImageField label="Hero Image" field="heroImage" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="Hero Image" field="heroImage" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Hero Video URL (optional)</label>
@@ -436,7 +445,7 @@ export default function AdminSiteSettings() {
                 className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm outline-none focus:border-caramel" />
             </div>
             <div className="sm:col-span-2">
-              <ImageField label="Popup Image" field="popupImage" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} />
+              <ImageField label="Popup Image" field="popupImage" settings={settings} onImageUpload={handleImageUpload} onFieldChange={handleFieldChange} onRemove={handleRemoveImage} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Popup CTA Text</label>

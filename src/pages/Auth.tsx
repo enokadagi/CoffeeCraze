@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import ImageWithFallback from '../components/common/ImageWithFallback';
@@ -14,6 +15,7 @@ import { cn } from '../lib/utils';
 
 export default function Auth() {
   const { user: authUser, loading: authLoading } = useAuth();
+  const siteSettings = useSiteSettings();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -245,9 +247,13 @@ export default function Auth() {
         className="w-full max-w-lg bg-white/10 backdrop-blur-3xl p-6 sm:p-8 lg:p-10 rounded-[2rem] border border-white/10 shadow-premium-lg relative z-10"
       >
         <div className="text-center mb-8 space-y-4">
-            <div className="w-16 h-16 bg-caramel/20 rounded-2xl flex items-center justify-center mx-auto text-caramel shadow-premium">
-            <Coffee size={24} strokeWidth={1} />
-          </div>
+            <div className="w-16 h-16 bg-caramel/20 rounded-2xl flex items-center justify-center mx-auto text-caramel shadow-premium overflow-hidden">
+              {siteSettings?.authLogoUrl || siteSettings?.logoUrl ? (
+                <ImageWithFallback src={siteSettings?.authLogoUrl || siteSettings?.logoUrl || ''} alt="CoffeeCraze" className="w-full h-full object-cover" />
+              ) : (
+                <Coffee size={24} strokeWidth={1} />
+              )}
+            </div>
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-display font-bold text-cream tracking-tight">{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
             <p className="text-sm text-cream/90">Access your coffee ritual, orders, and subscription experience.</p>

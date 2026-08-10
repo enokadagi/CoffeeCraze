@@ -25,8 +25,6 @@ const CATEGORIES = [
   'Merchandise'
 ];
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1559525839-b184a4d698c7?auto=format&fit=crop&q=80';
-
 export default function ProductFormModal({ product, plans = [], onClose, onSave }: ProductFormModalProps) {
   const [formData, setFormData] = useState<Partial<Product>>(() => product || {
     name: '',
@@ -37,7 +35,7 @@ export default function ProductFormModal({ product, plans = [], onClose, onSave 
     stock: 0,
     category: 'Coffee Beans',
     tags: [],
-    images: [FALLBACK_IMAGE],
+    images: [],
     isSubscriptionEligible: false,
     sku: `PRD-${Math.floor(Math.random() * 10000)}`,
   });

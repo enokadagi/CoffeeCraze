@@ -37,6 +37,18 @@ function sanitizeFilename(name: string): string {
     .slice(-80);
 }
 
+function mimeToExt(mime: string): string {
+  const map: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/webp': 'webp',
+    'image/avif': 'avif',
+    'image/gif': 'gif',
+  };
+  return map[mime] || '';
+}
+
 function validateFile(file: File, opts: { maxSize?: number; allowedTypes?: string[] }): string | null {
   const maxSize = opts.maxSize ?? 5 * 1024 * 1024;
   if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
@@ -116,13 +128,14 @@ export async function uploadImage(file: File, opts: UploadOptions): Promise<Uplo
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const uploadFile = opts.compress === false ? file : await compressImage(file, opts.maxDimension);
-      const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${sanitizeFilename(uploadFile.name)}`;
+      const ext = (uploadFile.name.match(/\.([a-zA-Z0-9]+)$/) || [])[1] || mimeToExt(uploadFile.type);
+      const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${sanitizeFilename(uploadFile.name)}${ext ? '' : '.png'}`;
       const path = opts.sub ? `${opts.folder}/${opts.sub}/${filename}` : `${opts.folder}/${filename}`;
       const storageRef = ref(storage, path);
 
       const url = await new Promise<string>((resolve, reject) => {
         const task: UploadTask = uploadBytesResumable(storageRef, uploadFile, {
-          contentType: uploadFile.type || 'image/jpeg',
+          contentType: uploadFile.type.startsWith('image/') ? uploadFile.type : 'image/jpeg',
         });
         task.on(
           'state_changed',

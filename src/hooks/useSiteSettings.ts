@@ -36,6 +36,9 @@ export function applySiteSettings(settings: SiteSettings) {
   setMeta('og:title', settings.siteName);
   setMeta('og:description', settings.siteDescription);
   if (settings.ogImageUrl) setMeta('og:image', settings.ogImageUrl);
+  if (settings.socialImageUrl) setMeta('twitter:image', settings.socialImageUrl);
+  setMeta('twitter:title', settings.siteName);
+  setMeta('twitter:description', settings.siteDescription);
   if (settings.backgroundColor) document.documentElement.style.setProperty('--site-bg', settings.backgroundColor);
 
   // Load Google Analytics if configured

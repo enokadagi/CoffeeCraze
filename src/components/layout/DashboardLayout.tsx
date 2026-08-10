@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   BarChart3, Package, Users, Settings, LogOut, LayoutDashboard,
   ShoppingBag, Building2, Star, Truck, Heart, Menu,
-  BookOpen, MessageSquare, Shield, Palette
+  BookOpen, MessageSquare, Shield, Palette, Tags
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSiteSettings } from '../../hooks/useSiteSettings';
@@ -27,6 +27,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { label: 'Analytics Forge', href: '/admin/analytics', icon: BarChart3, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ANALYST, UserRole.PRODUCT_MANAGER, UserRole.WHOLESALE_MANAGER, UserRole.CUSTOMER_SERVICE] },
   { label: 'Plan Management', href: '/admin/plans', icon: Star, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER] },
   { label: 'Content CMS', href: '/admin/cms', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER] },
+  { label: 'Categories', href: '/admin/categories', icon: Tags, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER] },
   { label: 'Blog Journal', href: '/admin/blog', icon: BookOpen, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.PRODUCT_MANAGER] },
   { label: 'Customer Messages', href: '/admin/messages', icon: MessageSquare, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.CUSTOMER_SERVICE] },
   { label: 'Employee Access', href: '/admin/employees', icon: Shield, roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },

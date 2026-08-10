@@ -43,6 +43,7 @@ const AdminWholesale = lazy(() => import('./pages/Admin/Wholesale'));
 const AdminSubscriptions = lazy(() => import('./pages/Admin/Subscriptions'));
 const AdminPlans = lazy(() => import('./pages/Admin/Plans'));
 const AdminCMS = lazy(() => import('./pages/Admin/CMS'));
+const AdminCategories = lazy(() => import('./pages/Admin/Categories'));
 const BlogDetail = lazy(() => import('./pages/BlogDetail'));
 const AdminBlog = lazy(() => import('./pages/Admin/Blog'));
 const AdminMessages = lazy(() => import('./pages/Admin/Messages'));
@@ -147,6 +148,7 @@ function AppContent() {
             <Route path="/admin/subscriptions" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminSubscriptions /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/plans" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminPlans /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/cms" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminCMS /></LazyPage></ProtectedRoute>} />
+            <Route path="/admin/categories" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminCategories /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/blog" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.SUPER_ADMIN]}><LazyPage><AdminBlog /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/messages" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.CUSTOMER_SERVICE, UserRole.SUPER_ADMIN]}><LazyPage><AdminMessages /></LazyPage></ProtectedRoute>} />
             <Route path="/admin/employees" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}><LazyPage><AdminEmployees /></LazyPage></ProtectedRoute>} />

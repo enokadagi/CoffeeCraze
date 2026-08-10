@@ -66,6 +66,16 @@ function sanitizeCartItem(item: any): CartItem {
   };
 }
 
+function cartKey(item: CartItem) {
+  return `${item.productId}::${item.selectedVariant?.id || 'default'}`;
+}
+
+function cartsEqual(a: CartItem[], b: CartItem[]) {
+  if (a.length !== b.length) return false;
+  const bMap = new Map(b.map((i) => [cartKey(i), i.quantity]));
+  return a.every((i) => bMap.get(cartKey(i)) === i.quantity);
+}
+
 function loadLocalCart(): CartItem[] {
   try {
     const saved = localStorage.getItem(CART_STORAGE_KEY);
@@ -98,77 +108,107 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   });
   const isSyncing = useRef(false);
-  const prevUserRef = useRef<string | null>(null);
+  const guestItemsRef = useRef<CartItem[] | null>(null);
+  const loadedForUid = useRef<string | null>(null);
+  const appliedForUid = useRef<string | null>(null);
 
-  // Load cart on mount: local first, then Firestore if user is logged in
+  // Load cart on mount / user change: guest cart first, then server cart (merged) once loaded
   useEffect(() => {
-    const localCart = loadLocalCart();
-    if (user) {
-      // If user just logged in, merge local cart into Firestore
-      const cartRef = doc(db, 'carts', user.uid);
-      getDoc(cartRef).then((snap) => {
-        if (snap.exists()) {
-          const firestoreCart: CartItem[] = (snap.data().items || []).map(sanitizeCartItem);
-          if (localCart.length > 0) {
-            // Merge: Firestore items take priority, add any local items not in FS
-            const merged = [...firestoreCart];
-            for (const localItem of localCart) {
-              const exists = merged.find(
-                (i) => i.productId === localItem.productId && (i.selectedVariant?.id || 'default') === (localItem.selectedVariant?.id || 'default')
-              );
-              if (exists && localItem.quantity > exists.quantity) {
-                exists.quantity = localItem.quantity;
-              } else if (!exists) {
-                merged.push(localItem);
-              }
+    const uid = user?.uid || null;
+    if (!uid) {
+      // Logged out: restore only the guest cart snapshot (never another user's server cart)
+      if (appliedForUid.current !== null) {
+        const guest = guestItemsRef.current ?? [];
+        setItems(guest);
+        saveLocalCart(guest);
+      }
+      appliedForUid.current = null;
+      loadedForUid.current = null;
+      guestItemsRef.current = null;
+      setInitialized(true);
+      return;
+    }
+    // Logged in / account switch: snapshot current guest items, then load server cart
+    if (appliedForUid.current === null && guestItemsRef.current === null) {
+      guestItemsRef.current = loadLocalCart();
+    }
+    appliedForUid.current = null;
+    loadedForUid.current = null;
+    setInitialized(false);
+
+    const cartRef = doc(db, 'carts', uid);
+    const guestSnapshot = guestItemsRef.current ?? [];
+    getDoc(cartRef).then((snap) => {
+      if (appliedForUid.current !== null || loadedForUid.current !== null) return;
+      let next: CartItem[];
+      let mustWrite = false;
+      if (snap.exists()) {
+        next = (snap.data().items || []).map(sanitizeCartItem);
+        for (const guestItem of guestSnapshot) {
+          const exists = next.find(
+            (i) => cartKey(i) === cartKey(guestItem)
+          );
+          if (exists) {
+            if (guestItem.quantity > exists.quantity) {
+              exists.quantity = guestItem.quantity;
+              mustWrite = true;
             }
-            setItems(merged);
-            saveLocalCart(merged);
-            setDoc(cartRef, { items: cleanUndefined(merged), updatedAt: serverTimestamp() }, { merge: true }).catch((err) => console.error('Cart merge sync error:', err));
           } else {
-            setItems(firestoreCart);
-            saveLocalCart(firestoreCart);
-          }
-        } else {
-          // No Firestore cart, use local
-          setItems(localCart);
-          if (localCart.length > 0) {
-            setDoc(cartRef, { items: cleanUndefined(localCart), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch((err) => console.error('Cart init sync error:', err));
+            next.push(guestItem);
+            mustWrite = true;
           }
         }
-        setInitialized(true);
-      }).catch((err) => {
-        console.warn('Cart Firestore read failed, using local cart:', err);
-        setItems(localCart);
-        setInitialized(true);
-      });
-    } else {
-      setItems(localCart);
+      } else {
+        next = guestSnapshot;
+        mustWrite = next.length > 0;
+      }
+      setItems(next);
+      saveLocalCart(next);
+      if (mustWrite) {
+        isSyncing.current = true;
+        setDoc(cartRef, { items: cleanUndefined(next), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true })
+          .catch((err) => console.error('Cart merge sync error:', err))
+          .finally(() => {
+            isSyncing.current = false;
+          });
+      }
+      appliedForUid.current = uid;
+      loadedForUid.current = uid;
       setInitialized(true);
-    }
-    prevUserRef.current = user?.uid || null;
+    }).catch((err) => {
+      console.warn('Cart Firestore read failed, using guest cart:', err);
+      setItems(guestSnapshot);
+      saveLocalCart(guestSnapshot);
+      appliedForUid.current = uid;
+      loadedForUid.current = uid;
+      setInitialized(true);
+    });
   }, [user]);
 
-  // Listen to Firestore cart changes in real time when logged in
+  // Listen to Firestore cart changes in real time when the current user's cart is loaded
   useEffect(() => {
-    if (!user || !initialized) return;
+    if (!user || !initialized || loadedForUid.current !== user.uid) return;
     const cartRef = doc(db, 'carts', user.uid);
     const unsub = onSnapshot(cartRef, (snap) => {
       if (isSyncing.current) return;
+      if (appliedForUid.current !== user.uid) return;
       if (snap.exists()) {
         const firestoreItems: CartItem[] = (snap.data().items || []).map(sanitizeCartItem);
-        setItems(firestoreItems);
+        setItems((prev) => {
+          if (cartsEqual(prev, firestoreItems)) return prev;
+          return firestoreItems;
+        });
         saveLocalCart(firestoreItems);
       }
     }, (err) => console.error('Cart Firestore listener error:', err));
     return unsub;
   }, [user, initialized]);
 
-  // Sync to Firestore and localStorage whenever items change
+  // Sync to Firestore and localStorage whenever items change (only after the user's cart is loaded)
   useEffect(() => {
     if (!initialized) return;
     saveLocalCart(items);
-    if (user) {
+    if (user && loadedForUid.current === user.uid) {
       isSyncing.current = true;
       const cartRef = doc(db, 'carts', user.uid);
       setDoc(cartRef, { items: cleanUndefined(items), updatedAt: serverTimestamp() }, { merge: true })

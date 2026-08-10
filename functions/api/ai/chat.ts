@@ -45,7 +45,8 @@ function buildPrompt(context?: Record<string, any>): string {
   let prompt = SYSTEM_PROMPT;
   if (context) {
     const parts: string[] = [];
-    if (context.userName) parts.push(`\n## USER\nThe customer is: ${context.userName}${context.userEmail ? ` (${context.userEmail})` : ''}. Address them by name.`);
+    // PII minimization: never send the customer's email to Gemini.
+    if (context.userName) parts.push(`\n## USER\nThe customer is: ${context.userName}. Address them by name.`);
     if (Array.isArray(context.cartItems) && context.cartItems.length > 0) parts.push(`\n## USER'S CART\n${JSON.stringify(context.cartItems, null, 2)}\nThey have items in their cart — gently remind them if relevant.`);
     if (Array.isArray(context.recentOrders) && context.recentOrders.length > 0) parts.push(`\n## RECENT ORDERS\n${JSON.stringify(context.recentOrders.slice(0, 3), null, 2)}`);
     if (context.currentPage) parts.push(`\n## CURRENT PAGE\nThe customer is on the **${context.currentPage}** page.`);
@@ -84,8 +85,8 @@ export async function onRequest({ request, env }: { request: Request; env: Recor
       const answersStr = JSON.stringify(answers ?? {});
       if (answersStr.length > 8_000) return json({ error: 'Quiz answers too large' }, 413);
       if (!apiKey) return json({ result: { profile: 'Balanced & Classic', reason: 'A balanced profile that suits any palate.', recommendedCategory: 'Medium Roast' } });
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Based on these coffee preference answers: ${answersStr}, recommend the perfect coffee profile. Return JSON: { "profile": "Name", "reason": "...", "recommendedCategory": "..." }` }] }], generationConfig: { responseMimeType: 'application/json' } }),
       });
       if (!resp.ok) return json({ result: { profile: 'Balanced & Classic', reason: 'Try our Medium Roast selection!', recommendedCategory: 'Medium Roast' } });
@@ -130,8 +131,8 @@ async function callGemini(apiKey: string, systemPrompt: string, contents: any[])
   try {
     for (let attempt = 0; attempt <= 1; attempt++) {
       try {
-        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-          method: 'POST', headers: { 'content-type': 'application/json' },
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
+          method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
           body: JSON.stringify({ systemInstruction: { parts: [{ text: systemPrompt }] }, contents }),
           signal: controller.signal,
         });

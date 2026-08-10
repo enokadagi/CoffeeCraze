@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+*.smoke-report.json
+
+.dev.vars
+.wrangler
+
+pagesdev.log
+

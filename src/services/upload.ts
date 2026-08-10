@@ -27,8 +27,8 @@ export interface UploadResult {
   totalBytes: number;
 }
 
-/** default allowed MIME types */
-export const DEFAULT_ALLOWED = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp', 'image/avif', 'image/gif'];
+/** default allowed MIME types (SVG is intentionally excluded: unsanitized SVG is a stored-XSS vector) */
+export const DEFAULT_ALLOWED = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/avif', 'image/gif'];
 
 function sanitizeFilename(name: string): string {
   return name
@@ -37,8 +37,11 @@ function sanitizeFilename(name: string): string {
     .slice(-80);
 }
 
-function validateFile(file: File, opts: UploadOptions): string | null {
+function validateFile(file: File, opts: { maxSize?: number; allowedTypes?: string[] }): string | null {
   const maxSize = opts.maxSize ?? 5 * 1024 * 1024;
+  if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
+    return 'SVG uploads are not allowed for security reasons. Please use PNG, JPG, WebP, AVIF or GIF.';
+  }
   if (!file.type.startsWith('image/')) return 'Please select a valid image file.';
   if (opts.allowedTypes && !opts.allowedTypes.includes(file.type)) {
     return `Unsupported file type. Allowed: ${opts.allowedTypes.join(', ')}.`;
@@ -47,6 +50,10 @@ function validateFile(file: File, opts: UploadOptions): string | null {
     return `Image must be under ${Math.round(maxSize / 1024 / 1024)} MB.`;
   }
   return null;
+}
+
+export function validateImageFile(file: File, maxSize = 5 * 1024 * 1024, allowedTypes?: string[]): string | null {
+  return validateFile(file, { maxSize, allowedTypes });
 }
 
 /** Client-side image compression + resize to reduce upload size and generate a WebP where supported. */
@@ -161,6 +168,13 @@ export async function uploadImage(file: File, opts: UploadOptions): Promise<Uplo
   }
   if (code === 'storage/canceled') {
     throw new Error('Upload cancelled.');
+  }
+  if (code === 'storage/retry-limit-exceeded' || code === 'storage/network-invalid-response') {
+    throw new Error('Upload failed: network error. Please check your connection and try again.');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((lastError as any)?.code && String((lastError as any)?.code).startsWith('storage/')) {
+    throw new Error(`Upload failed: ${String((lastError as any)?.code).replace('storage/', '')}. Please try again.`);
   }
   throw new Error('Upload failed. Please check your connection and try again.');
 }

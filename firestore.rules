@@ -30,6 +30,11 @@ service cloud.firestore {
       ];
     }
 
+    // Roles trusted to record money events (COD collection, refunds, payment status)
+    function isAdminOrAccounting() {
+      return isSignedIn() && getUserRole() in ['owner', 'super_admin', 'admin', 'manager', 'accounting'];
+    }
+
     // Driver: can view/update only their assigned deliveries
     function isDriver() {
       return isSignedIn() && getUserRole() == 'driver';
@@ -59,14 +64,6 @@ service cloud.firestore {
         ];
     }
 
-    function isValidOrder(data) {
-      return data.userId == request.auth.uid
-        && data.items is list && data.items.size() > 0
-        && data.total is number && data.total >= 0
-        && data.status in ['pending', 'confirmed', 'processing', 'preparing', 'ready', 'shipped', 'out_for_delivery', 'delivered', 'cancelled']
-        && data.paymentMethod in ['cash_on_delivery', 'card', 'bank_transfer'];
-    }
-
     function isValidContactMessage(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.email is string && data.email.size() > 0 && data.email.size() <= 256
@@ -89,7 +86,9 @@ service cloud.firestore {
 
     // Owner updating own profile: only profile fields, never change role/permissions/status.
     // Includes notification preferences, FCM tokens, email verification status,
-    // loyalty fields, and personal preferences — all user-editable without elevation.
+    // and personal preferences — all user-editable without elevation.
+    // Business/accounting values (loyaltyPoints, totalSpent) are NOT owner-editable:
+    // they are computed and maintained by trusted server-side logic (F3).
     function isOwnerProfileUpdate() {
       return incoming().get('role', null) == existing().get('role', null)
         && incoming().get('permissions', []) == existing().get('permissions', [])
@@ -97,8 +96,32 @@ service cloud.firestore {
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'displayName', 'firstName', 'lastName', 'phone', 'address', 'addresses', 'defaultAddressId',
           'avatar', 'profileImage', 'preferences', 'notificationPreferences', 'fcmTokens',
-          'emailVerified', 'loyaltyPoints', 'totalSpent', 'onboarded', 'updatedAt'
+          'emailVerified', 'onboarded', 'updatedAt'
         ]);
+    }
+
+    // --- Order status authorization matrix (F1) ---
+    // Mirrors functions/lib/stateMachine.ts role sets. Least privilege:
+    //  - ORDER_OPS_TOP (owner/super_admin/admin/manager): every valid transition
+    //  - support (customer_service, support): non-financial transitions, never 'delivered'
+    //  - fulfillment (inventory, warehouse, barista, supplier_manager): staging only,
+    //    never 'cancelled'/'delivered'
+    //  - accounting: payment/financial operations ONLY (no status authority)
+    //  - product_manager / marketing / analyst / wholesale_manager: no order-status
+    //    authority; customer / driver: separate non-staff paths
+    function isOrderOpsTop() {
+      return isSignedIn() && getUserRole() in ['super_admin', 'owner', 'admin', 'manager'];
+    }
+    function isOrderSupport() {
+      return isSignedIn() && getUserRole() in ['super_admin', 'owner', 'admin', 'manager', 'customer_service', 'support'];
+    }
+    function isFulfillmentWorker() {
+      return isSignedIn() && getUserRole() in ['super_admin', 'owner', 'admin', 'manager', 'inventory', 'warehouse', 'barista', 'supplier_manager'];
+    }
+    function isOrderTransitionAuthorized(from, to) {
+      return isOrderOpsTop()
+        || (isOrderSupport() && to != 'delivered')
+        || (isFulfillmentWorker() && to in ['processing', 'preparing', 'ready', 'shipped', 'out_for_delivery']);
     }
 
     // Non-staff blog engagement: only counters
@@ -108,22 +131,93 @@ service cloud.firestore {
       ]);
     }
 
+    // --- Order state machine ---
+    // Mirrors functions/lib/stateMachine.ts ORDER_TRANSITIONS.
+    function isValidOrderTransition(from, to) {
+      return (from == 'pending' && to in ['confirmed', 'cancelled'])
+        || (from == 'confirmed' && to in ['processing', 'cancelled'])
+        || (from == 'processing' && to in ['preparing', 'cancelled'])
+        || (from == 'preparing' && to in ['ready', 'cancelled'])
+        || (from == 'ready' && to in ['shipped', 'out_for_delivery', 'cancelled'])
+        || (from == 'shipped' && to == 'out_for_delivery')
+        || (from == 'out_for_delivery' && to in ['delivered', 'cancelled']);
+    }
+
+    // Payment lifecycle for COD: pending -> collected | failed | refunded; never 'paid' fiction.
+    function isValidPaymentTransition(from, to) {
+      return (from == 'pending' && to in ['collected', 'failed', 'refunded'])
+        || (from == 'collected' && to == 'refunded')
+        || (from == 'failed' && to in ['collected', 'refunded']);
+    }
+
+    function isValidOrderStatus(s) {
+      return s in ['pending', 'confirmed', 'processing', 'preparing', 'ready', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'];
+    }
+
+    // Staff order update: bounded keys, valid + role-authorized transitions,
+    // money events only by admin/accounting, driver assignment only by admin.
+    function isStaffOrderUpdate() {
+      return isSignedIn() && getUserRole() != null && (isOrderOpsTop() || isOrderSupport() || isFulfillmentWorker())
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'trackingId', 'driverId', 'driverName', 'updatedAt', 'deliveredAt',
+          'paymentStatus', 'codAmountCollected', 'paymentCollectedAt',
+          'cancellationReason', 'cancelledAt', 'internalNotes'
+        ])
+        && (!('status' in incoming()) || (
+             isValidOrderStatus(incoming().status)
+             && isValidOrderTransition(existing().status, incoming().status)
+             && isOrderTransitionAuthorized(existing().status, incoming().status)))
+        && (!('paymentStatus' in incoming()) || (
+             isAdminOrAccounting() && isValidPaymentTransition(existing().get('paymentStatus', 'pending'), incoming().paymentStatus)))
+        && (!('codAmountCollected' in incoming()) || isAdminOrAccounting())
+        && (!('driverId' in incoming()) || isAdmin());
+    }
+
+    // Driver delivery update: ONLY once the order is out_for_delivery (F2),
+    // only mark delivered, optionally record COD collection on an honest amount.
+    function isDriverOrderUpdate() {
+      return isDriver()
+        && existing().get('driverId', '') == request.auth.uid
+        && existing().get('status', '') == 'out_for_delivery'
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'paymentStatus', 'deliveredAt', 'codAmountCollected', 'updatedAt'
+        ])
+        && incoming().status == 'delivered'
+        && (!('paymentStatus' in incoming()) || (
+             incoming().paymentStatus in ['collected', 'failed']
+             && existing().get('paymentStatus', 'pending') == 'pending'))
+        && (!('codAmountCollected' in incoming()) || (
+             incoming().paymentStatus == 'collected'
+             && incoming().codAmountCollected is number
+             && incoming().codAmountCollected > 0
+             && incoming().codAmountCollected == existing().get('totalLbp', existing().get('total', 0))));
+    }
+
     // Subscription owner pausing/cancelling/resuming and updating logistics.
     // Allows customers to self-serve pause/cancel/resume and edit delivery details.
     function isOwnerSubscriptionUpdate() {
       return request.auth.uid == resource.data.userId
         && incoming().diff(existing()).affectedKeys().hasOnly([
-          'status', 'updatedAt', 'pausedUntil', 'frequency', 'address',
-          'preferredTimeSlot', 'preferredTime', 'customNotes', 'gateCode', 'nextDelivery', 'durationMonths'
+          'status', 'updatedAt', 'pausedAt', 'pausedUntil', 'frequency', 'address',
+          'preferredTimeSlot', 'preferredTime', 'customNotes', 'gateCode', 'nextDelivery', 'durationMonths', 'items'
         ])
         && (!('status' in incoming()) || incoming().status in ['active', 'paused', 'cancelled']);
+    }
+
+    function isValidSubscriptionTransition(from, to) {
+      return (from == 'active' && to in ['paused', 'cancelled'])
+        || (from == 'paused' && to in ['active', 'cancelled']);
     }
 
     // --- Users ---
     match /users/{userId} {
       allow get: if isSignedIn() && (userId == request.auth.uid || isStaff());
       allow list: if isStaff();
-      allow create: if isSignedIn() && request.auth.uid == userId && (!('role' in incoming()) || incoming().role == 'customer');
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && (!('role' in incoming()) || incoming().role == 'customer')
+        && !('permissions' in incoming()) && !('status' in incoming())
+        && (!('loyaltyPoints' in incoming()) || incoming().loyaltyPoints == 0)
+        && (!('totalSpent' in incoming()) || incoming().totalSpent == 0);
       allow update: if isAdmin() || (request.auth.uid == userId && isOwnerProfileUpdate());
       allow delete: if isAdmin();
     }
@@ -189,8 +283,10 @@ service cloud.firestore {
     }
 
     // --- Orders ---
+    // NOTE: orders are created ONLY by the server (Pages Function /api/orders
+    // using the service account, which bypasses rules). Clients cannot create
+    // orders directly, so client-side totals can never be trusted.
     match /orders/{orderId} {
-      // Customers can read their own; staff can read all; drivers can read orders assigned to them
       allow get: if isSignedIn() && (
         isOwner(existing().userId)
         || isStaff()
@@ -201,25 +297,34 @@ service cloud.firestore {
         || isStaff()
         || (isDriver() && resource.data.get('driverId', '') == request.auth.uid)
       );
-      // Use isSignedIn instead of isVerified because the ID token's email_verified
-      // claim may lag behind the actual user.emailVerified after verification.
-      // Client already checks emailVerified before calling create.
-      allow create: if isSignedIn() && isValidOrder(incoming()) && incoming().status == 'pending';
-      // Staff can update order fields; drivers can only mark as delivered and set paymentStatus
-      allow update: if
-        (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingId', 'paymentStatus', 'driverId', 'driverName', 'updatedAt', 'deliveredAt']))
-        || (isDriver() && existing().get('driverId', '') == request.auth.uid
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus', 'deliveredAt', 'updatedAt'])
-            && incoming().status == 'delivered');
-      allow delete: if isStaff();
+      allow create: if false;
+      allow update: if isStaffOrderUpdate() || isDriverOrderUpdate();
+      allow delete: if false;
+    }
+
+    // --- Idempotency guards (server-only) ---
+    match /order_requests/{requestId} {
+      allow read, write: if false;
+    }
+    match /sub_requests/{requestId} {
+      allow read, write: if false;
     }
 
     // --- Subscriptions ---
+    // Created ONLY by the server (Pages Function /api/subscriptions).
     match /subscriptions/{subId} {
       allow get: if isSignedIn() && (isOwner(existing().userId) || isStaff());
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow create: if isVerified() && incoming().userId == request.auth.uid;
-      allow update: if isStaff() || isOwnerSubscriptionUpdate();
+      allow create: if false;
+      allow update: if isStaff() && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'paymentStatus', 'nextDelivery', 'endDate', 'cancelledAt',
+          'cancellationReason', 'pausedUntil', 'updatedAt', 'internalNotes'
+        ])
+        && (!('status' in incoming()) || isValidSubscriptionTransition(existing().status, incoming().status))
+        && (!('paymentStatus' in incoming()) || (
+             isAdminOrAccounting() && isValidPaymentTransition(existing().get('paymentStatus', 'pending'), incoming().paymentStatus)))
+      ) || isOwnerSubscriptionUpdate();
       allow delete: if isStaff();
     }
 
@@ -231,13 +336,12 @@ service cloud.firestore {
     }
 
     // --- Payments ---
+    // Money events are recorded server-side only; clients can never mint
+    // payment records.
     match /payments/{paymentId} {
       allow get: if isSignedIn() && (existing().userId == request.auth.uid || isStaff());
       allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isVerified() && incoming().userId == request.auth.uid
-        && incoming().amount is number && incoming().amount >= 0
-        && incoming().currency in ['LBP', 'USD']
-        && incoming().method in ['cash_on_delivery', 'card', 'bank_transfer'];
+      allow create: if false;
       allow update, delete: if isStaff();
     }
 
@@ -245,9 +349,7 @@ service cloud.firestore {
     match /paymentLedgers/{ledgerId} {
       allow get: if isSignedIn() && (existing().userId == request.auth.uid || isStaff());
       allow list: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isVerified() && incoming().userId == request.auth.uid
-        && incoming().amount is number && incoming().amount >= 0
-        && incoming().currency in ['LBP', 'USD'];
+      allow create: if false;
       allow update, delete: if isStaff();
     }
 
@@ -288,16 +390,13 @@ service cloud.firestore {
     }
 
     // --- Coupons ---
-    // Customers may read active coupons and increment usedCount (usage tracking);
-    // all other writes require staff. Customers must not modify the coupon itself.
+    // Customers may read active coupons; ALL writes (including usedCount) are
+    // staff/server-only. Coupon usage is now counted atomically when an order
+    // is created server-side, not when the customer applies it in the cart.
     match /coupons/{couponId} {
       allow read: if isSignedIn();
       allow create, delete: if isStaff();
-      allow update: if isStaff() || (
-        isSignedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']) &&
-        request.resource.data.usedCount == resource.data.usedCount + 1
-      );
+      allow update: if isStaff();
     }
 
     // --- Employee Invites ---

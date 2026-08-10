@@ -3,8 +3,12 @@
   Frontend + API: Cloudflare Pages
     npm run pages:deploy
 
-  Set secrets in Cloudflare dashboard:
+  Set secrets in Cloudflare dashboard (Pages project "coffeecraze"):
     GEMINI_API_KEY
+    FIREBASE_SERVICE_ACCOUNT   <-- full JSON content of the Firebase service account key file.
+                                     REQUIRED for server-authoritative orders/subscriptions.
+                                     Create: Firebase Console → Project settings → Service accounts
+                                     → Generate new private key.
 
   Firebase (backend only — Auth, Firestore, Storage):
     firebase deploy --only firestore:rules,firestore:indexes,storage:rules
@@ -25,8 +29,5 @@
   },
   "storage": {
     "rules": "storage.rules"
-  },
-  "functions": {
-    "source": "firebase-functions"
   }
 }

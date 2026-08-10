@@ -2,6 +2,7 @@
 import { Plus, Edit, Trash, ArrowRight, Save, X, Star, Eye, EyeOff } from 'lucide-react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { validateImageFile, DEFAULT_ALLOWED } from '../../services/upload';
 import { db, storage } from '../../lib/firebase';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
@@ -91,6 +92,8 @@ export default function AdminPlans() {
   }, []);
 
   const uploadImage = (file: File, planId: string) => {
+    const validationError = validateImageFile(file, 10 * 1024 * 1024, DEFAULT_ALLOWED);
+    if (validationError) return Promise.reject(new Error(validationError));
     return new Promise<string>((resolve, reject) => {
       const storagePath = `plans/${planId}/${Date.now()}-${file.name}`;
       const sRef = storageRef(storage, storagePath);
@@ -116,7 +119,10 @@ export default function AdminPlans() {
     if (!form.price || Number(form.price) <= 0) return 'Price must be greater than zero';
     if (!form.description.trim()) return 'Description is required';
     if (!form.features.trim()) return 'At least one feature is required';
-    if (selectedFile && !selectedFile.type.startsWith('image/')) return 'Please select a valid image file';
+    if (selectedFile) {
+      const imageError = validateImageFile(selectedFile, 10 * 1024 * 1024, DEFAULT_ALLOWED);
+      if (imageError) return imageError;
+    }
     return '';
   };
 
@@ -147,7 +153,7 @@ export default function AdminPlans() {
         try {
           const url = await uploadImage(selectedFile, ref.id);
           await updateDoc(doc(db, 'plans', ref.id), { image: url });
-        } catch { toast.error('Image upload failed'); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : 'Image upload failed'); }
       }
       toast.success('Plan created');
       resetForm();
@@ -173,7 +179,7 @@ export default function AdminPlans() {
       };
       if (selectedFile) {
         try { payload.image = await uploadImage(selectedFile, editingPlan.id); }
-        catch { toast.error('Image upload failed'); }
+        catch (err) { toast.error(err instanceof Error ? err.message : 'Image upload failed'); }
       }
       await updateDoc(doc(db, 'plans', editingPlan.id), payload);
       toast.success('Plan updated');

@@ -3,6 +3,7 @@ import { SiteSettingsService, SiteSettings } from '../../services/siteSettings';
 import { applySiteSettings, invalidateSettingsCache } from '../../hooks/useSiteSettings';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../lib/firebase';
+import { validateImageFile } from '../../services/upload';
 import { toast } from 'sonner';
 import { Settings, Save, Upload, Image, AlertTriangle } from 'lucide-react';
 import SEO from '../../components/common/SEO';
@@ -86,11 +87,13 @@ export default function AdminSiteSettings() {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
     try {
+      const validationError = validateImageFile(file);
+      if (validationError) throw new Error(validationError);
       const url = await uploadFile(file, `site/${field}_${Date.now()}`);
       setSettings({ ...settings, [field]: url });
       toast.success('Image uploaded');
-    } catch {
-      toast.error('Upload failed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
     }
   };
 

@@ -7,8 +7,9 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Plan, PlanItem, SubscriptionStatus, PaymentStatus } from '../types';
-import { PlanService, SubscriptionService } from '../services/firestore';
+import { Plan } from '../types';
+import { PlanService } from '../services/firestore';
+import { OrdersApi } from '../services/ordersApi';
 import { formatUSD } from '../utils/exchange';
 
 export default function Subscriptions() {
@@ -68,38 +69,34 @@ export default function Subscriptions() {
   const confirmSubscription = async () => {
     if (!pendingPlan || !user) return;
     setCreatingPlan(pendingPlan.id);
+    const plan = pendingPlan;
     setPendingPlan(null);
 
     try {
-      const item: PlanItem = {
-        productId: pendingPlan.id,
-        name: pendingPlan.name,
-        price: pendingPlan.price,
-        quantity: 1,
-      };
-
-      await SubscriptionService.create({
-        userId: user.uid,
-        planId: pendingPlan.id,
-        status: SubscriptionStatus.ACTIVE,
-        nextDelivery: deliveryStartDate,
-        frequency: pendingPlan.frequency || 'monthly',
-        preferredDay: profile?.address ? new Date().toLocaleDateString('en-US', { weekday: 'long' }) : 'Standard',
-        preferredTime: preferredTimeSlot,
-        preferredTimeSlot: preferredTimeSlot,
-        items: [item],
+      // Phase 1: subscription creation is server-authoritative — the price is
+      // recomputed from the plan document server-side; nothing here is trusted.
+      const token = await user.getIdToken(true);
+      const res = await OrdersApi.createSubscription({
+        requestId: crypto.randomUUID(),
+        planId: plan.id,
+        deliveryDay: new Date(deliveryStartDate).toLocaleDateString('en-US', { weekday: 'long' }),
+        deliveryTimeSlot: preferredTimeSlot,
         address: {
           name: profile?.displayName || '',
           email: profile?.email || '',
           address: profile?.address || '',
           phone: profile?.phone || ''
         },
-        history: [],
-        paymentStatus: PaymentStatus.PENDING
-      });
+      }, token);
+
+      if (!res.ok || !res.subscriptionId) {
+        toast.error(res.error ?? 'Failed to initiate your subscription. Please try again.');
+        setCreatingPlan(null);
+        return;
+      }
 
       toast.success('Subscription initialized successfully.');
-      navigate('/subscription/confirmation', { state: { planName: pendingPlan.name } });
+      navigate('/subscription/confirmation', { state: { planName: plan.name } });
     } catch (error) {
       console.error('Failed to create subscription:', error);
       toast.error('Failed to initiate your subscription. Please try again.');

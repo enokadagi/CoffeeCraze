@@ -1,17 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { OrderService } from '../services/firestore';
+import { OrdersApi, OrdersApiError, type ServerQuote } from '../services/ordersApi';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import Seo from '../components/common/SEO';
 import LocationPicker from '../components/checkout/LocationPicker';
 import { cn } from '../lib/utils';
-import { OrderItem, OrderStatus, PaymentStatus } from '../types';
 import { LEBANON_CITIES } from '../data/lebanonCities';
 import {
   CreditCard,
@@ -24,6 +23,8 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
+  RefreshCw,
+  Server,
 } from 'lucide-react';
 
 export default function Checkout() {
@@ -34,6 +35,12 @@ export default function Checkout() {
 
   const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Scheduling, 4: Review
   const [loading, setLoading] = useState(false);
+
+  // Server-confirmed quote (Phase 1: the client never computes or writes totals)
+  const [serverQuote, setServerQuote] = useState<ServerQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const requestIdRef = useRef<string>(crypto.randomUUID());
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -76,7 +83,7 @@ export default function Checkout() {
     if (!profile) return;
 
     const [firstName = '', ...lastNameParts] = profile.displayName?.split(' ') || [];
-    
+
     // Find default saved address or fallback to first saved address
     const defaultAddress = profile.addresses?.find(a => a.isDefault || a.id === profile.defaultAddressId) || profile.addresses?.[0];
 
@@ -105,7 +112,7 @@ export default function Checkout() {
     { id: 'cash_on_delivery', label: 'Cash on Delivery', note: 'Pay the courier in LBP or USD when your order arrives.', icon: '💵' },
   ];
 
-  // Pricing — read from site settings with safe fallbacks
+  // Client-side estimate (display only — the server quote is authoritative)
   const exchangeRate = siteSettings?.exchangeRate ?? 89500;
   const deliveryFeeLbp = siteSettings?.deliveryFeeLbp ?? 25000;
   const freeDeliveryThresholdLbp = siteSettings?.freeDeliveryThresholdLbp ?? 1500000;
@@ -113,9 +120,41 @@ export default function Checkout() {
   const subtotalLbp = total;
   const shippingLbp = subtotalLbp > freeDeliveryThresholdLbp ? 0 : deliveryFeeLbp;
   const couponDiscountLbp = appliedCoupon ? Math.floor(subtotalLbp * (appliedCoupon.discountPercent / 100)) : 0;
-
   const grandTotalLbp = Math.max(0, subtotalLbp + shippingLbp - couponDiscountLbp);
   const grandTotalUsd = grandTotalLbp / exchangeRate;
+
+  const loadQuote = useCallback(async () => {
+    if (!user) return;
+    setQuoteLoading(true);
+    setQuoteError(null);
+    try {
+      const token = await user.getIdToken();
+      const itemsForQuote = items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        ...(item.selectedVariant?.id ? { variantId: item.selectedVariant.id } : {}),
+      }));
+      const res = await OrdersApi.quote(itemsForQuote, appliedCoupon?.code ?? null, token);
+      setServerQuote(res.quote);
+    } catch (err) {
+      console.error('[Checkout] quote failed:', err);
+      setServerQuote(null);
+      if (err instanceof OrdersApiError && err.status === 401) {
+        setQuoteError('Session expired. Please reload the page and try again.');
+      } else {
+        setQuoteError('Could not confirm prices with our server. Online ordering is temporarily unavailable — please call us at +961 71 972 495 or email contact@coffeecraze.com.');
+      }
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, [user, items, appliedCoupon]);
+
+  // Fetch the authoritative quote when the customer reaches the Review step.
+  useEffect(() => {
+    if (step === 4 && !serverQuote && !quoteLoading) {
+      loadQuote();
+    }
+  }, [step, serverQuote, quoteLoading, loadQuote]);
 
   let buttonLabel = 'Continue';
   if (loading) {
@@ -123,6 +162,9 @@ export default function Checkout() {
   } else if (step === 4) {
     buttonLabel = 'Place Order';
   }
+
+  const quoteBlocked = step === 4 && !!quoteError;
+  const quoteHasBlockers = step === 4 && !!serverQuote && !serverQuote.ok;
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
@@ -137,7 +179,7 @@ export default function Checkout() {
       return;
     }
 
-    // Force refresh the Firebase ID token so the security rules see the verified email
+    // Force refresh the Firebase ID token so the API sees the verified email
     try {
       await user.getIdToken(true);
     } catch {
@@ -155,115 +197,118 @@ export default function Checkout() {
       return;
     }
 
-    if (!Number.isFinite(grandTotalLbp) || grandTotalLbp < 0) {
-      toast.error('Invalid order total. Please review your cart items and try again.');
+    if (quoteBlocked) {
+      toast.error('Online ordering is temporarily unavailable. Please contact us at +961 71 972 495.');
+      return;
+    }
+    if (quoteHasBlockers) {
+      toast.error('Some items in your cart cannot be ordered. Please review the warnings and try again.');
       return;
     }
 
-    const orderItems: OrderItem[] = items.map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      image: item.image,
-      ...(item.selectedVariant?.id ? { variant: { id: item.selectedVariant.id, name: item.selectedVariant.name } } : {}),
-    }));
-
+    const token = await user.getIdToken();
     const shippingAddress = {
-      id: `${user.uid}-shipping`,
       fullName: `${formData.firstName} ${formData.lastName}`.trim(),
-      name: `${formData.firstName} ${formData.lastName}`.trim(),
-      email: user.email || '',
       street: formData.street,
       building: formData.building,
       floor: formData.floor,
-      apartment: '',
       city: formData.city,
-      country: 'Lebanon',
       phone: formData.phone,
-      phoneNumber: formData.phone,
-      isDefault: true,
+      gateCode: formData.gateCode,
       instructions: formData.customNotes,
-      gateCode: formData.gateCode,
-      landmark: '',
-      postalCode: '',
-      ...(formData.gpsCoordinates ? { gpsCoordinates: formData.gpsCoordinates } : {}),
-    };
-
-    const orderPayload = {
-      userId: user.uid,
-      items: orderItems,
-      subtotal: subtotalLbp,
-      subtotalLbp,
-      shipping: shippingLbp,
-      shippingLbp,
-      total: grandTotalLbp,
-      totalLbp: grandTotalLbp,
-      totalUsd: Number(grandTotalUsd.toFixed(2)),
-      paymentMethod: 'cash_on_delivery' as const,
-      paymentStatus: PaymentStatus.PENDING,
-      paymentTiming: 'deferred' as const,
-      ...(appliedCoupon ? { couponCode: appliedCoupon.code, couponDiscountLbp } : {}),
-      shippingAddress,
-      deliveryDate: formData.deliveryDate,
-      deliveryTime: formData.deliveryTimeWindow,
-      customNotes: formData.customNotes,
-      gateCode: formData.gateCode,
-      status: OrderStatus.PENDING,
+      gpsCoordinates: formData.gpsCoordinates,
     };
 
     setLoading(true);
-    let orderId: string;
     try {
-      orderId = await OrderService.create(orderPayload);
-    } catch (err) {
-      const msg = (err as Error)?.message || 'Unknown error';
-      console.error('[Checkout] OrderService.create FAILED:', msg, JSON.stringify(orderPayload));
-      if (msg.includes('permission') || msg.includes('denied') || msg.includes('Missing or insufficient')) {
-        toast.error('Order rejected by security rules. Contact support.');
-      } else if (msg.includes('network') || msg.includes('unavailable')) {
-        toast.error('Network error. Check your connection and try again.');
-      } else {
-        toast.error(msg.includes('Error: ') ? msg : `Failed to place order: ${msg}`);
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Save shippingAddress to user profile if not already present
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      const existingAddresses = profile?.addresses || [];
-      const isAlreadySaved = existingAddresses.some(
-        (a) => a.street === shippingAddress.street && a.city === shippingAddress.city && a.building === shippingAddress.building
+      const res = await OrdersApi.create(
+        {
+          requestId: requestIdRef.current,
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            ...(item.selectedVariant?.id ? { variantId: item.selectedVariant.id } : {}),
+          })),
+          couponCode: appliedCoupon?.code ?? null,
+          shipping: shippingAddress,
+          deliveryDate: formData.deliveryDate,
+          deliveryTime: formData.deliveryTimeWindow,
+          customNotes: formData.customNotes,
+        },
+        token
       );
 
-      if (!isAlreadySaved) {
-        const addressToSave = {
-          ...shippingAddress,
-          id: `addr-${Date.now()}`,
-          isDefault: existingAddresses.length === 0,
-        };
-        await updateDoc(userRef, {
-          addresses: [...existingAddresses, addressToSave],
-          address: profile?.address || `${shippingAddress.street}, ${shippingAddress.city}`,
-        });
+      if (!res.ok || !res.orderId) {
+        if (res.quote) setServerQuote(res.quote);
+        toast.error(res.error ?? 'Order could not be placed. Please review your cart and try again.');
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error('[Checkout] Profile update failed (order still created):', (err as Error)?.message, err);
-    }
+      const orderId = res.orderId;
 
-    toast.success('Order placed successfully!');
-    clearCart();
-    setAppliedCoupon(null);
-    navigate(`/order-success/${orderId}`);
-    setLoading(false);
+      // Save shippingAddress to user profile if not already present
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const existingAddresses = profile?.addresses || [];
+        const isAlreadySaved = existingAddresses.some(
+          (a) => a.street === shippingAddress.street && a.city === shippingAddress.city && a.building === shippingAddress.building
+        );
+        if (!isAlreadySaved) {
+          const addressToSave = {
+            id: `addr-${Date.now()}`,
+            fullName: shippingAddress.fullName,
+            name: shippingAddress.fullName,
+            email: user.email || '',
+            street: shippingAddress.street,
+            building: shippingAddress.building,
+            floor: shippingAddress.floor,
+            apartment: '',
+            city: shippingAddress.city,
+            country: 'Lebanon',
+            phone: shippingAddress.phone,
+            phoneNumber: shippingAddress.phone,
+            isDefault: existingAddresses.length === 0,
+            instructions: formData.customNotes,
+            gateCode: formData.gateCode,
+            landmark: '',
+            postalCode: '',
+            ...(formData.gpsCoordinates ? { gpsCoordinates: formData.gpsCoordinates } : {}),
+          };
+          await updateDoc(userRef, {
+            addresses: [...existingAddresses, addressToSave],
+            address: profile?.address || `${shippingAddress.street}, ${shippingAddress.city}`,
+          });
+        }
+      } catch (err) {
+        console.error('[Checkout] Profile update failed (order still created):', (err as Error)?.message, err);
+      }
+
+      toast.success('Order placed successfully!');
+      clearCart();
+      setAppliedCoupon(null);
+      navigate(`/order-success/${orderId}`);
+    } catch (err) {
+      console.error('[Checkout] OrderService.create FAILED:', err);
+      if (err instanceof OrdersApiError) {
+        if (err.status === 409 && (err.details as { quote?: ServerQuote })?.quote) {
+          setServerQuote((err.details as { quote: ServerQuote }).quote);
+        }
+        if (err.status === 401) toast.error('Session expired. Please reload and try again.');
+        else toast.error(err.message);
+      } else {
+        toast.error('Network error. Check your connection and try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (items.length === 0) {
     navigate('/shop');
     return null;
   }
+
+  const summaryItems = serverQuote ? serverQuote.items : items;
 
   return (
     <div className="min-h-screen bg-cream py-12 md:py-24">
@@ -610,13 +655,71 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-800">
-                      <p className="font-bold mb-1">Please Review</p>
-                      <p>Make sure all details are correct before confirming your order.</p>
+                  {quoteLoading && (
+                    <div className="bg-espresso/5 border border-espresso/10 rounded-lg p-4 flex items-center gap-3">
+                      <RefreshCw size={20} className="text-caramel animate-spin flex-shrink-0" />
+                      <p className="text-sm text-espresso">Confirming prices with our server...</p>
                     </div>
-                  </div>
+                  )}
+
+                  {quoteBlocked && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-red-800">
+                        <p className="font-bold mb-1">Ordering unavailable right now</p>
+                        <p>{quoteError}</p>
+                        <button
+                          type="button"
+                          onClick={() => { setServerQuote(null); loadQuote(); }}
+                          className="mt-2 inline-flex items-center gap-1 font-semibold underline"
+                        >
+                          <RefreshCw size={14} /> Try again
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {quoteHasBlockers && serverQuote && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-bold mb-1">Your order cannot be completed</p>
+                        <ul className="list-disc pl-4 space-y-0.5">
+                          {serverQuote.blockers.map((b, i) => <li key={i}>{b}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {serverQuote && serverQuote.ok && serverQuote.items.some((it) => it.priceChanged) && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-bold mb-1">Prices updated</p>
+                        <p>Some prices changed since you added items to your cart. The totals below are the final confirmed prices.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {serverQuote && serverQuote.ok && !quoteHasBlockers && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
+                      <Server size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-emerald-800">
+                        <p className="font-bold mb-1">Prices confirmed</p>
+                        <p>Totals were verified against our current catalog. Placing the order reserves the items and locks these prices.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!quoteLoading && !quoteBlocked && !serverQuote && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-bold mb-1">Please Review</p>
+                        <p>Make sure all details are correct before confirming your order.</p>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -634,7 +737,7 @@ export default function Checkout() {
               )}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || quoteBlocked || quoteHasBlockers}
                 className="flex-1 py-4 bg-espresso text-white rounded-lg font-bold hover:bg-espresso/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {buttonLabel}
@@ -647,43 +750,77 @@ export default function Checkout() {
             <div className="bg-white rounded-2xl p-8 border border-espresso/5 space-y-6">
               <h3 className="text-xl font-bold text-espresso italic">Order Summary</h3>
 
+              {serverQuote && (
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1 w-fit">
+                  <Server size={12} /> Server-confirmed prices
+                </div>
+              )}
+
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {items.map((item) => (
-                  <div
-                    key={item.productId}
-                    className="flex items-center justify-between text-sm pb-3 border-b border-espresso/5"
-                  >
-                    <div>
-                      <p className="font-semibold text-espresso">{item.name}</p>
-                      <p className="text-xs text-text-muted">
-                        {item.selectedVariant?.name && `${item.selectedVariant.name} • `}×{item.quantity}
-                      </p>
+                {summaryItems.map((item, idx) => {
+                  const name = (item as { name?: string }).name ?? 'Item';
+                  const qty = (item as { quantity?: number }).quantity ?? 1;
+                  const unitPrice = 'unitPriceLbp' in item ? (item as { unitPriceLbp: number }).unitPriceLbp : (item as { price?: number }).price ?? 0;
+                  const variantName = 'variantName' in item && item.variantName ? ` • ${item.variantName}` : '';
+                  const statusBadge = 'status' in item && item.status !== 'ok' ? (item as { status: string }).status : null;
+                  return (
+                    <div
+                      key={idx}
+                      className={cn('flex items-center justify-between text-sm pb-3 border-b border-espresso/5', statusBadge && 'opacity-70')}
+                    >
+                      <div>
+                        <p className="font-semibold text-espresso">{name}</p>
+                        <p className="text-xs text-text-muted">
+                          {variantName}×{qty}
+                        </p>
+                        {statusBadge && (
+                          <p className="text-[11px] font-semibold text-red-600 uppercase">
+                            {statusBadge === 'insufficient_stock' ? `Only ${(item as { availableStock?: number }).availableStock ?? 0} left` : 'Unavailable'}
+                          </p>
+                        )}
+                      </div>
+                      <p className="font-bold text-espresso">{unitPrice ? unitPrice.toLocaleString() : ''}</p>
                     </div>
-                    <p className="font-bold text-espresso">{item.price ? item.price : ''}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="space-y-3 border-t border-espresso/10 pt-6">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-text-muted">Subtotal (LBP)</span>
-                  <span className="font-semibold text-espresso">{Math.max(0, total)}</span>
+                  <span className="font-semibold text-espresso">
+                    {(serverQuote ? serverQuote.subtotalLbp : Math.max(0, subtotalLbp)).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted">Delivery</span>
+                  <span className="font-semibold text-espresso">
+                    {(serverQuote ? serverQuote.shippingLbp : shippingLbp).toLocaleString()} LBP
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-text-muted">Total (USD)</span>
-                  <span className="font-semibold text-espresso">${grandTotalUsd.toFixed(2)}</span>
+                  <span className="font-semibold text-espresso">
+                    ${(serverQuote ? serverQuote.totalUsd : grandTotalUsd).toFixed(2)}
+                  </span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex items-center justify-between text-sm text-emerald-600">
                     <span>Coupon ({appliedCoupon.code})</span>
-                    <span className="font-semibold">-{couponDiscountLbp.toLocaleString()} LBP</span>
+                    <span className="font-semibold">
+                      -{(serverQuote ? serverQuote.discountLbp : couponDiscountLbp).toLocaleString()} LBP
+                    </span>
                   </div>
                 )}
                 <div className="bg-espresso/5 border border-espresso/10 rounded-lg p-4 flex items-center justify-between">
                   <span className="font-bold text-espresso">Final Total</span>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-espresso italic">${grandTotalUsd.toFixed(2)}</p>
-                    <p className="text-xs text-text-muted">~ {Math.round(grandTotalLbp)} LBP</p>
+                    <p className="text-2xl font-bold text-espresso italic">
+                      ${(serverQuote ? serverQuote.totalUsd : grandTotalUsd).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      ~ {(serverQuote ? serverQuote.totalLbp : Math.round(grandTotalLbp)).toLocaleString()} LBP
+                    </p>
                   </div>
                 </div>
               </div>
@@ -698,4 +835,3 @@ export default function Checkout() {
     </div>
   );
 }
-

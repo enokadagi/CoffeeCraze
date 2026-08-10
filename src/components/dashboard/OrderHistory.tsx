@@ -96,8 +96,8 @@ export default function OrderHistory({ orders, loading }: OrderHistoryProps) {
                   <p className="font-bold text-espresso text-sm mb-1">
                     {formatLBP(order.totalLbp ?? order.total)}
                   </p>
-                  <p className={cn('text-xs font-semibold', order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600')}>
-                    {order.paymentStatus === 'paid' ? '✓ Paid' : 'Pending'}
+                  <p className={cn('text-xs font-semibold', ['paid', 'collected'].includes(order.paymentStatus) ? 'text-green-600' : 'text-amber-600')}>
+                    {order.paymentStatus === 'paid' ? '✓ Paid' : order.paymentStatus === 'collected' ? '✓ Collected (COD)' : 'Pending'}
                   </p>
                 </div>
 

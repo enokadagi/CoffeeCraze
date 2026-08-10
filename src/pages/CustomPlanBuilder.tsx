@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import Seo from '../components/common/SEO';
 import { useAuth } from '../context/AuthContext';
-import { ProductService, SubscriptionService } from '../services/firestore';
-import { Product, CartItem, SubscriptionStatus, PaymentStatus } from '../types';
+import { ProductService } from '../services/firestore';
+import { OrdersApi } from '../services/ordersApi';
+import { Product } from '../types';
 import { formatUSD, formatLBP, EXCHANGE_RATE } from '../utils/exchange';
 import { toast } from 'sonner';
 import ImageWithFallback from '../components/common/ImageWithFallback';
@@ -134,16 +135,8 @@ export default function CustomPlanBuilder() {
     }
 
     try {
-      // Map boxItems to CartItems interface
-      const items: CartItem[] = boxItems.map(item => ({
-        ...item.product,
-        productId: item.product.id,
-        image: item.product.images?.[0] || '',
-        quantity: item.quantity,
-        description: `Grind: ${item.grind}. ${item.product.description}`
-      }));
-
-      // Construct subscription duration delivery end date
+      // Phase 1: the server recomputes the price from the current product
+      // catalog. The client only sends which products + quantities — never prices.
       const deliveryDate = new Date();
       deliveryDate.setDate(deliveryDate.getDate() + (frequency === 'weekly' ? 7 : frequency === 'biweekly' ? 14 : 30));
 
@@ -157,70 +150,24 @@ export default function CustomPlanBuilder() {
         address: `${logistics.street}, Bldg ${logistics.building || 'N/A'}, Fl ${logistics.floor || 'N/A'}, ${logistics.city}`,
       };
 
-      await SubscriptionService.create({
-        userId: user.uid,
-        planId: `custom-duration-${duration}m`,
-        planType: 'custom',
-        planName: `Custom Box (${boxItems.length} items)`,
-        status: SubscriptionStatus.ACTIVE,
-        nextDelivery: deliveryDate.toISOString(),
+      const grindSummary = boxItems.map(item => `${item.product.name}(${item.grind})`).join(', ');
+
+      const token = await user.getIdToken(true);
+      const res = await OrdersApi.createSubscription({
+        requestId: crypto.randomUUID(),
+        customItems: boxItems.map(item => ({ productId: item.product.id, quantity: item.quantity })),
+        deliveryDay: new Date(deliveryDate).toLocaleDateString('en-US', { weekday: 'long' }),
+        deliveryTimeSlot: 'Morning',
         frequency,
-        preferredDay: 'Friday',
-        preferredTime: 'Morning',
-        items,
-        boxItems: boxItems.map(item => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          grind: item.grind,
-          priceUsd: item.product.priceUsd || (item.product.price / EXCHANGE_RATE),
-        })),
         address: deliveryAddress,
-        deliveryAddress,
-        history: [],
-        paymentStatus: PaymentStatus.PENDING,
-        currentPaymentStatus: PaymentStatus.PENDING,
-        durationMonths: duration,
-        paymentTiming,
-        customNotes: logistics.notes,
-        deliveryInstructions: logistics.gateCode ? `Gate Code: ${logistics.gateCode}` : '',
-        prepaidBalance: paymentTiming === 'prepaid' ? calculateGrandTotalUSD() : 0,
-        billingSummary: {
-          cycleTotalUSD: calculateCycleTotalUSD(),
-          grandTotalUSD: calculateGrandTotalUSD(),
-          cycleCount: frequency === 'weekly' ? duration * 4 : frequency === 'biweekly' ? duration * 2 : duration,
-          discountApplied: paymentTiming === 'prepaid' ? 0.10 : 0,
-        },
-        paymentSchedule: [
-          {
-            type: paymentTiming,
-            amount: calculateGrandTotalUSD(),
-            amountLbp: calculateGrandTotalLBP(),
-            dueDate: deliveryDate.toISOString(),
-            status: PaymentStatus.PENDING,
-            method: 'cash_on_delivery',
-          }
-        ],
-        totalDeliveries: frequency === 'weekly' ? duration * 4 : frequency === 'biweekly' ? duration * 2 : duration,
-        completedDeliveries: 0,
-        deliveryHistory: [],
-        plan: {
-          planId: `custom-duration-${duration}m`,
-          items: boxItems.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            name: item.product.name,
-            price: item.product.priceUsd || (item.product.price / EXCHANGE_RATE),
-          })),
-          frequency,
-          nextDeliveryDate: deliveryDate.toISOString(),
-          customizations: `Grind: ${boxItems.map(item => `${item.product.name}(${item.grind})`).join(', ')} | Payment: ${paymentTiming}`,
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userEmail: user.email,
-        userDisplayName: profile?.displayName || user.email?.split('@')[0] || 'Customer',
-      });
+        notes: grindSummary ? `Grind: ${grindSummary}` : undefined,
+        gateCode: logistics.gateCode,
+      }, token);
+
+      if (!res.ok || !res.subscriptionId) {
+        toast.error(res.error ?? "Failed to commit subscription to the mainframe.");
+        return;
+      }
 
       toast.success("Your customized coffee box has been manifested!");
       navigate('/subscription/confirmation', { state: { planName: 'CUSTOM_CREATION' } });

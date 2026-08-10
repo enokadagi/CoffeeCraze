@@ -76,8 +76,10 @@ export enum SubscriptionStatus {
 export enum PaymentStatus {
   PAID = 'paid',
   PENDING = 'pending',
+  COLLECTED = 'collected',
   FAILED = 'failed',
   OVERDUE = 'overdue',
+  REFUNDED = 'refunded',
 }
 
 export enum OrderStatus {
@@ -361,6 +363,8 @@ export interface Order {
   totalUsd?: number;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  codAmountCollected?: number;
+  paymentCollectedAt?: string;
   paymentMethod: 'card' | 'bank_transfer' | 'cash_on_delivery';
   paymentTiming: 'prepaid' | 'monthly' | 'deferred';
   shippingAddress: Address;

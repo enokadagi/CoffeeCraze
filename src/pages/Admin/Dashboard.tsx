@@ -8,11 +8,11 @@ import {
 import SEO from '../../components/common/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { UserRole, hasRole, Order, SubscriptionStatus } from '../../types';
+import { UserRole, hasRole, Order, SubscriptionStatus, PaymentStatus } from '../../types';
 import { formatLBP } from '../../utils/exchange';
 import AdminWeeklyRevenueChart from '../../components/admin/AdminWeeklyRevenueChart';
 // dbSeeder import removed --- client-side data seeding is a security risk. Use admin-only scripts.
@@ -97,10 +97,12 @@ export default function AdminDashboard() {
 
       const pendingOrdersCount = allOrders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
       const revenueLBP = allOrders.reduce((acc, o) => acc + (o.totalLbp || o.total || 0), 0);
-      const exchangeRate = 89500;
+      const settingsSnap = await getDoc(doc(db, 'site_settings', 'app'));
+      const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
+      const exchangeRate = Number(settingsData['exchangeRate']) > 0 ? Number(settingsData['exchangeRate']) : 89500;
       const revenueUSD = revenueLBP / exchangeRate;
 
-      // Compute last 7 days of actual revenue
+      // Compute actual revenue for this week and last week
       const today = new Date();
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const weeklyData = dayNames.map((name) => ({ name, revenue: 0 }));
@@ -114,7 +116,18 @@ export default function AdminDashboard() {
       }
 
       const totalRevThisWeek = weeklyData.reduce((sum, d) => sum + d.revenue, 0);
-      const totalRevLastWeek = 0;
+      let totalRevLastWeek = 0;
+      for (let i = 7; i <= 13; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayOrders = allOrders.filter(o => o.createdAt && o.createdAt.startsWith(dateStr));
+        totalRevLastWeek += dayOrders.reduce((acc, o) => acc + (o.totalLbp || o.total || 0), 0) / 1000000;
+      }
+      // COD ledger: delivered orders whose cash has not been collected yet
+      const overdueLedger = allOrders
+        .filter(o => o.status === 'delivered' && (o.paymentStatus === PaymentStatus.PENDING || o.paymentStatus === PaymentStatus.PAID))
+        .reduce((acc, o) => acc + (o.totalLbp || o.total || 0), 0);
 
       setStats({
         totalCustomers: customersSnap.size,
@@ -123,7 +136,7 @@ export default function AdminDashboard() {
         activeSubscriptions: activeCount,
         lowStockItems: lowStockCount,
         pendingOrders: pendingOrdersCount,
-        overdueLedger: 0, // Would need payment data
+        overdueLedger,
         weeklyRevenue: weeklyData,
         totalRevenueLBP: revenueLBP,
         totalRevenueUSD: revenueUSD,

@@ -35,9 +35,11 @@ export default function DriverDashboard() {
 
     try {
       const orderRef = doc(db, 'orders', orderId);
+      const order = orders.find((o) => o.id === orderId);
       await updateDoc(orderRef, {
         status: OrderStatus.DELIVERED,
-        paymentStatus: PaymentStatus.PAID,
+        paymentStatus: PaymentStatus.COLLECTED,
+        codAmountCollected: order?.totalLbp ?? order?.total ?? 0,
         deliveredAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });

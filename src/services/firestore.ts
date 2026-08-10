@@ -1,7 +1,6 @@
-import { collection, doc, getDoc, getDocs, updateDoc, query, where, orderBy, limit, addDoc, serverTimestamp, onSnapshot, Unsubscribe, type DocumentSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, query, where, orderBy, limit, onSnapshot, Unsubscribe, type DocumentSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Order, Subscription, Plan } from '../types';
-import { cleanUndefined } from '../lib/utils';
 
 export const ProductService = {
   async getAll(): Promise<Product[]> {
@@ -47,19 +46,8 @@ function formatOrderDoc(doc: DocumentSnapshot): Order {
 }
 
 export const OrderService = {
-  async create(order: Omit<Order, 'id' | 'createdAt'>): Promise<string> {
-    if (!order.userId) throw new Error('userId is required');
-    if (!order.items?.length) throw new Error('Order must have at least one item');
-    if (typeof order.total !== 'number' || !Number.isFinite(order.total) || order.total < 0) throw new Error('Invalid order total');
-    if (order.items.some(i => !i.productId || !i.name)) throw new Error('Each item must have productId and name');
-    const cleanData = cleanUndefined(order);
-    const docRef = await addDoc(collection(db, 'orders'), {
-      ...cleanData,
-      createdAt: serverTimestamp(),
-      status: 'pending'
-    });
-    return docRef.id;
-  },
+  // NOTE: orders are created server-side only (POST /api/orders via OrdersApi).
+  // Client-side creation was removed in Phase 1 (server-authoritative pricing).
 
   async getById(id: string): Promise<Order | null> {
     const docRef = doc(db, 'orders', id);
@@ -124,14 +112,7 @@ export const PlanService = {
 };
 
 export const SubscriptionService = {
-  async create(sub: Record<string, unknown>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'subscriptions'), cleanUndefined({
-      ...sub,
-      createdAt: serverTimestamp(),
-      status: 'active'
-    }));
-    return docRef.id;
-  },
+  // NOTE: subscriptions are created server-side only (POST /api/subscriptions).
 
   async getByUserId(userId: string): Promise<Subscription[]> {
     const q = query(collection(db, 'subscriptions'), where('userId', '==', userId));

@@ -173,11 +173,14 @@ export default function OrderTrackingTimeline({ order }: Props) {
               {order.shippingAddress?.name || 'Delivery Address'}
             </p>
             <p className="text-[10px] text-text-muted mt-0.5">
-              {order.shippingAddress?.address}, {order.shippingAddress?.city}
-              {order.shippingAddress?.region ? `, ${order.shippingAddress.region}` : ''}
+              {[
+                order.shippingAddress?.street,
+                order.shippingAddress?.building ? `Bldg ${order.shippingAddress.building}` : '',
+                order.shippingAddress?.floor ? `Floor ${order.shippingAddress.floor}` : '',
+              ].filter(Boolean).join(', ')}{order.shippingAddress?.city ? `, ${order.shippingAddress.city}` : ''}
             </p>
-            {order.gateCode && (
-              <p className="text-[10px] text-text-muted mt-0.5">Gate code: {order.gateCode}</p>
+            {order.shippingAddress?.gateCode && (
+              <p className="text-[10px] text-text-muted mt-0.5">Gate code: {order.shippingAddress.gateCode}</p>
             )}
           </div>
         </div>
@@ -222,7 +225,7 @@ export default function OrderTrackingTimeline({ order }: Props) {
               </div>
             </div>
             <p className="text-sm font-semibold text-espresso shrink-0 ml-2">
-              ${(item.price * item.quantity).toFixed(2)}
+              LBP {(item.price * item.quantity).toLocaleString('en-US')}
             </p>
           </div>
         ))}

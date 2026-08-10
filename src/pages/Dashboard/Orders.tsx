@@ -318,9 +318,17 @@ export default function MyOrders() {
                               <div className="space-y-2">
                                 <p className="text-body font-display font-black text-espresso italic uppercase tracking-tighter">{order.shippingAddress?.fullName}</p>
                                 <p className="text-body text-text-muted font-serif italic leading-relaxed">
-                                  {order.shippingAddress?.address}, {order.shippingAddress?.city}<br/>
-                                  {order.shippingAddress?.region}_SECTOR
+                                  {[
+                                    order.shippingAddress?.street,
+                                    order.shippingAddress?.building ? `Bldg ${order.shippingAddress.building}` : '',
+                                    order.shippingAddress?.floor ? `Floor ${order.shippingAddress.floor}` : '',
+                                  ].filter(Boolean).join(', ')}{order.shippingAddress?.city ? `, ${order.shippingAddress.city}` : ''}
                                 </p>
+                                {order.shippingAddress?.gateCode && (
+                                  <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.3em] italic pt-1">
+                                    GATE_CODE: {order.shippingAddress.gateCode}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>

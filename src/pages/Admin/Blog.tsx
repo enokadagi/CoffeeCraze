@@ -4,6 +4,7 @@ import { Save, Plus, Trash2, Edit3, FileText, RefreshCw } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../lib/firebase';
+import { validateImageFile, DEFAULT_ALLOWED } from '../../services/upload';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
@@ -114,6 +115,8 @@ export default function AdminBlog() {
 
     setUploading(true);
     try {
+      const validationError = validateImageFile(file, 10 * 1024 * 1024, DEFAULT_ALLOWED);
+      if (validationError) throw new Error(validationError);
       const path = `blog/${editingPost.id || 'temp'}/${Date.now()}-${file.name}`;
       const sRef = storageRef(storage, path);
       const task = uploadBytesResumable(sRef, file);
@@ -124,8 +127,8 @@ export default function AdminBlog() {
       });
       setEditingPost({ ...editingPost, image: url });
       toast.success('Image uploaded');
-    } catch {
-      toast.error('Image upload failed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Image upload failed');
     } finally {
       setUploading(false);
     }

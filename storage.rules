@@ -27,7 +27,8 @@ service firebase.storage {
 
     function isValidImageUpload() {
       return request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/.*')
+        && !request.resource.contentType.matches('image/svg.*');
     }
 
     // Default: read public assets, no writes

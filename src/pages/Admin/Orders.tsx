@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { OrderService } from '../../services/firestore';
+import { OrdersApi } from '../../services/ordersApi';
 import { Order, OrderStatus } from '../../types';
 import { formatPrice, formatLbpNumeric, safeDate, cn } from '../../lib/utils';
-import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Truck, Package, CheckCircle, Clock, XCircle, X, User, MapPin, Phone, Mail, FileText, Printer, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
@@ -13,6 +14,40 @@ import { useAuth } from '../../context/AuthContext';
 import { logAdminAction } from '../../utils/auditLog';
 
 const PAGE_SIZE = 20;
+
+// Mirrors functions/lib/stateMachine.ts ORDER_TRANSITIONS (server + rules use the same table)
+const ORDER_TRANSITIONS: Record<string, string[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['processing', 'cancelled'],
+  processing: ['preparing', 'cancelled'],
+  preparing: ['ready', 'cancelled'],
+  ready: ['shipped', 'out_for_delivery', 'cancelled'],
+  shipped: ['out_for_delivery'],
+  out_for_delivery: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  processing: 'Processing',
+  preparing: 'Preparing',
+  ready: 'Ready',
+  shipped: 'Shipped',
+  out_for_delivery: 'Out for Delivery',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+};
+
+const PAYMENT_STYLES: Record<string, string> = {
+  collected: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  paid: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  pending: 'bg-amber-50 text-amber-600 border-amber-100',
+  failed: 'bg-red-50 text-red-600 border-red-100',
+  refunded: 'bg-gray-100 text-gray-500 border-gray-200',
+  overdue: 'bg-orange-50 text-orange-600 border-orange-100',
+};
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-50 text-yellow-600 border-yellow-100 shadow-yellow-500/5',
@@ -84,13 +119,59 @@ export default function AdminOrders() {
 
   const handleStatusChange = async (id: string, newStatus: Order['status']) => {
     try {
-      const oldStatus = orders.find(o => o.id === id)?.status;
+      const existing = orders.find(o => o.id === id);
+      const oldStatus = existing?.status;
+      if (oldStatus === newStatus) return;
+      const allowed = ORDER_TRANSITIONS[oldStatus] || [];
+      if (!allowed.includes(newStatus)) {
+        toast.error(`Invalid transition: ${oldStatus} → ${newStatus}`);
+        return;
+      }
+      if (newStatus === 'cancelled') {
+        const token = user ? await user.getIdToken(true) : null;
+        await OrdersApi.cancelOrder(id, 'Cancelled by admin from Orders page', token);
+        const cancelled = (o: Order): Order => o.id === id ? { ...o, status: 'cancelled' as Order['status'] } : o;
+        setOrders(orders.map(cancelled));
+        if (selectedOrder?.id === id) {
+          setSelectedOrder(prev => prev ? { ...prev, status: 'cancelled' as Order['status'] } : prev);
+        }
+        logAdminAction(user?.uid || '', user?.email || '', 'cancel_order', 'orders', id, { from: oldStatus, reason: 'Cancelled by admin from Orders page' });
+        toast.success('Order cancelled — stock restored');
+        return;
+      }
       await updateDoc(doc(db, 'orders', id), { status: newStatus, updatedAt: new Date().toISOString() });
       setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus } : o));
       logAdminAction(user?.uid || '', user?.email || '', 'update_order_status', 'orders', id, { from: oldStatus, to: newStatus });
       toast.success(`Order status updated to ${newStatus}`);
     } catch {
       toast.error("Failed to update order status");
+    }
+  };
+
+  const handleRecordCollection = async (id: string) => {
+    try {
+      const existing = orders.find(o => o.id === id) || selectedOrder;
+      if (!existing) return;
+      const amount = existing.totalLbp ?? existing.total ?? 0;
+      const paidAt = new Date().toISOString();
+      await updateDoc(doc(db, 'orders', id), {
+        paymentStatus: 'collected',
+        codAmountCollected: amount,
+        paymentCollectedAt: paidAt,
+        updatedAt: paidAt,
+      });
+      const updated: Order = {
+        ...existing,
+        paymentStatus: 'collected' as Order['paymentStatus'],
+        codAmountCollected: amount,
+        paymentCollectedAt: paidAt,
+      };
+      setOrders(orders.map(o => o.id === id ? updated : o));
+      if (selectedOrder?.id === id) setSelectedOrder(updated);
+      logAdminAction(user?.uid || '', user?.email || '', 'record_cod_collection', 'orders', id, { amount });
+      toast.success('COD payment recorded as collected');
+    } catch {
+      toast.error('Failed to record collection — verify payment status transition is allowed');
     }
   };
 
@@ -189,28 +270,22 @@ export default function AdminOrders() {
                     <td className="px-10 py-8">
                        <span className={cn(
                          "px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest italic border",
-                         order.paymentStatus === 'paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                         PAYMENT_STYLES[order.paymentStatus] || PAYMENT_STYLES.pending
                        )}>
-                         {order.paymentStatus || 'pending'}
-                       </span>
-                    </td>
-                    <td className="px-10 py-8 text-right">
-                      <select 
-                        className="px-6 py-3 bg-white border border-border rounded-2xl text-[10px] font-black text-text uppercase tracking-[0.3em] italic focus:ring-0 focus:border-gold-500 outline-none transition-all duration-700 shadow-premium group-hover/row:bg-cream appearance-none cursor-pointer text-center"
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                      >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="processing">Processing</option>
-                          <option value="preparing">Preparing</option>
-                          <option value="ready">Ready</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="out_for_delivery">Out for Delivery</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                      </select>
-                    </td>
+                          {order.paymentStatus || 'pending'}
+                        </span>
+                     </td>
+                     <td className="px-10 py-8 text-right">
+                       <select 
+                         className="px-6 py-3 bg-white border border-border rounded-2xl text-[10px] font-black text-text uppercase tracking-[0.3em] italic focus:ring-0 focus:border-gold-500 outline-none transition-all duration-700 shadow-premium group-hover/row:bg-cream appearance-none cursor-pointer text-center"
+                         value={order.status}
+                         onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                       >
+                          {[order.status, ...(ORDER_TRANSITIONS[order.status] || [])].map(s => (
+                            <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>
+                          ))}
+                       </select>
+                     </td>
                   </tr>
                 ))}
               </tbody>
@@ -348,10 +423,13 @@ export default function AdminOrders() {
                   <div className="flex items-center gap-3">
                     <span className={cn(
                       "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest italic border",
-                      selectedOrder.paymentStatus === 'paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                      PAYMENT_STYLES[selectedOrder.paymentStatus] || PAYMENT_STYLES.pending
                     )}>
-                      Payment: {selectedOrder.paymentStatus}
+                      Payment: {selectedOrder.paymentStatus || 'pending'}
                     </span>
+                    {selectedOrder.codAmountCollected != null && (
+                      <span className="text-xs text-emerald-600 font-bold">Collected: {formatPrice(selectedOrder.codAmountCollected)}</span>
+                    )}
                     {selectedOrder.trackingId && (
                       <span className="text-xs text-text-muted flex items-center gap-1">
                         <Truck size={12} /> Track: {selectedOrder.trackingId}
@@ -392,16 +470,21 @@ export default function AdminOrders() {
                         setSelectedOrder({ ...selectedOrder, status: newStatus });
                       }}
                     >
-                       <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="processing">Processing</option>
-                      <option value="preparing">Preparing</option>
-                      <option value="ready">Ready</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="out_for_delivery">Out for Delivery</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
+                       {[selectedOrder.status, ...(ORDER_TRANSITIONS[selectedOrder.status] || [])].map(s => (
+                        <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>
+                      ))}
                     </select>
+                    {selectedOrder.paymentMethod === 'cash_on_delivery' && selectedOrder.paymentStatus === 'pending' && selectedOrder.status === 'delivered' && (
+                      <div className="space-y-1.5">
+                        <button
+                          onClick={() => handleRecordCollection(selectedOrder.id)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-colors"
+                        >
+                          <Banknote size={14} /> Record COD Collection
+                        </button>
+                        <p className="text-[10px] text-text-muted">Amount due: {formatPrice(selectedOrder.totalLbp ?? selectedOrder.total)}</p>
+                      </div>
+                    )}
                     {drivers.length > 0 && (
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-text-muted uppercase tracking-wider">Assign Driver</label>

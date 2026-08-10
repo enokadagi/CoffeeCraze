@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import ImageWithFallback from '../components/common/ImageWithFallback';
 import { formatPrice, formatLbpNumeric } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { getDoc, updateDoc, doc, increment } from 'firebase/firestore';
+import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import SEO from '../components/common/SEO';
 import { useSiteSettings } from '../hooks/useSiteSettings';
@@ -60,12 +60,10 @@ export default function Cart() {
       }
       const discountPercent = Number(couponData.discountPercent) || 0;
       if (discountPercent <= 0) { toast.error('Invalid coupon discount'); return; }
+      // NOTE (Phase 1): applying a coupon in the cart is display-only validation.
+      // Usage is counted atomically server-side when the order is created, so the
+      // applied code can never be burned without an actual order.
       setAppliedCoupon({ code, discountPercent });
-      try {
-        await updateDoc(couponRef, { usedCount: increment(1) });
-      } catch (err) {
-        console.warn('Coupon usage count update failed:', err);
-      }
       toast.success(`Coupon applied! ${discountPercent}% off`);
     } catch (err) {
       console.error('Coupon error:', err);

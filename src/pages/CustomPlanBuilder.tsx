@@ -264,7 +264,7 @@ export default function CustomPlanBuilder() {
                             <div className="space-y-4">
                               <div className="w-full h-40 bg-cream rounded-xl overflow-hidden shadow-inner border border-espresso/5 relative group">
                                 <ImageWithFallback 
-                                  src={prod.images?.[0] || 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=600'} 
+                                  src={prod.images?.[0] || ''} 
                                   alt={prod.name} 
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                                 />

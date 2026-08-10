@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { ProductService } from '../services/firestore';
 import { Product } from '../types';
 import ProductCard from '../components/shop/ProductCard';
@@ -10,26 +12,45 @@ import { toast } from 'sonner';
 export default function CategoryProducts() {
   const { category } = useParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categoryName, setCategoryName] = useState<string>(category || '');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (category) {
-      ProductService.getByCategory(category).then(data => {
-        setProducts(data);
-        setLoading(false);
-      }).catch(err => {
-        console.warn('Failed to fetch category products:', err);
-        toast.error('Failed to load products for this category.');
-        setLoading(false);
-      });
-    } else {
+    if (!category) {
       setLoading(false);
+      return;
     }
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        let resolvedName = category;
+        const bySlug = await getDocs(query(collection(db, 'categories'), where('slug', '==', category), limit(1)));
+        const byName = await getDocs(query(collection(db, 'categories'), where('name', '==', category), limit(1)));
+        const match = !bySlug.empty ? bySlug.docs[0].data() : (!byName.empty ? byName.docs[0].data() : null);
+        if (match && typeof match.name === 'string') resolvedName = match.name;
+        if (cancelled) return;
+        setCategoryName(resolvedName);
+        const data = await ProductService.getByCategory(resolvedName);
+        if (!cancelled) {
+          setProducts(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch category products:', err);
+        if (!cancelled) {
+          toast.error('Failed to load products for this category.');
+          setLoading(false);
+        }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, [category]);
 
   return (
     <div className="pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 min-h-screen relative overflow-hidden bg-cream">
-      <SEO title={category || 'Category'} description={category ? `Browse our ${category} collection at CoffeeCraze.` : 'Browse coffee products by category at CoffeeCraze.'} />
+      <SEO title={categoryName || 'Category'} description={categoryName ? `Browse our ${categoryName} collection at CoffeeCraze.` : 'Browse coffee products by category at CoffeeCraze.'} />
       <div className="mesh-gradient absolute inset-0 opacity-20 pointer-events-none" />
       
       <div className="page-container relative z-10">
@@ -41,7 +62,7 @@ export default function CategoryProducts() {
             <div className="w-10 sm:w-12 h-10 sm:h-12 bg-cream text-text-muted rounded-xl flex items-center justify-center shadow-premium">
               <LayoutGrid size={20} />
             </div>
-            <h1 className="text-h1 font-display font-black text-text capitalize italic tracking-tightest">{category}<span className="not-italic text-text-muted">.</span></h1>
+            <h1 className="text-h1 font-display font-black text-text capitalize italic tracking-tightest">{categoryName || category}<span className="not-italic text-text-muted">.</span></h1>
           </div>
         </div>
 

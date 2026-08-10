@@ -9,6 +9,11 @@ export interface SiteSettings {
   siteName: string;
   siteDescription: string;
   logoUrl: string;
+  logoDarkUrl: string;
+  logoCompactUrl: string;
+  wordmarkUrl: string;
+  iconMarkUrl: string;
+  authLogoUrl: string;
   faviconUrl: string;
   appleTouchIconUrl: string;
   icon192Url: string;
@@ -16,6 +21,7 @@ export interface SiteSettings {
   themeColor: string;
   backgroundColor: string;
   ogImageUrl: string;
+  socialImageUrl: string;
   updatedAt: string;
   // Business parameters
   exchangeRate: number;               // 1 USD = N LBP (default 89500)
@@ -85,6 +91,11 @@ const DEFAULTS: SiteSettings = {
   siteName: 'CoffeeCraze',
   siteDescription: 'Premium coffee ritual delivery in Lebanon',
   logoUrl: '/logo.png',
+  logoDarkUrl: '/logo.png',
+  logoCompactUrl: '/logo192.svg',
+  wordmarkUrl: '/logo512.svg',
+  iconMarkUrl: '/logo192.svg',
+  authLogoUrl: '/logo192.svg',
   faviconUrl: '/logo192.svg',
   appleTouchIconUrl: '/logo192.svg',
   icon192Url: '/logo192.svg',
@@ -92,6 +103,7 @@ const DEFAULTS: SiteSettings = {
   themeColor: '#2d1e16',
   backgroundColor: '#fdfaf7',
   ogImageUrl: '',
+  socialImageUrl: '',
   updatedAt: new Date().toISOString(),
   // Business parameter defaults
   exchangeRate: 89500,

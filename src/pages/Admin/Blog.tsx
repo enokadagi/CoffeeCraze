@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Save, Plus, Trash2, Edit3, FileText, RefreshCw } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../lib/firebase';
-import { validateImageFile, DEFAULT_ALLOWED } from '../../services/upload';
+import { db } from '../../lib/firebase';
+import { uploadImage } from '../../services/upload';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/common/SEO';
 import ImageWithFallback from '../../components/common/ImageWithFallback';
@@ -115,18 +114,9 @@ export default function AdminBlog() {
 
     setUploading(true);
     try {
-      const validationError = validateImageFile(file, 10 * 1024 * 1024, DEFAULT_ALLOWED);
-      if (validationError) throw new Error(validationError);
-      const path = `blog/${editingPost.id || 'temp'}/${Date.now()}-${file.name}`;
-      const sRef = storageRef(storage, path);
-      const task = uploadBytesResumable(sRef, file);
-      const url = await new Promise<string>((resolve, reject) => {
-        task.on('state_changed', null, reject, async () => {
-          resolve(await getDownloadURL(task.snapshot.ref));
-        });
-      });
-      setEditingPost({ ...editingPost, image: url });
-      toast.success('Image uploaded');
+      const result = await uploadImage(file, { folder: 'blog', compress: true, maxDimension: 1600 });
+      setEditingPost({ ...editingPost, image: result.url });
+      toast.success('Image uploaded. Click Save to publish.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Image upload failed');
     } finally {

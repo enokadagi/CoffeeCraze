@@ -1,12 +1,26 @@
 import { motion } from 'motion/react';
-import { ArrowRight, Sparkles, Compass } from 'lucide-react';
+import { ArrowRight, Sparkles, Compass, LayoutGrid } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/common/SEO';
 import ImageWithFallback from '../components/common/ImageWithFallback';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
+
+interface CmsSection {
+  id: string;
+  key: string;
+  type: 'hero' | 'banner' | 'text' | 'feature' | 'cta';
+  title: string;
+  subtitle: string;
+  body: string;
+  image: string;
+  ctaText: string;
+  ctaLink: string;
+  visible: boolean;
+  order: number;
+}
 
 export default function Home() {
   const [heroContent, setHeroContent] = useState({
@@ -17,28 +31,52 @@ export default function Home() {
     ctaText: 'Start Subscription',
     ctaLink: '/subscriptions'
   });
+  const [sections, setSections] = useState<CmsSection[]>([]);
+  const [categoryCards, setCategoryCards] = useState<{ name: string; slug: string; img: string; tag: string }[] | null>(null);
 
   useEffect(() => {
-    const fetchHero = async () => {
+    const fetchCategories = async () => {
       try {
-        const snap = await getDocs(query(collection(db, 'cms_content'), where('type', '==', 'hero'), where('visible', '==', true)));
-        if (!snap.empty) {
-          const d = snap.docs[0].data();
-          setHeroContent({
-            title: d.title || 'Premium Coffee. Delivered Fresh.',
-            subtitle: d.subtitle || 'Premium Coffee • Delivered Fresh',
-            description: d.body || 'Discover specialty coffee beans, brewing tools, and curated subscriptions delivered directly to your door.',
-            image: d.image || 'https://images.unsplash.com/photo-1442551320318-79bb0e4511fb?auto=format&fit=crop&q=80&w=2500',
-            ctaText: d.ctaText || 'Start Subscription',
-            ctaLink: d.ctaLink || '/subscriptions'
-          });
+        const snap = await getDocs(query(collection(db, 'categories'), where('active', '==', true), orderBy('order', 'asc')));
+        const cats = snap.docs.map(d => d.data());
+        if (cats.length > 0) {
+          setCategoryCards(cats.map(c => ({
+            name: c.name,
+            slug: c.slug || String(c.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+            img: c.image || '',
+            tag: c.name,
+          })));
         }
       } catch (err) {
-        console.warn('Failed to load CMS hero, using defaults.', err);
-        toast.error('Failed to load hero content, using defaults.');
+        console.warn('Failed to load categories, using defaults.', err);
       }
     };
-    fetchHero();
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'cms_content'), where('visible', '==', true), orderBy('order', 'asc')));
+        const content = snap.docs.map(d => ({ id: d.id, ...d.data() } as CmsSection));
+        const hero = content.find(s => s.type === 'hero');
+        if (hero) {
+          setHeroContent({
+            title: hero.title || 'Premium Coffee. Delivered Fresh.',
+            subtitle: hero.subtitle || 'Premium Coffee • Delivered Fresh',
+            description: hero.body || 'Discover specialty coffee beans, brewing tools, and curated subscriptions delivered directly to your door.',
+            image: hero.image || 'https://images.unsplash.com/photo-1442551320318-79bb0e4511fb?auto=format&fit=crop&q=80&w=2500',
+            ctaText: hero.ctaText || 'Start Subscription',
+            ctaLink: hero.ctaLink || '/subscriptions'
+          });
+        }
+        setSections(content.filter(s => s.type !== 'hero'));
+      } catch (err) {
+        console.warn('Failed to load CMS content, using defaults.', err);
+        toast.error('Failed to load content, using defaults.');
+      }
+    };
+    fetchContent();
   }, []);
 
   return (
@@ -115,6 +153,94 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-espresso/80 via-espresso/60 to-espresso/90" />
         </motion.div>
       </section>
+
+      {/* CMS-driven sections (banner / text / feature / cta) */}
+      {sections.map((section) => {
+        if (section.type === 'banner') {
+          return (
+            <section key={section.id} className="relative overflow-hidden bg-espresso text-white" style={{ padding: '48px 0' }}>
+              {section.image && (
+                <div className="absolute inset-0">
+                  <ImageWithFallback src={section.image} alt="" className="w-full h-full object-cover opacity-25" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-espresso via-espresso/80 to-espresso/40" />
+                </div>
+              )}
+              <div className="page-container relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="space-y-2 text-center md:text-left">
+                  <h2 className="text-h2 text-white">{section.title}</h2>
+                  {section.body && <p className="text-body text-white/80 max-w-2xl">{section.body}</p>}
+                </div>
+                {section.ctaText && section.ctaLink && (
+                  <Link to={section.ctaLink} className="btn btn-primary btn-lg shrink-0">
+                    {section.ctaText} <ArrowRight size={20} />
+                  </Link>
+                )}
+              </div>
+            </section>
+          );
+        }
+        if (section.type === 'cta') {
+          return (
+            <section key={section.id} className="relative overflow-hidden bg-caramel" style={{ padding: '64px 0' }}>
+              <div className="page-container relative z-10 text-center space-y-6">
+                <h2 className="text-h1 text-espresso">{section.title}</h2>
+                {section.body && <p className="text-body text-espresso/80 max-w-2xl mx-auto">{section.body}</p>}
+                {section.ctaText && section.ctaLink && (
+                  <Link to={section.ctaLink} className="btn btn-dark btn-lg">
+                    {section.ctaText} <ArrowRight size={20} />
+                  </Link>
+                )}
+              </div>
+            </section>
+          );
+        }
+        if (section.type === 'feature') {
+          return (
+            <section key={section.id} className="bg-cream" style={{ padding: '64px 0' }}>
+              <div className="page-container">
+                <div className="text-center space-y-3 mb-10">
+                  {section.subtitle && <span className="text-caption text-caramel">{section.subtitle}</span>}
+                  <h2 className="text-h1 text-text">{section.title}</h2>
+                  {section.body && <p className="text-body text-text-secondary max-w-2xl mx-auto">{section.body}</p>}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                  {section.image && (
+                    <div className="rounded-2xl overflow-hidden aspect-[4/3] shadow-sm">
+                      <ImageWithFallback src={section.image} alt={section.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="rounded-2xl bg-surface p-6 shadow-sm flex flex-col justify-center">
+                    <LayoutGrid className="text-caramel mb-3 w-8 h-8" strokeWidth={1} />
+                    <p className="text-h4 text-espresso font-bold">{section.title}</p>
+                  </div>
+                  <div className="rounded-2xl bg-espresso p-6 shadow-sm flex flex-col justify-center text-white">
+                    <p className="text-small text-white/80 leading-relaxed">{section.body}</p>
+                    {section.ctaText && section.ctaLink && (
+                      <Link to={section.ctaLink} className="text-small font-bold text-caramel mt-4 inline-flex items-center gap-2">
+                        {section.ctaText} <ArrowRight size={14} />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        }
+        return (
+          <section key={section.id} className="bg-cream" style={{ padding: '64px 0' }}>
+            <div className="page-container text-center space-y-4 max-w-3xl">
+              {section.subtitle && <span className="text-caption text-caramel">{section.subtitle}</span>}
+              <h2 className="text-h1 text-text">{section.title}</h2>
+              {section.body && <p className="text-body text-text-secondary leading-relaxed">{section.body}</p>}
+              {section.ctaText && section.ctaLink && (
+                <Link to={section.ctaLink} className="btn btn-primary btn-lg mt-4 inline-flex">
+                  {section.ctaText} <ArrowRight size={20} />
+                </Link>
+              )}
+            </div>
+          </section>
+        );
+      })}
 
       {/* Trusted Coffee Sourcing */}
       <section className="bg-cream" style={{ padding: '80px 0' }}>
@@ -250,12 +376,12 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {[
-              { name: 'Single Origin Beans', img: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1200', link: 'Coffee Beans', tag: 'Coffee Beans' },
-              { name: 'Signature Capsules', img: 'https://images.unsplash.com/photo-1521302080487-3c5e29734232?w=1200', link: 'Capsules', tag: 'Capsules' },
-              { name: 'Precision Brewers', img: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=1200', link: 'Espresso Machines', tag: 'Espresso Machines' },
-              { name: 'Ritual Accessories', img: 'https://images.unsplash.com/photo-1521305878185-3c8946ea66b7?w=1200', link: 'Accessories', tag: 'Accessories' }
-            ].map((cat, i) => (
+            {(categoryCards ?? [
+              { name: 'Single Origin Beans', slug: 'Coffee Beans', img: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1200', tag: 'Coffee Beans' },
+              { name: 'Signature Capsules', slug: 'Capsules', img: 'https://images.unsplash.com/photo-1521302080487-3c5e29734232?w=1200', tag: 'Capsules' },
+              { name: 'Precision Brewers', slug: 'Espresso Machines', img: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=1200', tag: 'Espresso Machines' },
+              { name: 'Ritual Accessories', slug: 'Accessories', img: 'https://images.unsplash.com/photo-1521305878185-3c8946ea66b7?w=1200', tag: 'Accessories' }
+            ]).map((cat, i) => (
               <motion.div
                 key={cat.name}
                 initial={{ opacity: 0, y: 30 }}
@@ -263,7 +389,7 @@ export default function Home() {
                 transition={{ duration: 1, delay: i * 0.15, ease: [0.22, 1, 0.36, 1] }}
                 viewport={{ once: true }}
               >
-                <Link to={`/category/${cat.link}`} className="group relative block aspect-[4/5] rounded-xl overflow-hidden shadow-sm border border-border/30 hover-lift">
+                <Link to={`/category/${cat.slug}`} className="group relative block aspect-[4/5] rounded-xl overflow-hidden shadow-sm border border-border/30 hover-lift">
                   <ImageWithFallback src={cat.img} className="w-full h-full object-cover transition-transform duration-[6s] group-hover:scale-110 brightness-90" alt={cat.name} />
                   <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/50 to-transparent" />
                   <div className="absolute top-4 left-4">

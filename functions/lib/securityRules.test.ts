@@ -118,6 +118,12 @@ describe('F1 — staff order status is role-authorized, not blanket isStaff', ()
       "\n        && (!('totalSpent' in incoming()) || incoming().totalSpent == 0);"
     );
   });
+
+  it('categories collection: public read, staff-only writes', () => {
+    const block = matchBlock('categories/{categoryId}');
+    expect(block).toContain("allow read: if true;");
+    expect(block).toContain("allow create, update, delete: if isStaff();");
+  });
 });
 
 /* ------------------------------------------------------------------ */

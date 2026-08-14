@@ -5,7 +5,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
-import { useSiteSettings, applySiteSettings } from './hooks/useSiteSettings';
+import { SiteSettingsProvider } from './hooks/useSiteSettings';
 import Home from './pages/Home';
 // Lazy load all non-critical route pages for smaller initial bundle sizes.
 const Shop = lazy(() => import('./pages/Shop'));
@@ -79,12 +79,7 @@ const LazyPage = ({ children }: { children: ReactNode }) => (
 
 function AppContent() {
   const location = useLocation();
-  const siteSettings = useSiteSettings();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (siteSettings) applySiteSettings(siteSettings);
-  }, [siteSettings]);
 
   useEffect(() => {
     const redirect = sessionStorage.getItem('spa_redirect');
@@ -167,15 +162,17 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <AuthProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <AppContent />
-            </CartProvider>
-          </WishlistProvider>
-        </AuthProvider>
-      </Router>
+      <SiteSettingsProvider>
+        <Router>
+          <AuthProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <AppContent />
+              </CartProvider>
+            </WishlistProvider>
+          </AuthProvider>
+        </Router>
+      </SiteSettingsProvider>
     </ErrorBoundary>
   );
 }

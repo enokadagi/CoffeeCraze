@@ -27,7 +27,7 @@ export default function ImageWithFallback({
   className,
   ...props
 }: Props) {
-  const [currentSrc, setCurrentSrc] = useState<string>(blurPlaceholder);
+  const [currentSrc, setCurrentSrc] = useState<string>('');
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const retryCountRef = useRef(0);
@@ -36,7 +36,7 @@ export default function ImageWithFallback({
 
   // Reset state when src changes
   useEffect(() => {
-    setCurrentSrc(blurPlaceholder);
+    setCurrentSrc('');
     setHasError(false);
     setIsLoading(true);
     retryCountRef.current = 0;
@@ -88,7 +88,7 @@ export default function ImageWithFallback({
           {...props}
         />
         <img
-          src={hasError ? fallbackSrc : currentSrc || src}
+          src={src}
           alt={alt}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${className || ''}`}
           style={{ opacity: 0 }}

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Twitter, Facebook, Linkedin, Youtube, MapPin } from 'lucide-react';
 import { useSiteSettings } from '../../hooks/useSiteSettings';
+import { isBrandPlaceholder } from '../../services/siteSettings';
 import ImageWithFallback from '../common/ImageWithFallback';
 
 interface FooterLink {
@@ -44,7 +45,7 @@ export default function Footer() {
           <div className="space-y-4 max-w-sm">
             <Link to="/" className="inline-flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 bg-white/10 shadow-sm">
-                <ImageWithFallback src={settings?.wordmarkUrl || settings?.logoUrl || '/logo.png'} alt="CoffeeCraze logo" className="w-full h-full object-cover" />
+                <ImageWithFallback src={!isBrandPlaceholder(settings?.wordmarkUrl) ? settings!.wordmarkUrl : (settings?.logoUrl || '/logo.png')} alt="CoffeeCraze logo" className="w-full h-full object-cover" />
               </div>
               <span className="text-small font-semibold tracking-wide text-white">{settings?.siteName || 'CoffeeCraze'}</span>
             </Link>
@@ -101,4 +102,5 @@ export default function Footer() {
     </footer>
   );
 }
+
 

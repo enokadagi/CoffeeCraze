@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useSiteSettings } from '../../hooks/useSiteSettings';
+import { isBrandPlaceholder } from '../../services/siteSettings';
 import { UserRole } from '../../types';
 import ImageWithFallback from '../common/ImageWithFallback';
 
@@ -99,7 +100,7 @@ export default function Header() {
         <div className="max-w-[1800px] mx-auto flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-3 shrink-0" aria-label="CoffeeCraze Home">
             <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-border-light shadow-sm">
-              <ImageWithFallback src={siteSettings?.logoCompactUrl || siteSettings?.logoUrl || '/logo.png'} alt="CoffeeCraze logo" className="w-full h-full object-cover" />
+              <ImageWithFallback src={!isBrandPlaceholder(siteSettings?.logoCompactUrl) ? siteSettings!.logoCompactUrl : (siteSettings?.logoUrl || '/logo.png')} alt="CoffeeCraze logo" className="w-full h-full object-cover" />
             </div>
             {siteSettings?.navbarLogoText && (
               <span className="hidden sm:block text-lg font-display font-black italic tracking-tight text-text">
@@ -295,3 +296,4 @@ export default function Header() {
     </>
   );
 }
+

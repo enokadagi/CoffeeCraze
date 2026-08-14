@@ -1,28 +1,41 @@
-import { useEffect, useState } from 'react';
+import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { SiteSettings, SiteSettingsService } from '../services/siteSettings';
 
-let cached: SiteSettings | null = null;
-let listeners: Array<(s: SiteSettings) => void> = [];
-function notify(s: SiteSettings) { listeners.forEach(fn => fn(s)); }
+const SiteSettingsContext = createContext<SiteSettings | null>(null);
 
-export function useSiteSettings() {
-  const [settings, setSettings] = useState<SiteSettings | null>(cached);
+export function SiteSettingsProvider({ children }: { children: ReactNode }) {
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
 
   useEffect(() => {
-    if (cached) {
-      setSettings(cached);
-      return;
-    }
-    SiteSettingsService.get().then(s => {
-      cached = s;
-      setSettings(s);
-      notify(s);
-    });
-    listeners.push(setSettings);
-    return () => { listeners = listeners.filter(fn => fn !== setSettings); };
+    const ref = doc(db, 'site_settings', SiteSettingsService.SETTINGS_ID);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) {
+          setSettings({ ...SiteSettingsService.getDefaults(), ...snap.data() } as SiteSettings);
+        } else {
+          setSettings(SiteSettingsService.getDefaults());
+        }
+      },
+      (err) => {
+        console.warn('[SiteSettings] Failed to load settings, using defaults', err);
+        setSettings(SiteSettingsService.getDefaults());
+      },
+    );
+    return unsubscribe;
   }, []);
 
-  return settings;
+  useEffect(() => {
+    if (settings) applySiteSettings(settings);
+  }, [settings]);
+
+  return createElement(SiteSettingsContext.Provider, { value: settings }, children);
+}
+
+export function useSiteSettings() {
+  return useContext(SiteSettingsContext);
 }
 
 export function applySiteSettings(settings: SiteSettings) {
@@ -82,6 +95,8 @@ function setLink(rel: string, href: string, type?: string) {
   if (type) el.type = type;
 }
 
+// Kept for compatibility with the admin settings page. Snapshot-based settings
+// now propagate automatically after saves, so this is a no-op.
 export function invalidateSettingsCache() {
-  cached = null;
+  /* no-op: live snapshot handles cache invalidation */
 }

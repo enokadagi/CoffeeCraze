@@ -4,6 +4,12 @@ import { cleanUndefined } from '../lib/utils';
 
 const SETTINGS_ID = 'app';
 
+const LEGACY_PLACEHOLDERS = ['', '/logo.png', '/logo192.svg', '/logo512.svg'];
+
+export function isBrandPlaceholder(url: string | undefined): boolean {
+  return !url || LEGACY_PLACEHOLDERS.includes(url);
+}
+
 export interface SiteSettings {
   id: string;
   siteName: string;
@@ -91,11 +97,11 @@ const DEFAULTS: SiteSettings = {
   siteName: 'CoffeeCraze',
   siteDescription: 'Premium coffee ritual delivery in Lebanon',
   logoUrl: '/logo.png',
-  logoDarkUrl: '/logo.png',
-  logoCompactUrl: '/logo192.svg',
-  wordmarkUrl: '/logo512.svg',
-  iconMarkUrl: '/logo192.svg',
-  authLogoUrl: '/logo192.svg',
+  logoDarkUrl: '',
+  logoCompactUrl: '',
+  wordmarkUrl: '',
+  iconMarkUrl: '',
+  authLogoUrl: '',
   faviconUrl: '/logo192.svg',
   appleTouchIconUrl: '/logo192.svg',
   icon192Url: '/logo192.svg',
@@ -168,6 +174,12 @@ const DEFAULTS: SiteSettings = {
 };
 
 export const SiteSettingsService = {
+  SETTINGS_ID,
+
+  getDefaults(): SiteSettings {
+    return DEFAULTS;
+  },
+
   async get(): Promise<SiteSettings> {
     try {
       const snap = await getDoc(doc(db, 'site_settings', SETTINGS_ID));

@@ -6,6 +6,7 @@ import { auth, db } from '../lib/firebase';
 import { UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { isBrandPlaceholder } from '../services/siteSettings';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import ImageWithFallback from '../components/common/ImageWithFallback';
@@ -248,8 +249,8 @@ export default function Auth() {
       >
         <div className="text-center mb-8 space-y-4">
             <div className="w-16 h-16 bg-caramel/20 rounded-2xl flex items-center justify-center mx-auto text-caramel shadow-premium overflow-hidden">
-              {siteSettings?.authLogoUrl || siteSettings?.logoUrl ? (
-                <ImageWithFallback src={siteSettings?.authLogoUrl || siteSettings?.logoUrl || ''} alt="CoffeeCraze" className="w-full h-full object-cover" />
+              {!isBrandPlaceholder(siteSettings?.authLogoUrl) || siteSettings?.logoUrl ? (
+                <ImageWithFallback src={!isBrandPlaceholder(siteSettings?.authLogoUrl) ? siteSettings!.authLogoUrl : (siteSettings?.logoUrl || '')} alt="CoffeeCraze" className="w-full h-full object-cover" />
               ) : (
                 <Coffee size={24} strokeWidth={1} />
               )}
@@ -406,3 +407,4 @@ export default function Auth() {
     </div>
   );
 }
+

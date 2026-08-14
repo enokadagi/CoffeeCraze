@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 interface CmsSection {
   id: string;
@@ -23,14 +24,24 @@ interface CmsSection {
 }
 
 export default function Home() {
-  const [heroContent, setHeroContent] = useState({
+  const siteSettings = useSiteSettings();
+  const defaultHero = {
     title: 'Premium Coffee. Delivered Fresh.',
     subtitle: 'Premium Coffee • Delivered Fresh',
     description: 'Discover specialty coffee beans, brewing tools, and curated subscriptions delivered directly to your door.',
     image: 'https://images.unsplash.com/photo-1442551320318-79bb0e4511fb?auto=format&fit=crop&q=80&w=2500',
     ctaText: 'Start Subscription',
     ctaLink: '/subscriptions'
-  });
+  };
+  const [cmsHero, setCmsHero] = useState<Partial<typeof defaultHero> | null>(null);
+  const hero = {
+    title: siteSettings?.heroTitle || cmsHero?.title || defaultHero.title,
+    subtitle: siteSettings?.heroSubtitle || cmsHero?.subtitle || defaultHero.subtitle,
+    description: cmsHero?.description || defaultHero.description,
+    image: siteSettings?.heroImage || cmsHero?.image || defaultHero.image,
+    ctaText: siteSettings?.heroCtaText || cmsHero?.ctaText || defaultHero.ctaText,
+    ctaLink: siteSettings?.heroCtaLink || cmsHero?.ctaLink || defaultHero.ctaLink,
+  };
   const [sections, setSections] = useState<CmsSection[]>([]);
   const [categoryCards, setCategoryCards] = useState<{ name: string; slug: string; img: string; tag: string }[] | null>(null);
 
@@ -61,13 +72,13 @@ export default function Home() {
         const content = snap.docs.map(d => ({ id: d.id, ...d.data() } as CmsSection));
         const hero = content.find(s => s.type === 'hero');
         if (hero) {
-          setHeroContent({
-            title: hero.title || 'Premium Coffee. Delivered Fresh.',
-            subtitle: hero.subtitle || 'Premium Coffee • Delivered Fresh',
-            description: hero.body || 'Discover specialty coffee beans, brewing tools, and curated subscriptions delivered directly to your door.',
-            image: hero.image || 'https://images.unsplash.com/photo-1442551320318-79bb0e4511fb?auto=format&fit=crop&q=80&w=2500',
-            ctaText: hero.ctaText || 'Start Subscription',
-            ctaLink: hero.ctaLink || '/subscriptions'
+          setCmsHero({
+            title: hero.title,
+            subtitle: hero.subtitle,
+            description: hero.body,
+            image: hero.image,
+            ctaText: hero.ctaText,
+            ctaLink: hero.ctaLink
           });
         }
         setSections(content.filter(s => s.type !== 'hero'));
@@ -107,7 +118,7 @@ export default function Home() {
             className="inline-flex items-center gap-3 px-5 py-2 bg-surface/90 border border-border rounded-full shadow-sm mb-10 md:mb-16"
           >
             <div className="w-2 h-2 bg-caramel rounded-full animate-pulse" />
-            <span className="text-caption text-text">{heroContent.subtitle}</span>
+            <span className="text-caption text-text">{hero.subtitle}</span>
           </motion.div>
 
           <motion.h1
@@ -116,7 +127,7 @@ export default function Home() {
             transition={{ duration: 1.2, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="text-display text-text max-w-4xl mb-6 md:mb-12"
           >
-            {heroContent.title}
+            {hero.title}
           </motion.h1>
 
           <motion.p
@@ -125,7 +136,7 @@ export default function Home() {
             transition={{ duration: 1.6, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="text-body text-text-secondary max-w-2xl px-2 mb-8 md:mb-12"
           >
-            {heroContent.description}
+            {hero.description}
           </motion.p>
 
           <motion.div
@@ -134,8 +145,8 @@ export default function Home() {
             transition={{ duration: 1.4, delay: 1, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col sm:flex-row gap-3 items-center justify-center"
           >
-            <Link to={heroContent.ctaLink} className="btn btn-primary btn-lg w-full sm:w-auto">
-              {heroContent.ctaText} <ArrowRight size={20} />
+            <Link to={hero.ctaLink} className="btn btn-primary btn-lg w-full sm:w-auto">
+              {hero.ctaText} <ArrowRight size={20} />
             </Link>
             <Link to="/shop" className="btn btn-outline btn-lg w-full sm:w-auto">
               Shop Coffee
@@ -149,7 +160,7 @@ export default function Home() {
           transition={{ duration: 5, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0 z-0"
         >
-          <ImageWithFallback src={heroContent.image} alt="CoffeeCraze hero" className="w-full h-full object-cover" />
+          <ImageWithFallback src={hero.image} alt="CoffeeCraze hero" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-espresso/80 via-espresso/60 to-espresso/90" />
         </motion.div>
       </section>

@@ -9,8 +9,8 @@ import { describe, it, expect } from 'vitest';
  * any change to the guarded strings forces a deliberate review.
  */
 
-const firestoreRules = readFileSync(resolve(process.cwd(), 'firestore.rules'), 'utf8');
-const storageRules = readFileSync(resolve(process.cwd(), 'storage.rules'), 'utf8');
+const firestoreRules = readFileSync(resolve(process.cwd(), 'firestore.rules'), 'utf8').replace(/\r\n/g, '\n');
+const storageRules = readFileSync(resolve(process.cwd(), 'storage.rules'), 'utf8').replace(/\r\n/g, '\n');
 
 function section(name: string): string {
   const start = firestoreRules.indexOf(`function ${name}`);

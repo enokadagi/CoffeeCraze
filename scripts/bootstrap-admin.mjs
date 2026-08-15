@@ -12,9 +12,17 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ADMIN_UID = process.env.ADMIN_UID || 'WPM6NaetzleM1KvEol5qK2XnoeT2'; // tgenuka90@gmail.com
 
-// Import seed data from compiled path — read dbSeeder source and extract counts
+// Import seed data from compiled path — read dbSeeder source and extract counts.
+// dbSeeder.ts was removed from the client bundle in Phase 0; when missing, the
+// catalog seeding below becomes a no-op (admin bootstrap still runs).
 const seederPath = join(__dirname, '..', 'src', 'utils', 'dbSeeder.ts');
-const seederSrc = readFileSync(seederPath, 'utf8');
+let seederSrc = '';
+try {
+  seederSrc = readFileSync(seederPath, 'utf8');
+} catch {
+  console.warn('[warn] dbSeeder.ts not found (removed in Phase 0) — catalog (products/plans/cms/blog) seeding skipped; admin bootstrap still runs. Seed plans via scripts/seed-plans.mjs.');
+  seederSrc = '';
+}
 
 function extractArray(name) {
   const start = seederSrc.indexOf(`const ${name} = [`);

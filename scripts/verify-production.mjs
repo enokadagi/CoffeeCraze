@@ -32,7 +32,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const HOSTING = 'https://coffeecraze-f27d3.web.app';
+const HOSTING = 'https://coffeecraze.nilelink.app';
 const results = [];
 
 function record(name, ok, detail = '') {

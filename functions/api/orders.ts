@@ -20,7 +20,7 @@ import { validateCoupon, type CouponRecord } from '../lib/coupons';
 import { rateLimiter, getClientIP } from '../lib/rateLimit';
 import { ORDER_TRANSITIONS, isTerminal } from '../lib/stateMachine';
 
-const limiter = rateLimiter(30, 60_000);
+const limiter = rateLimiter(120, 60_000);
 const SETTINGS_ID = 'app';
 
 const STAFF_ROLES = [

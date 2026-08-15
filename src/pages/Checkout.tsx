@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -149,12 +149,22 @@ export default function Checkout() {
     }
   }, [user, items, appliedCoupon]);
 
-  // Fetch the authoritative quote when the customer reaches the Review step.
+  // Load the authoritative quote once when the customer reaches the Review
+  // step. A failure must NOT auto-retry: an automatic retry loop would hammer
+  // the API and trip the server rate limit (429), locking the customer out.
+  // The manual "Try again" button is the only retrigger.
+  const quoteAttemptedFor = useRef<string>('');
+  const quoteSignature = useMemo(
+    () => JSON.stringify({ items: items.map((i) => `${i.productId}:${i.selectedVariant?.id ?? ''}:${i.quantity}`), coupon: appliedCoupon?.code ?? '' }),
+    [items, appliedCoupon]
+  );
   useEffect(() => {
-    if (step === 4 && !serverQuote && !quoteLoading) {
+    const signature = `${step}:${quoteSignature}`;
+    if (step === 4 && !serverQuote && !quoteLoading && quoteAttemptedFor.current !== signature) {
+      quoteAttemptedFor.current = signature;
       loadQuote();
     }
-  }, [step, serverQuote, quoteLoading, loadQuote]);
+  }, [step, quoteSignature, serverQuote, quoteLoading, loadQuote]);
 
   let buttonLabel = 'Continue';
   if (loading) {

@@ -19,7 +19,7 @@ import { computeQuote, type OrderRequestItem, type ProductDoc, type OrderQuote }
 import { toUsd, type Lbp } from '../lib/money';
 import { rateLimiter, getClientIP } from '../lib/rateLimit';
 
-const limiter = rateLimiter(20, 60_000);
+const limiter = rateLimiter(120, 60_000);
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

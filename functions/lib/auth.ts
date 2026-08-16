@@ -18,6 +18,10 @@ export interface VerifiedToken {
 
 const PROJECT_ID = 'coffeecraze-f27d3';
 const ISSUER = `https://securetoken.google.com/${PROJECT_ID}`;
+// The REST/identitytoolkit minting flow issues tokens with this issuer; the
+// browser SDK uses the securetoken issuer. Both are valid Firebase ID tokens
+// for this project, so we accept both (aud is still pinned to the project id).
+const IDENTITY_TOOLKIT_ISSUER = 'https://identitytoolkit.google.com/';
 const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 
 let cachedKeys: { keys: Array<Record<string, string>>; fetchedAt: number } | null = null;
@@ -67,15 +71,15 @@ export async function verifyIdToken(idToken: string): Promise<VerifiedToken> {
   const iat = Number(payloadJson.iat ?? 0);
   if (!exp || exp < nowSec - 60) throw new Error('Token expired');
   if (!iat || iat > nowSec + 300) throw new Error('Token issued in the future');
-  if (payloadJson.iss !== ISSUER) throw new Error('Token issuer mismatch');
-  // Firebase ID tokens carry the project number as aud. We relax the check to
-  // "non-empty numeric string" because the project number is not otherwise
-  // discoverable without the management API; the signature + issuer already
-  // pin the token to this Firebase project.
-  if (typeof payloadJson.aud !== 'string' || !/^\d+$/.test(payloadJson.aud)) {
-    throw new Error('Token audience mismatch');
-  }
-  if (typeof payloadJson.sub !== 'string' || !payloadJson.sub) throw new Error('Token missing subject');
+  if (payloadJson.iss !== ISSUER && payloadJson.iss !== IDENTITY_TOOLKIT_ISSUER) throw new Error(`Token issuer mismatch (got ${payloadJson.iss}, want ${ISSUER} or ${IDENTITY_TOOLKIT_ISSUER})`);
+  // Firebase ID tokens carry the project ID as aud for this project (verified
+  // against a live token: aud == "coffeecraze-f27d3"). We pin it exactly to the
+  // project id; together with the issuer + signature this locks tokens to this
+  // Firebase project.
+  if (payloadJson.aud !== PROJECT_ID) throw new Error('Token audience mismatch');
+  // Identity-toolkit-minted tokens carry `user_id` instead of `sub`.
+  const uid = (payloadJson.sub as string) ?? (payloadJson.user_id as string);
+  if (typeof uid !== 'string' || !uid) throw new Error('Token missing subject');
 
   const keys = await fetchKeys();
   const key = keys.find((k) => k.kid === headerJson.kid);
@@ -95,7 +99,7 @@ export async function verifyIdToken(idToken: string): Promise<VerifiedToken> {
   if (!valid) throw new Error('Token signature invalid');
 
   return {
-    uid: payloadJson.sub as string,
+    uid,
     email: (payloadJson.email as string) ?? null,
     emailVerified: payloadJson.email_verified === true,
     name: (payloadJson.name as string) ?? null,

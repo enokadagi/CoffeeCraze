@@ -147,7 +147,10 @@ export async function onRequest({ request, env }: { request: Request; env: EnvLi
     // Load catalog + settings + coupon (all reads happen before any write).
     const productIds = [...new Set(items.map((i) => i.productId))];
     const productDocs = await batchGet(productIds.map((id) => ({ collection: 'products', docId: id })));
-    const products: ProductDoc[] = productDocs.map((d, idx) => ({ id: productIds[idx], ...d.data }));
+    const products: ProductDoc[] = productIds
+      .map((id, idx) => ({ id, doc: productDocs[idx] }))
+      .filter((x) => x.doc.exists)
+      .map((x) => ({ id: x.id, ...x.doc.data }));
     const settings = await loadSettings();
 
     const couponDoc = couponCode ? await getDoc('coupons', couponCode) : null;

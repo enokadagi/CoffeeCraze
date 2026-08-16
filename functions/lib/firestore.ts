@@ -193,11 +193,6 @@ function docPath(collection: string, docId: string): string {
   return `${collection}/${docId}`;
 }
 
-function nameFromPath(path: string): string {
-  // documents/products/abc -> products/abc
-  return path.replace(/^documents\//, '');
-}
-
 // ---------- reads ----------
 
 /** Reads one document. */
@@ -222,17 +217,24 @@ function decodeFields(fields: Record<string, unknown>): Record<string, unknown> 
 
 /** Reads multiple documents by path (NOT atomic). */
 export async function batchGet(requests: Array<{ collection: string; docId: string }>): Promise<FirestoreDoc[]> {
-  const path = docPath(requests[0].collection, requests[0].docId);
+  const sa = getServiceAccount();
+  const name = (r: { collection: string; docId: string }) =>
+    `projects/${sa.project_id}/databases/(default)/documents/${docPath(r.collection, r.docId)}`;
   const res = (await api(`:batchGet`, {
     method: 'POST',
     body: JSON.stringify({
-      documents: requests.map((r) => `${baseUrl()}/${docPath(r.collection, r.docId)}`),
+      documents: requests.map(name),
     }),
-  })) as { found?: Array<{ name: string; fields?: Record<string, unknown>; createTime?: string; updateTime?: string }> } & { missing?: Array<{ name: string }> };
+  })) as Array<
+    | { found?: { name: string; fields?: Record<string, unknown>; createTime?: string; updateTime?: string } }
+    | { missing?: string }
+  >;
 
   const map = new Map<string, FirestoreDoc>();
-  for (const f of res.found ?? []) {
-    map.set(nameFromPath(f.name), { exists: true, data: decodeFields(f.fields ?? {}), updateTime: f.updateTime, createTime: f.createTime });
+  for (const entry of res) {
+    if (!entry.found) continue;
+    const short = entry.found.name.replace(/^projects\/[^/]+\/databases\/\(default\)\/documents\//, '');
+    map.set(short, { exists: true, data: decodeFields(entry.found.fields ?? {}), updateTime: entry.found.updateTime, createTime: entry.found.createTime });
   }
   return requests.map((r) => map.get(docPath(r.collection, r.docId)) ?? { exists: false, data: {} });
 }

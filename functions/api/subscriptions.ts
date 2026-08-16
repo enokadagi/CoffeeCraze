@@ -140,7 +140,10 @@ export async function onRequest({ request, env }: { request: Request; env: Recor
       });
       const ids = [...new Set(customItems.map((i) => i.productId))];
       const docs = await batchGet(ids.map((id) => ({ collection: 'products', docId: id })));
-      products = docs.map((d, idx) => ({ id: ids[idx], ...d.data }));
+      products = ids
+        .map((id, idx) => ({ id, doc: docs[idx] }))
+        .filter((x) => x.doc.exists)
+        .map((x) => ({ id: x.id, ...x.doc.data }));
       planQuote = computeQuote({ items: customItems, products, settings: defaultSettings(), coupon: null });
       if (!planQuote.ok) return json({ ok: false, error: 'Custom plan cannot be created', blockers: planQuote.blockers }, 409);
       priceLbp = planQuote.totalLbp;

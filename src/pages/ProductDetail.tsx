@@ -197,7 +197,7 @@ export default function ProductDetail() {
                   <ImageWithFallback
                   src={currentImage}
                   alt={product.name}
-                  className="w-full h-full object-cover grayscale transition-all duration-[2s] group-hover:grayscale-0 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-all duration-[2s] group-hover:scale-105"
                   referrerPolicy="no-referrer"
                 />
               </AnimatePresence>

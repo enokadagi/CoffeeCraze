@@ -279,15 +279,15 @@ function writeOpToRequest(op: WriteOp): Record<string, unknown> {
   const request: Record<string, unknown> = {
     update: {
       name,
-      fields: encodeValue(op.data).mapValue as unknown as Record<string, unknown>,
-      updateMask: { fieldPaths: updateMaskFor(op.data) },
+      fields: (encodeValue(op.data) as { mapValue: { fields: unknown } }).mapValue.fields,
     },
+    updateMask: { fieldPaths: updateMaskFor(op.data) },
   };
   if (op.precondition) {
     const pc: Record<string, unknown> = {};
     if (op.precondition.exists !== undefined) pc.exists = op.precondition.exists;
     if (op.precondition.updateTime) pc.updateTime = op.precondition.updateTime;
-    (request.update as Record<string, unknown>).currentDocument = pc;
+    request.currentDocument = pc;
   }
   return request;
 }
@@ -296,7 +296,7 @@ function writeOpToRequest(op: WriteOp): Record<string, unknown> {
 export async function createDoc(collection: string, data: Record<string, unknown>): Promise<string> {
   const res = (await api(`/${collection}`, {
     method: 'POST',
-    body: JSON.stringify({ fields: encodeValue(data).mapValue }),
+    body: JSON.stringify(encodeValue(data).mapValue),
   })) as { name?: string };
   if (!res.name) throw new Error('createDoc: no document name returned');
   return res.name.split('/').pop() as string;
@@ -323,7 +323,7 @@ export async function commitWrites(
       const request = writeOpToRequest(op);
       if (!op.precondition) {
         const version = versions.get(`${op.collection}/${op.docId}`);
-        if (version) (request.update as Record<string, unknown>).currentDocument = { updateTime: version };
+        if (version) (request as Record<string, unknown>).currentDocument = { updateTime: version };
       }
       return request;
     }),
@@ -334,7 +334,7 @@ export async function commitWrites(
     if (err instanceof FirestoreApiError) {
       const status = err.status;
       const code = typeof err.message === 'string' ? err.message : '';
-      if (status === 409 || status === 412 || status === 400 || code.includes('ABORTED') || code.includes('FAILED_PRECONDITION')) {
+      if (status === 409 || status === 412 || code.includes('ABORTED') || code.includes('FAILED_PRECONDITION')) {
         throw new AbortedError(`Atomic commit aborted (${status}): ${err.message}`);
       }
     }
@@ -351,8 +351,9 @@ export async function updateDoc(
   precondition?: { exists?: boolean; updateTime?: string }
 ): Promise<void> {
   const path = docPath(collection, docId);
-  const body: Record<string, unknown> = { fields: encodeValue(data).mapValue as unknown as Record<string, unknown> };
-  const qs = new URLSearchParams({ updateMask: { fieldPaths: updateMaskFor(data) }.fieldPaths.join(',') });
+  const body: Record<string, unknown> = encodeValue(data).mapValue as unknown as Record<string, unknown>;
+  const qs = new URLSearchParams();
+  for (const f of updateMaskFor(data)) qs.append('updateMask.fieldPaths', f);
   if (precondition?.exists === true) qs.set('currentDocument.exists', 'true');
   if (precondition?.exists === false) qs.set('currentDocument.exists', 'false');
   if (precondition?.updateTime) qs.set('currentDocument.updateTime', precondition.updateTime);

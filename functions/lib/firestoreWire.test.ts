@@ -73,6 +73,7 @@ describe('commitWrites — Wire (Write) message shape', () => {
     expect(w1.update).not.toHaveProperty('currentDocument');
     expect(w1.updateMask).toEqual({ fieldPaths: ['stock', 'updatedAt'] });
     expect(w1.update.name).toContain('/documents/products/p1');
+    expect(w1.update.name).toMatch(/^projects\/coffeecraze-f27d3\/databases\/\(default\)\/documents\/products\/p1$/);
     // op-level exists precondition wins over the readVersion of the same doc
     expect(w1.currentDocument).toEqual({ exists: true });
     // no precondition and no readVersion -> no currentDocument
@@ -83,6 +84,8 @@ describe('commitWrites — Wire (Write) message shape', () => {
     // fields is the direct map, never {fields:{fields:...}}
     expect(w1.update.fields).toEqual({ stock: { integerValue: '4' }, updatedAt: { stringValue: 'now' } });
     expect(w1.update.fields.fields).toBeUndefined();
+    // name is RELATIVE (a full https URL is rejected by the commit endpoint)
+    expect(w1.update.name).not.toMatch(/^https?:/);
   });
 
   it('does not attach currentDocument when neither precondition nor readVersion exist', async () => {

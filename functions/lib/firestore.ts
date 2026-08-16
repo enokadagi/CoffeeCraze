@@ -275,7 +275,11 @@ function updateMaskFor(data: Record<string, unknown>): string[] {
 
 function writeOpToRequest(op: WriteOp): Record<string, unknown> {
   if (!op.docId) throw new Error('writeOpToRequest: docId is required (auto-ids are not supported in atomic commits)');
-  const name = `${baseUrl()}/${op.collection}/${op.docId}`;
+  // Firestore requires a RELATIVE document name in commit Write messages
+  // (projects/{project}/databases/(default)/documents/...) — a full URL is
+  // rejected with "Document name ... lacks \"projects\" at index 0".
+  const sa = getServiceAccount();
+  const name = `projects/${sa.project_id}/databases/(default)/documents/${op.collection}/${op.docId}`;
   const request: Record<string, unknown> = {
     update: {
       name,
